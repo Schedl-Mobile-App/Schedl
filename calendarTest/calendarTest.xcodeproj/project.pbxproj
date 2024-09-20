@@ -7,27 +7,29 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0464635C2C88CC67002A0B98 /* buttonview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0464635B2C88CC67002A0B98 /* buttonview.swift */; };
+		0464635C2C88CC67002A0B98 /* MainTabBarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0464635B2C88CC67002A0B98 /* MainTabBarViewController.swift */; };
 		046B834B2C867DE600F97BB4 /* calendarTestApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B834A2C867DE600F97BB4 /* calendarTestApp.swift */; };
 		046B834D2C867DE600F97BB4 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B834C2C867DE600F97BB4 /* ContentView.swift */; };
 		046B834F2C867DE700F97BB4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 046B834E2C867DE700F97BB4 /* Assets.xcassets */; };
 		046B83532C867DE700F97BB4 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 046B83522C867DE700F97BB4 /* Preview Assets.xcassets */; };
-		046B835A2C867DFB00F97BB4 /* dayview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B83592C867DFB00F97BB4 /* dayview.swift */; };
-		046B835C2C867E0500F97BB4 /* monthview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B835B2C867E0500F97BB4 /* monthview.swift */; };
-		046B835E2C867E1100F97BB4 /* weekview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B835D2C867E1100F97BB4 /* weekview.swift */; };
+		046B835A2C867DFB00F97BB4 /* MyFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B83592C867DFB00F97BB4 /* MyFeedView.swift */; };
+		046B835C2C867E0500F97BB4 /* MyPlannersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B835B2C867E0500F97BB4 /* MyPlannersView.swift */; };
+		046B835E2C867E1100F97BB4 /* MySchedulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B835D2C867E1100F97BB4 /* MySchedulesView.swift */; };
+		CBC3DD1D2C9CB949000D9C9B /* MyAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBC3DD1C2C9CB942000D9C9B /* MyAccountView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		0464635B2C88CC67002A0B98 /* buttonview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = buttonview.swift; sourceTree = "<group>"; };
+		0464635B2C88CC67002A0B98 /* MainTabBarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabBarViewController.swift; sourceTree = "<group>"; };
 		046B83472C867DE600F97BB4 /* calendarTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = calendarTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		046B834A2C867DE600F97BB4 /* calendarTestApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = calendarTestApp.swift; sourceTree = "<group>"; };
 		046B834C2C867DE600F97BB4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		046B834E2C867DE700F97BB4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		046B83502C867DE700F97BB4 /* calendarTest.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = calendarTest.entitlements; sourceTree = "<group>"; };
 		046B83522C867DE700F97BB4 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		046B83592C867DFB00F97BB4 /* dayview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = dayview.swift; sourceTree = "<group>"; };
-		046B835B2C867E0500F97BB4 /* monthview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = monthview.swift; sourceTree = "<group>"; };
-		046B835D2C867E1100F97BB4 /* weekview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = weekview.swift; sourceTree = "<group>"; };
+		046B83592C867DFB00F97BB4 /* MyFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyFeedView.swift; sourceTree = "<group>"; };
+		046B835B2C867E0500F97BB4 /* MyPlannersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPlannersView.swift; sourceTree = "<group>"; };
+		046B835D2C867E1100F97BB4 /* MySchedulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MySchedulesView.swift; sourceTree = "<group>"; };
+		CBC3DD1C2C9CB942000D9C9B /* MyAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyAccountView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,9 +46,10 @@
 		0464635A2C88CC05002A0B98 /* calanderviews */ = {
 			isa = PBXGroup;
 			children = (
-				046B83592C867DFB00F97BB4 /* dayview.swift */,
-				046B835D2C867E1100F97BB4 /* weekview.swift */,
-				046B835B2C867E0500F97BB4 /* monthview.swift */,
+				046B83592C867DFB00F97BB4 /* MyFeedView.swift */,
+				046B835D2C867E1100F97BB4 /* MySchedulesView.swift */,
+				046B835B2C867E0500F97BB4 /* MyPlannersView.swift */,
+				CBC3DD1C2C9CB942000D9C9B /* MyAccountView.swift */,
 			);
 			path = calanderviews;
 			sourceTree = "<group>";
@@ -72,7 +75,7 @@
 			children = (
 				046B834A2C867DE600F97BB4 /* calendarTestApp.swift */,
 				046B834C2C867DE600F97BB4 /* ContentView.swift */,
-				0464635B2C88CC67002A0B98 /* buttonview.swift */,
+				0464635B2C88CC67002A0B98 /* MainTabBarViewController.swift */,
 				0464635A2C88CC05002A0B98 /* calanderviews */,
 				046B834E2C867DE700F97BB4 /* Assets.xcassets */,
 				046B83502C867DE700F97BB4 /* calendarTest.entitlements */,
@@ -159,12 +162,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				046B835E2C867E1100F97BB4 /* weekview.swift in Sources */,
+				046B835E2C867E1100F97BB4 /* MySchedulesView.swift in Sources */,
 				046B834D2C867DE600F97BB4 /* ContentView.swift in Sources */,
 				046B834B2C867DE600F97BB4 /* calendarTestApp.swift in Sources */,
-				046B835A2C867DFB00F97BB4 /* dayview.swift in Sources */,
-				0464635C2C88CC67002A0B98 /* buttonview.swift in Sources */,
-				046B835C2C867E0500F97BB4 /* monthview.swift in Sources */,
+				CBC3DD1D2C9CB949000D9C9B /* MyAccountView.swift in Sources */,
+				046B835A2C867DFB00F97BB4 /* MyFeedView.swift in Sources */,
+				0464635C2C88CC67002A0B98 /* MainTabBarViewController.swift in Sources */,
+				046B835C2C867E0500F97BB4 /* MyPlannersView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
