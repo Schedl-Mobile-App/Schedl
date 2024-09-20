@@ -1,9 +1,9 @@
 import SwiftUI
 
-struct buttonview: View {
+struct MainTabBarViewController: View {
     var body: some View {
         TabView {
-            monthview()
+            MyFeedView()
                 .tabItem {
                     Label("Month View", systemImage: "calendar.badge.plus")
                         .font(.headline)
@@ -12,7 +12,7 @@ struct buttonview: View {
                         .cornerRadius(10)
                 }
             
-            weekview()
+            MySchedulesView()
                 .tabItem {
                     Label("Week View", systemImage: "calendar")
                         .font(.headline)
@@ -21,7 +21,15 @@ struct buttonview: View {
                         .cornerRadius(10)
                 }
             
-            dayview()
+            MyPlannersView()
+                .tabItem {
+                    Label("Day View", systemImage: "calendar.badge.clock")
+                        .font(.headline)
+                        .padding()
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(10)
+                }
+            MyAccountView()
                 .tabItem {
                     Label("Day View", systemImage: "calendar.badge.clock")
                         .font(.headline)
@@ -34,5 +42,5 @@ struct buttonview: View {
 }
 
 #Preview {
-    buttonview()
+    MainTabBarViewController()
 }
