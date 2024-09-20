@@ -29,6 +29,7 @@
 		046B83592C867DFB00F97BB4 /* MyFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyFeedView.swift; sourceTree = "<group>"; };
 		046B835B2C867E0500F97BB4 /* MyPlannersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPlannersView.swift; sourceTree = "<group>"; };
 		046B835D2C867E1100F97BB4 /* MySchedulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MySchedulesView.swift; sourceTree = "<group>"; };
+		CB8D57502C9D465F0051A415 /* calendarTest.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = calendarTest.xctestplan; sourceTree = SOURCE_ROOT; };
 		CBC3DD1C2C9CB942000D9C9B /* MyAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyAccountView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -75,6 +76,7 @@
 			children = (
 				046B834A2C867DE600F97BB4 /* calendarTestApp.swift */,
 				046B834C2C867DE600F97BB4 /* ContentView.swift */,
+				CB8D57502C9D465F0051A415 /* calendarTest.xctestplan */,
 				0464635B2C88CC67002A0B98 /* MainTabBarViewController.swift */,
 				0464635A2C88CC05002A0B98 /* calanderviews */,
 				046B834E2C867DE700F97BB4 /* Assets.xcassets */,
