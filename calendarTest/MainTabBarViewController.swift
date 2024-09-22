@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainTabBarViewController: View {
+    @EnvironmentObject var dateHolder: DateHolder
     var body: some View {
         TabView {
             MyFeedView()
@@ -13,6 +14,7 @@ struct MainTabBarViewController: View {
                 }
             
             MySchedulesView()
+                .environmentObject(dateHolder)
                 .tabItem {
                     Label("Week View", systemImage: "calendar")
                         .font(.headline)
@@ -43,4 +45,5 @@ struct MainTabBarViewController: View {
 
 #Preview {
     MainTabBarViewController()
+        .environmentObject(DateHolder())
 }
