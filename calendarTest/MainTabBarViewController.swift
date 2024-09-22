@@ -6,7 +6,7 @@ struct MainTabBarViewController: View {
         TabView {
             MyFeedView()
                 .tabItem {
-                    Label("Month View", systemImage: "calendar.badge.plus")
+                    Label("My Feed", systemImage: "house")
                         .font(.headline)
                         .padding()
                         .background(Color.gray.opacity(0.2))
@@ -16,7 +16,7 @@ struct MainTabBarViewController: View {
             MySchedulesView()
                 .environmentObject(dateHolder)
                 .tabItem {
-                    Label("Week View", systemImage: "calendar")
+                    Label("Schedule", systemImage: "calendar")
                         .font(.headline)
                         .padding()
                         .background(Color.gray.opacity(0.2))
@@ -25,7 +25,7 @@ struct MainTabBarViewController: View {
             
             MyPlannersView()
                 .tabItem {
-                    Label("Day View", systemImage: "calendar.badge.clock")
+                    Label("My Plans", systemImage: "square.and.pencil")
                         .font(.headline)
                         .padding()
                         .background(Color.gray.opacity(0.2))
@@ -33,7 +33,7 @@ struct MainTabBarViewController: View {
                 }
             MyAccountView()
                 .tabItem {
-                    Label("Day View", systemImage: "calendar.badge.clock")
+                    Label("My Account", systemImage: "person")
                         .font(.headline)
                         .padding()
                         .background(Color.gray.opacity(0.2))
