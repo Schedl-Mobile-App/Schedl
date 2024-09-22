@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject var dateHolder: DateHolder
     var body: some View {
         VStack {
             Spacer()
@@ -9,6 +10,7 @@ struct ContentView: View {
                 .fontWeight(.medium)
             
             MainTabBarViewController()
+                .environmentObject(dateHolder)
             
         }
     }
@@ -16,4 +18,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(DateHolder())
 }

@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -32,6 +32,23 @@
 		CB8D57502C9D465F0051A415 /* calendarTest.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = calendarTest.xctestplan; sourceTree = SOURCE_ROOT; };
 		CBC3DD1C2C9CB942000D9C9B /* MyAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyAccountView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		046463612C9F3F1E002A0B98 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				DayView.swift,
+				month/DateHolder.swift,
+				MonthView.swift,
+				WeekView.swift,
+			);
+			target = 046B83462C867DE600F97BB4 /* calendarTest */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		0464635D2C9F3EF9002A0B98 /* scheduleviews */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (046463612C9F3F1E002A0B98 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = scheduleviews; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		046B83442C867DE600F97BB4 /* Frameworks */ = {
@@ -78,6 +95,7 @@
 				046B834C2C867DE600F97BB4 /* ContentView.swift */,
 				CB8D57502C9D465F0051A415 /* calendarTest.xctestplan */,
 				0464635B2C88CC67002A0B98 /* MainTabBarViewController.swift */,
+				0464635D2C9F3EF9002A0B98 /* scheduleviews */,
 				0464635A2C88CC05002A0B98 /* calanderviews */,
 				046B834E2C867DE700F97BB4 /* Assets.xcassets */,
 				046B83502C867DE700F97BB4 /* calendarTest.entitlements */,
