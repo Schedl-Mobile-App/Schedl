@@ -4,7 +4,7 @@ struct MainTabBarViewController: View {
     @EnvironmentObject var dateHolder: DateHolder
     var body: some View {
         TabView {
-            MyFeedView()
+            FeedViewController()
                 .tabItem {
                     Label("My Feed", systemImage: "house")
                         .font(.headline)
@@ -13,7 +13,7 @@ struct MainTabBarViewController: View {
                         .cornerRadius(10)
                 }
             
-            MySchedulesView()
+            ScheduleViewController()
                 .environmentObject(dateHolder)
                 .tabItem {
                     Label("Schedule", systemImage: "calendar")
@@ -23,7 +23,7 @@ struct MainTabBarViewController: View {
                         .cornerRadius(10)
                 }
             
-            MyPlannersView()
+            PlannerViewController()
                 .tabItem {
                     Label("My Plans", systemImage: "square.and.pencil")
                         .font(.headline)
@@ -31,7 +31,7 @@ struct MainTabBarViewController: View {
                         .background(Color.gray.opacity(0.2))
                         .cornerRadius(10)
                 }
-            MyAccountView()
+            AccountViewController()
                 .tabItem {
                     Label("My Account", systemImage: "person")
                         .font(.headline)

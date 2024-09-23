@@ -1,5 +1,5 @@
 //
-//  dayview.swift
+//  monthview.swift
 //  calendarTest
 //
 //  Created by Salvador Pruneda on 9/2/24.
@@ -7,12 +7,12 @@
 
 import SwiftUI
 
-struct MyFeedView: View {
+struct PlannerViewController: View {
     var body: some View {
-        Text("My Feed View")
+        Text("My Planners View")
     }
 }
 
 #Preview {
-    MyFeedView()
+    PlannerViewController()
 }
