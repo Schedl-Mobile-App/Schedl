@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct MySchedulesView: View {
+struct ScheduleViewController: View {
     @EnvironmentObject var dateHolder: DateHolder
     @State private var selectedView = "Month" 
 
@@ -43,6 +43,6 @@ struct MySchedulesView: View {
 }
 
 #Preview {
-    MySchedulesView()
+    ScheduleViewController()
         .environmentObject(DateHolder())
 }
