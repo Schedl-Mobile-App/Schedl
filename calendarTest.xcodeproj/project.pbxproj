@@ -24,6 +24,7 @@
 		CB6B6C722CA0C9A90001BFE1 /* FirebaseAppDistribution-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = CB6B6C712CA0C9A90001BFE1 /* FirebaseAppDistribution-Beta */; };
 		CBC9A7492CA1CACC0000A18C /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = CBC9A7482CA1CACC0000A18C /* FirebaseDatabase */; };
 		CBC9A7612CA21D3D0000A18C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */; };
+		CBC9A7652CA22CB50000A18C /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7642CA22CB50000A18C /* .gitignore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,12 +36,14 @@
 		046B83522C867DE700F97BB4 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CB8D57502C9D465F0051A415 /* calendarTest.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = calendarTest.xctestplan; sourceTree = SOURCE_ROOT; };
 		CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		CBC9A7642CA22CB50000A18C /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CB53080C2CA0812E00A8AA04 /* Controllers */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Controllers; sourceTree = "<group>"; };
 		CB53080D2CA0824600A8AA04 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 		CB5308112CA0829300A8AA04 /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
+		CBB233CC2CA4B96D00BDBFC0 /* Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Models; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +72,7 @@
 		046B833E2C867DE600F97BB4 = {
 			isa = PBXGroup;
 			children = (
+				CBC9A7642CA22CB50000A18C /* .gitignore */,
 				046B83492C867DE600F97BB4 /* calendarTest */,
 				CBC9A7472CA1CACC0000A18C /* Frameworks */,
 				046B83482C867DE600F97BB4 /* Products */,
@@ -87,11 +91,12 @@
 		046B83492C867DE600F97BB4 /* calendarTest */ = {
 			isa = PBXGroup;
 			children = (
+				CBB233CC2CA4B96D00BDBFC0 /* Models */,
 				CB5308112CA0829300A8AA04 /* Views */,
 				CB53080D2CA0824600A8AA04 /* Services */,
 				CB53080C2CA0812E00A8AA04 /* Controllers */,
-				046B834A2C867DE600F97BB4 /* calendarTestApp.swift */,
 				046B834C2C867DE600F97BB4 /* ContentView.swift */,
+				046B834A2C867DE600F97BB4 /* calendarTestApp.swift */,
 				CB8D57502C9D465F0051A415 /* calendarTest.xctestplan */,
 				046B834E2C867DE700F97BB4 /* Assets.xcassets */,
 				046B83502C867DE700F97BB4 /* calendarTest.entitlements */,
@@ -134,6 +139,7 @@
 				CB53080C2CA0812E00A8AA04 /* Controllers */,
 				CB53080D2CA0824600A8AA04 /* Services */,
 				CB5308112CA0829300A8AA04 /* Views */,
+				CBB233CC2CA4B96D00BDBFC0 /* Models */,
 			);
 			name = calendarTest;
 			productName = calendarTest;
@@ -183,6 +189,7 @@
 			files = (
 				046B83532C867DE700F97BB4 /* Preview Assets.xcassets in Resources */,
 				046B834F2C867DE700F97BB4 /* Assets.xcassets in Resources */,
+				CBC9A7652CA22CB50000A18C /* .gitignore in Resources */,
 				CBC9A7612CA21D3D0000A18C /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

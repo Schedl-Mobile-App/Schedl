@@ -29,4 +29,23 @@ class FirebaseManager {
                 completion(nil)
             }
         }
+    
+    func fetchUser(completion: @escaping (User?, Error?) -> Void) {
+        ref.child("users").observeSingleEvent(of: .value) { (snapshot) in
+
+            guard let userData = snapshot.value as? [String: Any] else {
+                completion(nil, NSError(domain: "UserErrorDomain", code: 404, userInfo: [NSLocalizedDescriptionKey: "Invalid Data"]))
+                return
+            }
+
+            let user = User(
+                userId: userData["userid"] as? String ?? "",
+                username: userData["username"] as? String ?? "",
+                password: userData["password"] as? String ?? ""
+            )
+            
+            completion(user, nil)
+        }
+    }
+    
 }
