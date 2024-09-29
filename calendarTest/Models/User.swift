@@ -8,5 +8,4 @@
 struct User {
     let userId: String
     let username: String
-    let password: String
 }
