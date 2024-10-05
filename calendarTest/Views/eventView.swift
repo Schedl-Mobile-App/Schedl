@@ -17,9 +17,11 @@ struct EventView: View {
         Comment(user: "User 3", commentText: "Looking forward to it!")
     ]
     @State private var permission: Bool = true // change to swap edit permissions
-    
     @State private var showInvitedUsers: Bool = false
     @State private var showComments: Bool = false
+    
+    // New: Event creator's name
+    @State private var eventCreator: String = "Garfield Lasang"
     
     // Add comments
     @State private var newCommentText: String = ""
@@ -51,6 +53,12 @@ struct EventView: View {
                                 }
                             }
                         }
+                        
+                        // Event creator
+                        Text("Host: " + eventCreator)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
                         Text(eventSubtitle)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
