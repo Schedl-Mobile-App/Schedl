@@ -20,8 +20,9 @@ struct EventView: View {
     @State private var showInvitedUsers: Bool = false
     @State private var showComments: Bool = false
     
-    // New: Event creator's name
+
     @State private var eventCreator: String = "Garfield Lasang"
+    @State private var eventLocation: String = "123 Party Ave, Fun City"
     
     // Add comments
     @State private var newCommentText: String = ""
@@ -54,25 +55,20 @@ struct EventView: View {
                             }
                         }
                         
+                        Text("Date: " + eventSubtitle)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        // Event location
+                        Text("Location: " + eventLocation)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
                         // Event creator
                         Text("Host: " + eventCreator)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
-                        Text(eventSubtitle)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
                     }
                     
-                    // Description
-                    VStack(alignment: .leading) {
-                        Text("Description")
-                            .font(.headline)
-                            .padding(.bottom, 5)
-                        Text(eventDescription)
-                            .font(.body)
-                            .foregroundColor(.primary)
-                    }
                     
                     // Gallery
                     VStack(alignment: .leading) {
@@ -91,6 +87,18 @@ struct EventView: View {
                         }
                         .tabViewStyle(PageTabViewStyle())
                         .frame(height: 300)
+                        
+                        Spacer().frame(height: 10)
+                        
+                        // Description
+                        VStack(alignment: .leading) {
+                            Text("Description")
+                                .font(.headline)
+                                .padding(.bottom, 5)
+                            Text(eventDescription)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                        }
                         
                         if (permission){
                             Button(action: {
