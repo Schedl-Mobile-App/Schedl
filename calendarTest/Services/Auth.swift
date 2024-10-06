@@ -9,15 +9,14 @@ import FirebaseAuth
 import Foundation
 
 class AuthService: ObservableObject {
-    @Published var email: String
-    @Published var password: String
+    @Published var username: String = ""
+    @Published var email: String = ""
+    @Published var password: String = ""
     @Published var currentUser: User?
     @Published var errorMsg: String?
     @Published var isLoggedIn: Bool = false
     
-    init(email: String = "", password: String = "") {
-            self.email = email
-            self.password = password
+    init() {
     }
 
     func login(email: String, password: String) {
@@ -30,8 +29,48 @@ class AuthService: ObservableObject {
             // Successful login
             if let userId = authResult?.user.uid {
                 // Fetch additional user info from the database if needed
-                self.currentUser = User(userId: userId, username: "Fetched Username")
-                self.isLoggedIn = true
+                FirebaseManager.shared.fetchUser(userId: userId)
+                { user, error in
+                    DispatchQueue.main.async {
+                        if let user = user {
+                            self.currentUser = user
+                            self.isLoggedIn = true
+                        } else if let error = error {
+                            self.errorMsg = error.localizedDescription
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    func signUp(username: String, email: String, password: String) {
+        Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
+            if let error = error {
+                self.errorMsg = error.localizedDescription
+                return
+            }
+            
+            let userObj: User
+            
+            if let userId = authResult?.user.uid {
+                userObj = User(
+                    userId: userId,
+                    username: username,
+                    email: email,
+                    schedules: []
+                )
+                
+                FirebaseManager.shared.saveUser(userData: userObj)
+                { result in
+                    DispatchQueue.main.async {
+                        if let result = result {
+                            self.errorMsg = result.localizedDescription
+                        }
+                    }
+                }
+                
+                self.login(email: email, password: password)
             }
         }
     }

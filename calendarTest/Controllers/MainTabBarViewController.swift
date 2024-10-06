@@ -2,6 +2,8 @@ import SwiftUI
 
 struct MainTabBarViewController: View {
     @EnvironmentObject var dateHolder: DateHolder
+    @ObservedObject var viewModel: AuthService
+    
     var body: some View {
         TabView {
             FeedViewController()
@@ -31,7 +33,7 @@ struct MainTabBarViewController: View {
                         .background(Color.gray.opacity(0.2))
                         .cornerRadius(10)
                 }
-            AccountViewController()
+            AccountViewController(viewModel: viewModel)
                 .tabItem {
                     Label("My Account", systemImage: "person")
                         .font(.headline)
@@ -40,10 +42,11 @@ struct MainTabBarViewController: View {
                         .cornerRadius(10)
                 }
         }
+        .navigationBarBackButtonHidden(true)
     }
 }
 
 #Preview {
-    MainTabBarViewController()
+    MainTabBarViewController(viewModel: AuthService())
         .environmentObject(DateHolder())
 }
