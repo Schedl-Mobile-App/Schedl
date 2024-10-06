@@ -1,21 +1,25 @@
 //
-//  LoginViewController.swift
+//  SignUpViewController.swift
 //  calendarTest
 //
-//  Created by David Medina on 9/26/24.
+//  Created by David Medina on 10/4/24.
 //
 
 import SwiftUI
 
-struct LoginViewController: View {
+struct SignUpViewController: View {
     @EnvironmentObject var dateHolder: DateHolder
     @ObservedObject var viewModel = AuthService()
 
     var body: some View {
         NavigationStack {
             VStack {
-                Text("Login")
+                Text("Create an Account")
                     .font(.largeTitle)
+                    .padding()
+                
+                TextField("Username", text: $viewModel.username)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding()
                 
                 TextField("Email", text: $viewModel.email)
@@ -32,8 +36,8 @@ struct LoginViewController: View {
                         .padding()
                 }
                 
-                Button(action: {viewModel.login(email: viewModel.email, password: viewModel.password)}) {
-                    Text("Login")
+                Button(action: {viewModel.signUp(username: viewModel.username, email: viewModel.email, password: viewModel.password)}) {
+                    Text("Register")
                         .foregroundColor(.white)
                         .padding()
                         .background(Color.blue)
@@ -52,6 +56,6 @@ struct LoginViewController: View {
 }
 
 #Preview {
-    LoginViewController()
+    SignUpViewController()
         .environmentObject(DateHolder())
 }

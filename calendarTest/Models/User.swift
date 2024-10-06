@@ -8,4 +8,6 @@
 struct User {
     let userId: String
     let username: String
+    let email: String
+    let schedules: [Schedule]
 }
