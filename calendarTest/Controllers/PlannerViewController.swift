@@ -1,6 +1,7 @@
 import SwiftUI
 
-struct Event: Identifiable {
+// Rename 'Event' to 'PlannerEvent' to avoid conflict
+struct PlannerEvent: Identifiable {
     let id = UUID()
     let name: String
     let host: String
@@ -8,12 +9,11 @@ struct Event: Identifiable {
     let location: String
 }
 
-
 struct PlannerViewController: View {
     let events = [
-        Event(name: "Team Meeting", host: "Henry Adams", date: "Oct 10, 2024 at 3:00 PM", location: "Online"),
-        Event(name: "Birthday Party", host: "Son Goku", date: "Oct 12, 2024 at 7:00 PM", location: "987 W. 28th St"),
-        Event(name: "Gym Session", host: "Arnold", date: "Oct 15, 2024 at 10:00 AM", location: "Trufit 10th St")
+        PlannerEvent(name: "Team Meeting", host: "Henry Adams", date: "Oct 10, 2024 at 3:00 PM", location: "Online"),
+        PlannerEvent(name: "Birthday Party", host: "Son Goku", date: "Oct 12, 2024 at 7:00 PM", location: "987 W. 28th St"),
+        PlannerEvent(name: "Gym Session", host: "Arnold", date: "Oct 15, 2024 at 10:00 AM", location: "Trufit 10th St")
     ]
     
     var body: some View {
@@ -35,7 +35,7 @@ struct PlannerViewController: View {
 }
 
 struct EventCardView: View {
-    let event: Event
+    let event: PlannerEvent
     
     var body: some View {
         VStack(alignment: .leading) {
