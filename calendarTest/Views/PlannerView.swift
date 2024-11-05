@@ -9,7 +9,7 @@ struct PlannerEvent: Identifiable {
     let location: String
 }
 
-struct PlannerViewController: View {
+struct PlannerView: View {
     let events = [
         PlannerEvent(name: "Team Meeting", host: "Henry Adams", date: "Oct 10, 2024 at 3:00 PM", location: "Online"),
         PlannerEvent(name: "Birthday Party", host: "Son Goku", date: "Oct 12, 2024 at 7:00 PM", location: "987 W. 28th St"),
@@ -73,5 +73,5 @@ struct EventCardView: View {
 
 // Preview
 #Preview {
-    PlannerViewController()
+    PlannerView()
 }

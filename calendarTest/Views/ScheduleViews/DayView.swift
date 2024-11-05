@@ -24,7 +24,6 @@ struct DayView: View {
                         
                         // Add an event
                         Button(action: {
-                            print("Add event for \(hour)")
                         }) {
                             Text("Add Event")
                                 .frame(maxWidth: .infinity, alignment: .leading)
