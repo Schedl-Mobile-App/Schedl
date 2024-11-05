@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct FeedViewController: View {
+struct FeedView: View {
     var body: some View {
         NavigationView {
             ScrollView {
@@ -19,5 +19,5 @@ struct FeedViewController: View {
 }
 
 #Preview {
-    FeedViewController()
+    FeedView()
 }

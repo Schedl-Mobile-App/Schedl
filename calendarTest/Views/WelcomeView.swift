@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct WelcomeViewController: View {
+struct WelcomeView: View {
     @EnvironmentObject var dateHolder: DateHolder
     @ObservedObject var viewModel = AuthService()
 
@@ -18,7 +18,7 @@ struct WelcomeViewController: View {
                     .font(.largeTitle)
                     .padding()
                 
-                NavigationLink(destination: SignUpViewController()){
+                NavigationLink(destination: SignUpView()){
                     
                     Text("Make an Account")
                         .foregroundColor(.white)
@@ -27,7 +27,7 @@ struct WelcomeViewController: View {
                         .cornerRadius(8)
                 }.padding()
                 
-                NavigationLink(destination: LoginViewController()){
+                NavigationLink(destination: LoginView()){
                     
                     Text("Already have an Account?")
                         .foregroundColor(.white)
@@ -42,6 +42,6 @@ struct WelcomeViewController: View {
 }
 
 #Preview {
-    WelcomeViewController()
+    WelcomeView()
         .environmentObject(DateHolder())
 }

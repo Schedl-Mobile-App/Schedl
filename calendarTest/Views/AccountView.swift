@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct AccountViewController: View {
+struct AccountView: View {
 
     @State private var errorMsg: String? = nil
     @State private var isLoading = true
@@ -17,7 +17,7 @@ struct AccountViewController: View {
         VStack {
             Text("Account Username: \(viewModel.currentUser?.username ?? "Username Not Found")")
             
-            NavigationLink(destination: WelcomeViewController()){
+            NavigationLink(destination: WelcomeView()){
                 Text("Log Out")
             }.padding()
         }
@@ -26,5 +26,5 @@ struct AccountViewController: View {
 }
 
 #Preview {
-    AccountViewController(viewModel: AuthService())
+    AccountView(viewModel: AuthService())
 }

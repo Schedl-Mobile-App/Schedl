@@ -1,12 +1,12 @@
 import SwiftUI
 
-struct MainTabBarViewController: View {
+struct MainTabBarView: View {
     @EnvironmentObject var dateHolder: DateHolder
     @ObservedObject var viewModel: AuthService
     
     var body: some View {
         TabView {
-            FeedViewController()
+            FeedView()
                 .tabItem {
                     Label("My Feed", systemImage: "house")
                         .font(.headline)
@@ -15,7 +15,7 @@ struct MainTabBarViewController: View {
                         .cornerRadius(10)
                 }
             
-            ScheduleViewController()
+            ScheduleView()
                 .environmentObject(dateHolder)
                 .tabItem {
                     Label("Schedule", systemImage: "calendar")
@@ -25,7 +25,7 @@ struct MainTabBarViewController: View {
                         .cornerRadius(10)
                 }
             
-            PlannerViewController()
+            PlannerView()
                 .tabItem {
                     Label("My Plans", systemImage: "square.and.pencil")
                         .font(.headline)
@@ -33,7 +33,7 @@ struct MainTabBarViewController: View {
                         .background(Color.gray.opacity(0.2))
                         .cornerRadius(10)
                 }
-            AccountViewController(viewModel: viewModel)
+            AccountView(viewModel: viewModel)
                 .tabItem {
                     Label("My Account", systemImage: "person")
                         .font(.headline)
@@ -47,6 +47,6 @@ struct MainTabBarViewController: View {
 }
 
 #Preview {
-    MainTabBarViewController(viewModel: AuthService())
+    MainTabBarView(viewModel: AuthService())
         .environmentObject(DateHolder())
 }
