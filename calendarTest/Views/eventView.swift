@@ -3,23 +3,24 @@ import SwiftUI
 struct Comment {
     let user: String
     let commentText: String
+    let postDate: String // Added post date for comments
 }
 
 struct EventView: View {
     @State private var eventTitle: String = "Halloween"
     @State private var eventSubtitle: String = "October 31st, 9:00 PM"
     @State private var eventDescription: String = "BOOOOOOM, this event is gonna go CRAZY"
+    @State private var eventPostDate: String = "Posted on: November 1, 2024"
     @State private var invitedUsers: [String] = ["User 1", "User 2", "User 3"]
     @State private var eventPhotos: [String] = ["pic1", "pic2", "pic3"] // Local image names
     @State private var comments: [Comment] = [
-        Comment(user: "User 1", commentText: "Great event!"),
-        Comment(user: "User 2", commentText: "Can't wait!"),
-        Comment(user: "User 3", commentText: "Looking forward to it!")
+        Comment(user: "User 1", commentText: "Great event!", postDate: " November 15, 2024"),
+        Comment(user: "User 2", commentText: "Can't wait!", postDate: "November 15, 2024"),
+        Comment(user: "User 3", commentText: "Looking forward to it!", postDate: "November 15, 2024")
     ]
     @State private var permission: Bool = true // change to swap edit permissions
     @State private var showInvitedUsers: Bool = false
     @State private var showComments: Bool = false
-    
 
     @State private var eventCreator: String = "Garfield Lasang"
     @State private var eventLocation: String = "123 Party Ave, Fun City"
@@ -31,10 +32,10 @@ struct EventView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 
-                // Main
+                // Main Section: Event Details
                 VStack(alignment: .leading, spacing: 20) {
                     
-                    // Title and Time
+                    // Title and Details
                     VStack(alignment: .leading, spacing: 5) {
                         HStack {
                             Text(eventTitle)
@@ -43,7 +44,6 @@ struct EventView: View {
                             Spacer()
                             if(permission){
                                 Button(action: {
-                                    // button actions
                                     print("Edit title/description")
                                 }) {
                                     Text("Edit")
@@ -58,17 +58,16 @@ struct EventView: View {
                         Text("Date: " + eventSubtitle)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        // Event location
                         Text("Location: " + eventLocation)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
-                        // Event creator
                         Text("Host: " + eventCreator)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
+                        Text(eventPostDate) // Event post date
+                            .font(.footnote)
+                            .foregroundColor(.gray)
                     }
-                    
                     
                     // Gallery
                     VStack(alignment: .leading) {
@@ -102,7 +101,6 @@ struct EventView: View {
                         
                         if (permission){
                             Button(action: {
-                                // button actions
                                 print("Add/delete photos")
                             }) {
                                 Text("Manage Photos")
@@ -154,7 +152,6 @@ struct EventView: View {
                         }
                         if (permission){
                             Button(action: {
-                                // button actions
                                 print("Invite/remove people")
                             }) {
                                 Text("Manage Users")
@@ -192,7 +189,7 @@ struct EventView: View {
                         ForEach(comments, id: \.user) { comment in
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
-                                    Image(systemName: "person.circle.fill") // avatar placeholder
+                                    Image(systemName: "person.circle.fill") // Avatar placeholder
                                         .resizable()
                                         .frame(width: 40, height: 40)
                                         .clipShape(Circle())
@@ -203,10 +200,12 @@ struct EventView: View {
                                         Text(comment.commentText)
                                             .font(.body)
                                             .foregroundColor(.primary)
+                                        Text(comment.postDate) // Comment post date
+                                            .font(.footnote)
+                                            .foregroundColor(.gray)
                                     }
                                     Spacer()
                                     Button(action: {
-                                        // Like button action
                                         print("like")
                                     }) {
                                         Image(systemName: "heart")
@@ -223,9 +222,8 @@ struct EventView: View {
                             TextField("Add a comment...", text: $newCommentText)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                             Button(action: {
-                                // Add comments
                                 if !newCommentText.isEmpty {
-                                    let newComment = Comment(user: "You", commentText: newCommentText)
+                                    let newComment = Comment(user: "You", commentText: newCommentText, postDate: "November 19, 2024")
                                     comments.append(newComment)
                                     newCommentText = ""
                                 }
@@ -238,9 +236,7 @@ struct EventView: View {
                         .padding(.top)
 
                         if(permission){
-                            // Manage Comments Button
                             Button(action: {
-                                // button action
                                 print("remove comments")
                             }) {
                                 Text("Manage Comments")
