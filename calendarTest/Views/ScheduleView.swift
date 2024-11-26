@@ -2,7 +2,8 @@ import SwiftUI
 
 struct ScheduleView: View {
     
-    @StateObject private var scheduleViewModel: ScheduleViewModel
+    @StateObject private var viewModel: ScheduleViewModel
+    @StateObject private var userModel: AuthService
     let daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     let rowCount = 12
     let timeSlots = (0..<12).map { hour in
@@ -10,9 +11,10 @@ struct ScheduleView: View {
     }
     @EnvironmentObject var dateHolder: DateHolder
     
-    init(scheduleViewModel: ScheduleViewModel =
-         ScheduleViewModel()) {
-        _scheduleViewModel = StateObject(wrappedValue: scheduleViewModel)
+    init(viewModel: ScheduleViewModel =
+         ScheduleViewModel(), userModel: AuthService = AuthService()) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+        _userModel = StateObject(wrappedValue: userModel)
     }
     //    @State private var selectedView = "Month"
     //    @ObservedObject var viewModel: AuthService
@@ -55,56 +57,42 @@ struct ScheduleView: View {
     //        return formatter
     //    }
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                HStack {
-                    Spacer()
-                    VStack(spacing: 0) {
-                        Spacer()
-                        
-                        // Header row within a LazyVGrid for alignment with event cells
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: daysOfWeek.count), spacing: 0) {
-                            ForEach(daysOfWeek, id: \.self) { day in
-                                Text(day)
-                                    .font(.headline)
-                                    .frame(width: geometry.size.width * 0.10, height: geometry.size.height * 0.0625)
-                                    .background(Color.gray.opacity(0.2))
-                                    .border(Color.black, width: 1)
-                            }
-                        }.frame(width: geometry.size.width * 0.90)
-                        
-                        // Event cells grid, sharing the same column configuration
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: daysOfWeek.count), spacing: 0) {
-                            ForEach(0..<(rowCount * daysOfWeek.count), id: \.self) { _ in
-                                Rectangle()
-                                    .fill(Color.white)
-                                    .frame(width: geometry.size.width * 0.10,
-                                           height: geometry.size.height * 0.85 / CGFloat(rowCount))
-                                    .border(Color.black, width: 0.5)
+            VStack {
+                if viewModel.isLoading {
+                    ProgressView("Loading schedule...")
+                } else if let schedule = viewModel.schedule {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Title: \(schedule.title)")
+                            .font(.headline)
+                    }
+                    .padding()
+                    if let events = viewModel.events {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Events:")
+                                .font(.headline)
+                            ForEach(events) { event in
+                                Text("\(event.title)")
                             }
                         }
                     }
-                    .frame(width: geometry.size.width*0.875, height: geometry.size.height)
-                }
-                
-                Button("Save") {
-                    scheduleViewModel.togglePopUp()
-                }
-                
-                if scheduleViewModel.showPopUp { // Display logic remains in the view
-                    PopUpView()
-                        .frame(width: 300, height: 200)
-                        .background(Color.white)
-                        .cornerRadius(12)
-                        .shadow(radius: 10)
+                } else if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .padding()
+                } else {
+                    Text("No schedule to display")
+                        .foregroundColor(.gray)
+                        .padding()
                 }
             }
+            .onAppear {
+                viewModel.fetchSchedule(id: "-OBzdLE_JS-pxdgALnIL")
+            }
         }
-        .ignoresSafeArea()  // Expands to fill the entire screen
-    }
+
 }
 
 #Preview {
-    ScheduleView(scheduleViewModel: ScheduleViewModel())
+            ScheduleView(viewModel: ScheduleViewModel(), userModel: AuthService())
         .environmentObject(DateHolder())
 }
