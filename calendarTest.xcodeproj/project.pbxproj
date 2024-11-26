@@ -45,6 +45,7 @@
 		CB5308112CA0829300A8AA04 /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
 		CB7058BD2CA660AE00C4EE00 /* ViewModels */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ViewModels; sourceTree = "<group>"; };
 		CBB233CC2CA4B96D00BDBFC0 /* Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Models; sourceTree = "<group>"; };
+		CBFD83D52CF51C240034BE9F /* Core */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Core; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -93,6 +94,7 @@
 		046B83492C867DE600F97BB4 /* calendarTest */ = {
 			isa = PBXGroup;
 			children = (
+				CBFD83D52CF51C240034BE9F /* Core */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,
 				CB5308112CA0829300A8AA04 /* Views */,
@@ -142,6 +144,7 @@
 				CB5308112CA0829300A8AA04 /* Views */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,
+				CBFD83D52CF51C240034BE9F /* Core */,
 			);
 			name = calendarTest;
 			productName = calendarTest;
