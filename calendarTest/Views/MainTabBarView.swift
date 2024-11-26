@@ -15,7 +15,7 @@ struct MainTabBarView: View {
                         .cornerRadius(10)
                 }
             
-            ScheduleView()
+            ScheduleView(userModel: viewModel)
                 .environmentObject(dateHolder)
                 .tabItem {
                     Label("Schedule", systemImage: "calendar")

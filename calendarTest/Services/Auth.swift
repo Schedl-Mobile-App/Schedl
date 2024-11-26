@@ -28,17 +28,21 @@ class AuthService: ObservableObject {
 
             // Successful login
             if let userId = authResult?.user.uid {
-                // Fetch additional user info from the database if needed
-                FirebaseManager.shared.fetchUser(userId: userId)
-                { user, error in
-                    DispatchQueue.main.async {
-                        if let user = user {
-                            self.currentUser = user
-                            self.isLoggedIn = true
-                        } else if let error = error {
-                            self.errorMsg = error.localizedDescription
+                Task {
+                    do {
+                        let fetchedUser = try await FirebaseManager.shared.fetchUserAsync(id: userId)
+                        DispatchQueue.main.async {
+                            self.currentUser = fetchedUser
+                        }
+                    } catch {
+                        DispatchQueue.main.async {
+                            self.errorMsg = "Failed to login: \(error.localizedDescription)"
                         }
                     }
+                    self.username = ""
+                    self.email = ""
+                    self.password = ""
+                    self.isLoggedIn = true
                 }
             }
         }
@@ -52,25 +56,32 @@ class AuthService: ObservableObject {
             }
             
             let userObj: User
+            let createdAt = Date().timeIntervalSince1970
             
             if let userId = authResult?.user.uid {
                 userObj = User(
-                    userId: userId,
+                    id: userId,
                     username: username,
                     email: email,
-                    schedules: []
+                    schedules: [],
+                    creationDate: createdAt
                 )
                 
-                FirebaseManager.shared.saveUser(userData: userObj)
-                { result in
-                    DispatchQueue.main.async {
-                        if let result = result {
-                            self.errorMsg = result.localizedDescription
+                Task {
+                    do {
+                        try await FirebaseManager.shared.saveNewUserAsync(userData: userObj)
+                        DispatchQueue.main.async {
+                            self.login(email: email, password: password)
+                        }
+                    } catch {
+                        DispatchQueue.main.async {
+                            self.errorMsg = "Failed to sign up: \(error.localizedDescription)"
+                            self.username = ""
+                            self.email = ""
+                            self.password = ""
                         }
                     }
                 }
-                
-                self.login(email: email, password: password)
             }
         }
     }

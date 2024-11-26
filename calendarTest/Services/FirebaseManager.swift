@@ -17,107 +17,170 @@ class FirebaseManager {
         ref = Database.database().reference()
     }
     
-    func fetchUser(userId: String, completion: @escaping (User?, Error?) -> Void) {
-        ref.child("users").child(userId).observeSingleEvent(of: .value) { (snapshot: DataSnapshot) in
-
-            guard let userData = snapshot.value as? [String: Any] else {
-                completion(nil, NSError(domain: "UserErrorDomain", code: 404, userInfo: [NSLocalizedDescriptionKey: "Invalid Data"]))
-                return
+    func fetchUserAsync(id: String) async throws -> User {
+        
+        // Store a reference to the child node of the users node in the Firebase DB
+        let userRef = ref.child("users").child(id)
+        
+        // getData is a Firebase function that returns a DataSnapshot object
+        let snapshot = try await userRef.getData()
+        
+        // The DataSnapshot object is returned as an object with key value pairs as Strings
+        guard let userData = snapshot.value as? [String: Any] else {
+            throw FirebaseError.failedToFetchUser
+        }
+        
+        // only create a user object if we receive all parameters from the DB
+        if
+            let id = userData["id"] as? String,
+            let username = userData["username"] as? String,
+            let email = userData["email"] as? String,
+            let schedules = userData["scheduleIds"] as? [String],
+            let createdAt = userData["creationDate"] as? Double {
+            
+            let user = User(id: id, username: username, email: email, schedules: schedules, creationDate: createdAt)
+            return user
+            
+        } else {
+            throw UserError.invalidData
+        }
+    }
+    
+    func saveNewUserAsync(userData: User) async throws -> Void {
+        
+        let id = userData.id
+        let userRef = ref.child("users").child(id)
+        
+        let encoder = JSONEncoder()
+        do {
+            // Encode the User object into JSON data
+            let jsonData = try encoder.encode(userData)
+            
+            // Convert JSON data to a dictionary
+            guard let jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
+                throw UserError.serializationFailed
             }
             
-            let scheduleIds = userData["schedules"] as? [String] ?? []
-            var schedules: [Schedule] = []
-            let dispatchGroup = DispatchGroup()
+            // Given that we have valid JSON dictionary, let's write to the DB
+            try await userRef.setValue(jsonDictionary)
+            return
+            
+        } catch {
+            throw FirebaseError.failedToCreateUser
+        }
+        
+    }
+    
+    func fetchScheduleAsync(id: String) async throws -> Schedule {
+        
+        // Store a reference to the child node of the schedules node in the Firebase DB
+        let scheduleRef = ref.child("schedules").child(id)
+            
+        // getData is a Firebase function that returns a DataSnapshot object
+        let snapshot = try await scheduleRef.getData()
+        
+        // The DataSnapshot object is returned as an object with key value pairs as Strings
+        guard let scheduleData = snapshot.value as? [String: Any] else {
+            throw FirebaseError.failedToFetchSchedule
+        }
+        
+        // only create a user object if we receive all parameters from the DB
+        if
+            let id = scheduleData["id"] as? String,
+            let userId = scheduleData["userId"] as? String,
+            let events = scheduleData["eventIds"] as? [String],
+            let title = scheduleData["title"] as? String,
+            let createdAt = scheduleData["creationDate"] as? Double {
+            
+            let schedule = Schedule(id: id, userId: userId, events: events, title: title, creationDate: createdAt)
+            return schedule
+            
+        } else {
+            throw ScheduleError.invalidScheduleData
+        }
+        
+    }
+    
+    func createNewScheduleAsync(scheduleData: Schedule) async throws -> Schedule {
+        
+        var copyScheduleData = scheduleData
+        let id = ref.child("schedules").childByAutoId().key ?? UUID().uuidString
+        let createdAt = Date().timeIntervalSince1970
+        copyScheduleData.id = id
+        copyScheduleData.creationDate = createdAt
+        
+        let scheduleRef = ref.child("schedules").child(id)
+        
+        let encoder = JSONEncoder()
+        do {
+            // Encode the Schedule object into JSON data
+            let jsonData = try encoder.encode(copyScheduleData)
+            
+            // Convert JSON data to a dictionary
+            guard let jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
+                throw ScheduleError.scheduleDataSerializationFailed
+            }
+            
+            // Given that we have valid JSON dictionary, let's write to the DB
+            try await scheduleRef.setValue(jsonDictionary)
+            return copyScheduleData
+            
+        } catch {
+            throw FirebaseError.failedToCreateSchedule
+        }
+        
+    }
+    
+    func fetchEventAsync(id: String) async throws -> Event {
+        
+        // Store a reference to the child node of the events node in the Firebase DB
+        let eventRef = ref.child("events").child(id)
+            
+        // getData is a Firebase function that returns a DataSnapshot object
+        let snapshot = try await eventRef.getData()
+        
+        // The DataSnapshot object is returned as an object with key value pairs as Strings
+        guard let eventData = snapshot.value as? [String: Any] else {
+            throw FirebaseError.failedToFetchEvent
+        }
+        
+        // only create a user object if we receive all parameters from the DB
+        if
+            let id = eventData["id"] as? String,
+            let scheduleId = eventData["scheduleId"] as? String,
+            let title = eventData["title"] as? String,
+            let description = eventData["description"] as? String,
+            let startTime = eventData["startDate"] as? Double,
+            let endTime = eventData["endDate"] as? Double,
+            let createdAt = eventData["creationDate"] as? Double {
+            
+            let event = Event(id: id, scheduleId: scheduleId, title: title, description: description, startTime: startTime, endTime: endTime, creationDate: createdAt)
+            return event
+            
+        } else {
+            throw EventError.invalidEventData
+        }
 
-            for scheduleId in scheduleIds {
-                dispatchGroup.enter()  // Enter the group for each event fetch
-                self.fetchSchedule(scheduleId: scheduleId) { schedule, error in
-                    if let schedule = schedule {
-                        schedules.append(schedule)  // Append fetched event to the array
-                    }
-                    dispatchGroup.leave()  // Leave the group when done
+    }
+    
+    func fetchEventsForScheduleAsync(eventIDs: [String]) async throws -> [Event] {
+        var events: [Event] = []
+        
+        // Use TaskGroup for concurrency
+        try await withThrowingTaskGroup(of: Event.self) { group in
+            for id in eventIDs {
+                group.addTask {
+                    try await self.fetchEventAsync(id: id)
                 }
             }
             
-            let user = User(
-                userId: userData["userid"] as? String ?? "",
-                username: userData["username"] as? String ?? "",
-                email: userData["email"] as? String ?? "",
-                schedules: schedules
-            )
-            
-            completion(user, nil)
-        } 
-    }
-    
-    func saveUser(userData: User, completion: @escaping (Error?) -> Void) {
-        
-        let userDict: [String: Any] = [
-            "email": userData.email,
-            "username": userData.username
-        ]
-        
-        print("User data to be saved: \(userDict)")
-        
-        ref.child("users").child(userData.userId).setValue(userDict) { error, _ in
-            if let error = error {
-                completion(error)
-            } else {
-                completion(nil)
+            // Collect all results
+            for try await event in group {
+                events.append(event)
             }
         }
-    }
-    
-    func fetchSchedule(scheduleId: String, completion: @escaping (Schedule?, Error?) -> Void) {
-        ref.child("schedules").child(scheduleId).observeSingleEvent(of: .value) { (snapshot: DataSnapshot) in
-
-            guard let scheduleData = snapshot.value as? [String: Any] else {
-                completion(nil, NSError(domain: "ScheduleErrorDomain", code: 404, userInfo: [NSLocalizedDescriptionKey: "Schedule Not Found"]))
-                return
-            }
-            
-            let eventIds = scheduleData["scheduleEvents"] as? [String] ?? []
-            var events: [Event] = []
-            let dispatchGroup = DispatchGroup()
-
-            for eventId in eventIds {
-                dispatchGroup.enter()  // Enter the group for each event fetch
-                self.fetchEvent(scheduleId: scheduleId, eventId: eventId) { event, error in
-                    if let event = event {
-                        events.append(event)  // Append fetched event to the array
-                    }
-                    dispatchGroup.leave()  // Leave the group when done
-                }
-            }
-
-            let schedule = Schedule(
-                scheduleId: scheduleId,
-                belongToUserId: scheduleData["belongToScheduleId"] as? String ?? "",
-                scheduleEvents: events,
-                title: scheduleData["title"] as? String ?? ""
-            )
-            
-            completion(schedule, nil)
-        }
-    }
-    
-    func fetchEvent(scheduleId: String, eventId:  String, completion: @escaping (Event?, Error?) -> Void) {
-        ref.child("events").child(eventId).observeSingleEvent(of: .value) { (snapshot: DataSnapshot) in
-
-            guard let eventData = snapshot.value as? [String: Any] else {
-                completion(nil, NSError(domain: "EventErrorDomain", code: 404, userInfo: [NSLocalizedDescriptionKey: "Event Not Found"]))
-                return
-            }
-
-            let event = Event(
-                eventId: eventId,
-                belongToScheduleId: scheduleId,
-                title: eventData["title"] as? String ?? "",
-                description: eventData["description"] as? String ?? ""
-            )
-            
-            completion(event, nil)
-        }
+        
+        return events
     }
     
 }
