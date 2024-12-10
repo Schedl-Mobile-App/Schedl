@@ -19,6 +19,7 @@ class AuthService: ObservableObject {
     init() {
     }
 
+    @MainActor
     func login(email: String, password: String) {
         Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
             if let error = error {
@@ -31,13 +32,9 @@ class AuthService: ObservableObject {
                 Task {
                     do {
                         let fetchedUser = try await FirebaseManager.shared.fetchUserAsync(id: userId)
-                        DispatchQueue.main.async {
-                            self.currentUser = fetchedUser
-                        }
+                        self.currentUser = fetchedUser
                     } catch {
-                        DispatchQueue.main.async {
-                            self.errorMsg = "Failed to login: \(error.localizedDescription)"
-                        }
+                        self.errorMsg = "Failed to login: \(error.localizedDescription)"
                     }
                     self.username = ""
                     self.email = ""
@@ -48,6 +45,7 @@ class AuthService: ObservableObject {
         }
     }
     
+    @MainActor
     func signUp(username: String, email: String, password: String) {
         Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
             if let error = error {
@@ -70,16 +68,12 @@ class AuthService: ObservableObject {
                 Task {
                     do {
                         try await FirebaseManager.shared.saveNewUserAsync(userData: userObj)
-                        DispatchQueue.main.async {
-                            self.login(email: email, password: password)
-                        }
+                        self.login(email: email, password: password)
                     } catch {
-                        DispatchQueue.main.async {
-                            self.errorMsg = "Failed to sign up: \(error.localizedDescription)"
-                            self.username = ""
-                            self.email = ""
-                            self.password = ""
-                        }
+                        self.errorMsg = "Failed to sign up: \(error.localizedDescription)"
+                        self.username = ""
+                        self.email = ""
+                        self.password = ""
                     }
                 }
             }

@@ -11,11 +11,11 @@ struct AccountView: View {
 
     @State private var errorMsg: String? = nil
     @State private var isLoading = true
-    @ObservedObject var viewModel: AuthService
+    @ObservedObject var userObj: AuthService
     
     var body: some View {
         VStack {
-            Text("Account Username: \(viewModel.currentUser?.username ?? "Username Not Found")")
+            Text("Account Username: \(userObj.currentUser?.username ?? "Username Not Found")")
             
             NavigationLink(destination: WelcomeView()){
                 Text("Log Out")
@@ -26,5 +26,5 @@ struct AccountView: View {
 }
 
 #Preview {
-    AccountView(viewModel: AuthService())
+    AccountView(userObj: AuthService())
 }

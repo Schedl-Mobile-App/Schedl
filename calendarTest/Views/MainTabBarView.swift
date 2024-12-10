@@ -1,52 +1,38 @@
 import SwiftUI
 
 struct MainTabBarView: View {
-    @EnvironmentObject var dateHolder: DateHolder
-    @ObservedObject var viewModel: AuthService
+    @StateObject var userObj: AuthService
+    
+    init(userObj: AuthService = AuthService()) {
+        let appearance = UITabBarAppearance()
+        appearance.backgroundColor = .black.withAlphaComponent(0.5)
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+        UITabBar.appearance().standardAppearance = appearance
+        _userObj = StateObject(wrappedValue: userObj)
+    }
     
     var body: some View {
         TabView {
             FeedView()
                 .tabItem {
                     Label("My Feed", systemImage: "house")
-                        .font(.headline)
-                        .padding()
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(10)
                 }
             
-            ScheduleView(userModel: viewModel)
-                .environmentObject(dateHolder)
+            ScheduleView()
                 .tabItem {
                     Label("Schedule", systemImage: "calendar")
-                        .font(.headline)
-                        .padding()
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(10)
                 }
-            
-            PlannerView()
-                .tabItem {
-                    Label("My Plans", systemImage: "square.and.pencil")
-                        .font(.headline)
-                        .padding()
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(10)
-                }
-            AccountView(viewModel: viewModel)
+        
+            AccountView(userObj: userObj)
                 .tabItem {
                     Label("My Account", systemImage: "person")
-                        .font(.headline)
-                        .padding()
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(10)
                 }
         }
+        .accentColor(Color.white)
         .navigationBarBackButtonHidden(true)
     }
 }
 
 #Preview {
-    MainTabBarView(viewModel: AuthService())
-        .environmentObject(DateHolder())
+    MainTabBarView(userObj: AuthService())
 }

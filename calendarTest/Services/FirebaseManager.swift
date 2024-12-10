@@ -85,10 +85,12 @@ class FirebaseManager {
         }
         
         // only create a user object if we receive all parameters from the DB
+        
+        let events = scheduleData["eventIds"] as? [String] ?? []
+        
         if
             let id = scheduleData["id"] as? String,
             let userId = scheduleData["userId"] as? String,
-            let events = scheduleData["eventIds"] as? [String],
             let title = scheduleData["title"] as? String,
             let createdAt = scheduleData["creationDate"] as? Double {
             
@@ -150,8 +152,8 @@ class FirebaseManager {
             let scheduleId = eventData["scheduleId"] as? String,
             let title = eventData["title"] as? String,
             let description = eventData["description"] as? String,
-            let startTime = eventData["startDate"] as? Double,
-            let endTime = eventData["endDate"] as? Double,
+            let startTime = eventData["startTime"] as? Double,
+            let endTime = eventData["endTime"] as? Double,
             let createdAt = eventData["creationDate"] as? Double {
             
             let event = Event(id: id, scheduleId: scheduleId, title: title, description: description, startTime: startTime, endTime: endTime, creationDate: createdAt)
@@ -166,21 +168,65 @@ class FirebaseManager {
     func fetchEventsForScheduleAsync(eventIDs: [String]) async throws -> [Event] {
         var events: [Event] = []
         
-        // Use TaskGroup for concurrency
-        try await withThrowingTaskGroup(of: Event.self) { group in
-            for id in eventIDs {
-                group.addTask {
-                    try await self.fetchEventAsync(id: id)
+        if eventIDs.isEmpty {
+            return events
+        } else {
+            // Use TaskGroup for concurrency
+            try await withThrowingTaskGroup(of: Event.self) { group in
+                for id in eventIDs {
+                    group.addTask {
+                        try await self.fetchEventAsync(id: id)
+                    }
+                }
+                
+                // Collect all results
+                for try await event in group {
+                    events.append(event)
                 }
             }
             
-            // Collect all results
-            for try await event in group {
-                events.append(event)
-            }
+            return events
         }
+    }
+    
+    func createNewEventAsync(eventData: Event) async throws -> Event {
+        var copyEventData = eventData
+        let id = ref.child("events").childByAutoId().key ?? UUID().uuidString
+
+        copyEventData.id = id
         
-        return events
+        
+        let scheduleRef = ref.child("schedules").child(copyEventData.scheduleId).child("eventIds")
+        
+        let encoder = JSONEncoder()
+        do {
+            // Encode the Schedule object into JSON data
+            let jsonData = try encoder.encode(copyEventData)
+            
+            // Convert JSON data to a dictionary
+            guard let jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
+                throw EventError.eventDataSerializationFailed
+            }
+            
+            let snapshot = try await scheduleRef.getData()
+            var eventIds = (snapshot.value as? [String]) ?? []
+            
+            // Append new event ID
+            eventIds.append(id)
+            
+            // Create updates dictionary
+            let updates: [String: Any] = [
+                "/events/\(id)": jsonDictionary,
+                "/schedules/\(copyEventData.scheduleId)/eventIds": eventIds
+            ]
+            
+            // Perform atomic update
+            try await ref.updateChildValues(updates)
+            return copyEventData
+            
+        } catch {
+            throw FirebaseError.failedToCreateEvent
+        }
     }
     
 }

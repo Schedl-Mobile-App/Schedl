@@ -8,8 +8,7 @@
 import SwiftUI
 
 struct LoginView: View {
-    @EnvironmentObject var dateHolder: DateHolder
-    @ObservedObject var viewModel = AuthService()
+    @ObservedObject var userObj = AuthService()
 
     var body: some View {
         NavigationStack {
@@ -18,21 +17,21 @@ struct LoginView: View {
                     .font(.largeTitle)
                     .padding()
                 
-                TextField("Email", text: $viewModel.email)
+                TextField("Email", text: $userObj.email)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding()
                 
-                SecureField("Password", text: $viewModel.password)
+                SecureField("Password", text: $userObj.password)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding()
                 
-                if let error = viewModel.errorMsg {
+                if let error = userObj.errorMsg {
                     Text(error)
                         .foregroundColor(.red)
                         .padding()
                 }
                 
-                Button(action: {viewModel.login(email: viewModel.email, password: viewModel.password)}) {
+                Button(action: {userObj.login(email: userObj.email, password: userObj.password)}) {
                     Text("Login")
                         .foregroundColor(.white)
                         .padding()
@@ -42,10 +41,8 @@ struct LoginView: View {
                 .padding()
             }
             .padding()
-            .navigationDestination(isPresented: $viewModel.isLoggedIn){
-                MainTabBarView(viewModel: viewModel)
-                    .environmentObject(dateHolder)
-                    
+            .navigationDestination(isPresented: $userObj.isLoggedIn){
+                MainTabBarView(userObj: userObj)                    
             }
         }
     }
@@ -53,5 +50,4 @@ struct LoginView: View {
 
 #Preview {
     LoginView()
-        .environmentObject(DateHolder())
 }
