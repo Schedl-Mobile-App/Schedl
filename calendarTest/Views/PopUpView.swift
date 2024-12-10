@@ -1,52 +1,75 @@
 //
-//  PopUpView.swift
+//  PopUpView 2.swift
 //  calendarTest
 //
-//  Created by David Medina on 10/7/24.
+//  Created by David Medina on 12/4/24.
 //
 
 import SwiftUI
 
 struct PopUpView: View {
-    
+    @Binding var isShowing: Bool  // Add this to control popup visibility
     @State private var title: String = ""
-    @State private var username: String = ""
+    @State private var description: String = ""
+    @State private var startDate = Date()
+    @State private var endDate = Date()
+    
+    // Add this to get the current schedule ID
+    var scheduleId: String
+    
+    @State var viewModel: ScheduleViewModel = ScheduleViewModel()
     
     var body: some View {
         NavigationView {
             Form {
-                // Name TextField
-                Section(header: Text("Name")) {
-                    TextField("Enter the title", text: $title)
+                // Title TextField
+                Section(header: Text("Event Details")) {
+                    TextField("Enter event title", text: $title)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .autocapitalization(.words)
+                    
+                    TextField("Enter description", text: $description)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .autocapitalization(.sentences)
                 }
 
-                // Email TextField
-                Section(header: Text("Email")) {
-                    TextField("Enter your username", text: $username)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
+                // Time Selection
+                Section(header: Text("Time")) {
+                    DatePicker("Start Time",
+                             selection: $startDate,
+                             displayedComponents: [.date, .hourAndMinute])
+                    
+                    DatePicker("End Time",
+                             selection: $endDate,
+                             in: startDate...,  // Ensures end time is after start time
+                             displayedComponents: [.date, .hourAndMinute])
                 }
 
                 // Submit Button
                 Section {
-                    Button(action: {
-                        print("successfull")
-                    }) {
-                        Text("Submit")
+                    Button(action: makeEvent) {
+                        Text("Create Event")
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding()
                             .background(Color.blue)
                             .foregroundColor(.white)
                             .cornerRadius(10)
                     }
+                    .disabled(title.isEmpty || endDate <= startDate)
+                    
+                    Button(action: { isShowing = false }) {
+                        Text("Cancel")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                    }
                 }
             }
-            .navigationTitle("Input Form")
+            .navigationTitle("New Event")
         }
-        .frame(width: 300, height: 200)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background()
         .cornerRadius(10)
         .shadow(radius: 20)
@@ -57,8 +80,18 @@ struct PopUpView: View {
         .transition(.scale)
         .zIndex(1)
     }
-}
-
-#Preview {
-    PopUpView()
+    
+    private func makeEvent() {
+        let newEvent = Event(
+            id: UUID().uuidString,  // Generate new ID
+            scheduleId: scheduleId,
+            title: title,
+            description: description,
+            startTime: startDate.timeIntervalSince1970,
+            endTime: endDate.timeIntervalSince1970,
+            creationDate: Date().timeIntervalSince1970
+        )
+        viewModel.createEvent(event: newEvent)
+        isShowing = false
+    }
 }

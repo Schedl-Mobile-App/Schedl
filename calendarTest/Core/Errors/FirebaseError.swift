@@ -11,4 +11,5 @@ enum FirebaseError: Error {
     case failedToFetchSchedule
     case failedToCreateSchedule
     case failedToFetchEvent
+    case failedToCreateEvent
 }

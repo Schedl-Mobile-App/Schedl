@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct WelcomeView: View {
-    @EnvironmentObject var dateHolder: DateHolder
     @ObservedObject var viewModel = AuthService()
 
     var body: some View {
@@ -43,5 +42,4 @@ struct WelcomeView: View {
 
 #Preview {
     WelcomeView()
-        .environmentObject(DateHolder())
 }

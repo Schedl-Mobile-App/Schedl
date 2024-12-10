@@ -8,8 +8,7 @@
 import SwiftUI
 
 struct SignUpView: View {
-    @EnvironmentObject var dateHolder: DateHolder
-    @ObservedObject var viewModel = AuthService()
+    @ObservedObject var userObj = AuthService()
 
     var body: some View {
         NavigationStack {
@@ -18,25 +17,25 @@ struct SignUpView: View {
                     .font(.largeTitle)
                     .padding()
                 
-                TextField("Username", text: $viewModel.username)
+                TextField("Username", text: $userObj.username)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding()
                 
-                TextField("Email", text: $viewModel.email)
+                TextField("Email", text: $userObj.email)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding()
                 
-                SecureField("Password", text: $viewModel.password)
+                SecureField("Password", text: $userObj.password)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding()
                 
-                if let error = viewModel.errorMsg {
+                if let error = userObj.errorMsg {
                     Text(error)
                         .foregroundColor(.red)
                         .padding()
                 }
                 
-                Button(action: {viewModel.signUp(username: viewModel.username, email: viewModel.email, password: viewModel.password)}) {
+                Button(action: {userObj.signUp(username: userObj.username, email: userObj.email, password: userObj.password)}) {
                     Text("Register")
                         .foregroundColor(.white)
                         .padding()
@@ -46,10 +45,8 @@ struct SignUpView: View {
                 .padding()
             }
             .padding()
-            .navigationDestination(isPresented: $viewModel.isLoggedIn){
-                MainTabBarView(viewModel: viewModel)
-                    .environmentObject(dateHolder)
-                    
+            .navigationDestination(isPresented: $userObj.isLoggedIn){
+                MainTabBarView(userObj: userObj)                    
             }
         }
     }
@@ -57,5 +54,4 @@ struct SignUpView: View {
 
 #Preview {
     SignUpView()
-        .environmentObject(DateHolder())
 }
