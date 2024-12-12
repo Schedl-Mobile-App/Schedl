@@ -12,37 +12,47 @@ struct LoginView: View {
 
     var body: some View {
         NavigationStack {
-            VStack {
-                Text("Login")
+            VStack(spacing: 20) {
+                Text("Schedulr")
                     .font(.largeTitle)
-                    .padding()
-                
-                TextField("Email", text: $userObj.email)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
-                
-                SecureField("Password", text: $userObj.password)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
-                
+                    .fontWeight(.bold)
+                    .padding(.top)
+
+                Text("Sign in to continue")
+                    .font(.headline)
+
+                Group {
+                    TextField("Email", text: $userObj.email)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    
+                    SecureField("Password", text: $userObj.password)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                }
+                .padding([.leading, .trailing], 16)
+
                 if let error = userObj.errorMsg {
                     Text(error)
                         .foregroundColor(.red)
-                        .padding()
+                        .font(.caption)
+                        .padding(.top, 4)
                 }
-                
-                Button(action: {userObj.login(email: userObj.email, password: userObj.password)}) {
+
+                Button(action: {
+                    userObj.login(email: userObj.email, password: userObj.password)
+                }) {
                     Text("Login")
+                        .fontWeight(.semibold)
                         .foregroundColor(.white)
                         .padding()
+                        .frame(maxWidth: .infinity)
                         .background(Color.blue)
                         .cornerRadius(8)
                 }
-                .padding()
+                .padding([.leading, .trailing], 16)
             }
             .padding()
-            .navigationDestination(isPresented: $userObj.isLoggedIn){
-                MainTabBarView(userObj: userObj)                    
+            .navigationDestination(isPresented: $userObj.isLoggedIn) {
+                MainTabBarView(userObj: userObj)
             }
         }
     }
