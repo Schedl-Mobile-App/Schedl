@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		046B834B2C867DE600F97BB4 /* calendarTestApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B834A2C867DE600F97BB4 /* calendarTestApp.swift */; };
-		046B834D2C867DE600F97BB4 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B834C2C867DE600F97BB4 /* ContentView.swift */; };
 		046B834F2C867DE700F97BB4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 046B834E2C867DE700F97BB4 /* Assets.xcassets */; };
 		046B83532C867DE700F97BB4 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 046B83522C867DE700F97BB4 /* Preview Assets.xcassets */; };
 		CB5308152CA0862100A8AA04 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = CB5308142CA0862100A8AA04 /* FirebaseAnalytics */; };
@@ -24,20 +23,27 @@
 		CB6B6C722CA0C9A90001BFE1 /* FirebaseAppDistribution-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = CB6B6C712CA0C9A90001BFE1 /* FirebaseAppDistribution-Beta */; };
 		CB7058C52CA66BDB00C4EE00 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = CB7058C42CA66BDB00C4EE00 /* FirebaseAuth */; };
 		CBC9A7492CA1CACC0000A18C /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = CBC9A7482CA1CACC0000A18C /* FirebaseDatabase */; };
-		CBC9A7612CA21D3D0000A18C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */; };
 		CBC9A7652CA22CB50000A18C /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7642CA22CB50000A18C /* .gitignore */; };
+		CBE9D9932D0BA21C00C42737 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBE9D9922D0BA21C00C42737 /* GoogleService-Info.plist */; };
+<<<<<<< Updated upstream
+		CBE9DA412D0E711500C42737 /* AppCheckProviderFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBE9DA402D0E710D00C42737 /* AppCheckProviderFactory.swift */; };
+=======
+>>>>>>> Stashed changes
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		046B83472C867DE600F97BB4 /* PennyCalendar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PennyCalendar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		046B83472C867DE600F97BB4 /* Schedulr.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Schedulr.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		046B834A2C867DE600F97BB4 /* calendarTestApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = calendarTestApp.swift; sourceTree = "<group>"; };
-		046B834C2C867DE600F97BB4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		046B834E2C867DE700F97BB4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		046B83502C867DE700F97BB4 /* calendarTest.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = calendarTest.entitlements; sourceTree = "<group>"; };
 		046B83522C867DE700F97BB4 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CB8D57502C9D465F0051A415 /* calendarTest.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = calendarTest.xctestplan; sourceTree = SOURCE_ROOT; };
-		CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		CBC9A7642CA22CB50000A18C /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		CBE9D9922D0BA21C00C42737 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+<<<<<<< Updated upstream
+		CBE9DA402D0E710D00C42737 /* AppCheckProviderFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCheckProviderFactory.swift; sourceTree = "<group>"; };
+=======
+>>>>>>> Stashed changes
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,18 +81,18 @@
 		046B833E2C867DE600F97BB4 = {
 			isa = PBXGroup;
 			children = (
+				CBE9D9922D0BA21C00C42737 /* GoogleService-Info.plist */,
 				CBC9A7642CA22CB50000A18C /* .gitignore */,
 				046B83492C867DE600F97BB4 /* calendarTest */,
 				CBC9A7472CA1CACC0000A18C /* Frameworks */,
 				046B83482C867DE600F97BB4 /* Products */,
-				CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
 		046B83482C867DE600F97BB4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				046B83472C867DE600F97BB4 /* PennyCalendar.app */,
+				046B83472C867DE600F97BB4 /* Schedulr.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -94,12 +100,12 @@
 		046B83492C867DE600F97BB4 /* calendarTest */ = {
 			isa = PBXGroup;
 			children = (
+				CBE9DA402D0E710D00C42737 /* AppCheckProviderFactory.swift */,
 				CBFD83D52CF51C240034BE9F /* Core */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,
 				CB5308112CA0829300A8AA04 /* Views */,
 				CB53080D2CA0824600A8AA04 /* Services */,
-				046B834C2C867DE600F97BB4 /* ContentView.swift */,
 				046B834A2C867DE600F97BB4 /* calendarTestApp.swift */,
 				CB8D57502C9D465F0051A415 /* calendarTest.xctestplan */,
 				046B834E2C867DE700F97BB4 /* Assets.xcassets */,
@@ -148,7 +154,7 @@
 			);
 			name = calendarTest;
 			productName = calendarTest;
-			productReference = 046B83472C867DE600F97BB4 /* PennyCalendar.app */;
+			productReference = 046B83472C867DE600F97BB4 /* Schedulr.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -193,9 +199,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				046B83532C867DE700F97BB4 /* Preview Assets.xcassets in Resources */,
+				CBE9D9932D0BA21C00C42737 /* GoogleService-Info.plist in Resources */,
 				046B834F2C867DE700F97BB4 /* Assets.xcassets in Resources */,
 				CBC9A7652CA22CB50000A18C /* .gitignore in Resources */,
-				CBC9A7612CA21D3D0000A18C /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -206,7 +212,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				046B834D2C867DE600F97BB4 /* ContentView.swift in Sources */,
+				CBE9DA412D0E711500C42737 /* AppCheckProviderFactory.swift in Sources */,
 				046B834B2C867DE600F97BB4 /* calendarTestApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -358,12 +364,12 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.pennyApp;
-				PRODUCT_NAME = PennyCalendar;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.schedulrApp;
+				PRODUCT_NAME = Schedulr;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -398,12 +404,12 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.pennyApp;
-				PRODUCT_NAME = PennyCalendar;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.schedulrApp;
+				PRODUCT_NAME = Schedulr;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
