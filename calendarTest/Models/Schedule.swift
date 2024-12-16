@@ -21,4 +21,15 @@ struct Schedule: Codable, Identifiable {
         self.title = title
         self.creationDate = creationDate
     }
+    
+    static func defaultSchedule(userId: String, username: String) -> Schedule {
+        let defaultSchedule = Schedule(
+            id: UUID().uuidString,
+            userId: userId,
+            events: [],
+            title: "\(username)'s Schedule",
+            creationDate: Date().timeIntervalSince1970
+        )
+        return defaultSchedule
+    }
 }

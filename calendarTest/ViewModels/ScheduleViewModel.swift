@@ -15,6 +15,7 @@ class ScheduleViewModel: ObservableObject {
     @Published var isLoading: Bool = false // Indicates loading state
     @Published var errorMessage: String? // Holds error messages if any
     @Published var events: [Event]? // Holds the actual event objects of a schedule instance
+    @Published var selectedEvent: Event?
     
     func togglePopUp() {
         showPopUp.toggle()
@@ -50,6 +51,21 @@ class ScheduleViewModel: ObservableObject {
                 self.isLoading = false
             } catch {
                 self.errorMessage = "Failed to create event: \(error.localizedDescription)"
+                self.isLoading = false
+            }
+        }
+    }
+    
+    @MainActor
+    func createPost(postObj: Post, userId: String, friendIds: [String]) -> Void {
+        Task {
+            self.isLoading = true
+            self.errorMessage = nil
+            do {
+                try await FirebaseManager.shared.createPostAsync(postData: postObj, userId: userId, friendIds: friendIds)
+                self.isLoading = false
+            } catch {
+                self.errorMessage = "Failed to create post: \(error.localizedDescription)"
                 self.isLoading = false
             }
         }

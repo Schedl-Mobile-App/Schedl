@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct WelcomeView: View {
-    @ObservedObject var userObj = AuthService()
+    @EnvironmentObject var userObj: AuthService
+    @State var shouldNavigate: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -34,7 +35,10 @@ struct WelcomeView: View {
                 .padding([.leading, .trailing], 16)
 
                 Button(action: {
-                    userObj.signUp(username: userObj.username, email: userObj.email, password: userObj.password)
+                    Task {
+                        try await userObj.signUp(username: userObj.username, email: userObj.email, password: userObj.password)
+                        shouldNavigate = true
+                    }
                 }) {
                     Text("Sign Up")
                         .fontWeight(.semibold)

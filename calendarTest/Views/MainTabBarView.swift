@@ -1,18 +1,11 @@
 import SwiftUI
 
 struct MainTabBarView: View {
-    @StateObject var userObj: AuthService
-    
-    init(userObj: AuthService = AuthService()) {
-        let appearance = UITabBarAppearance()
-        appearance.backgroundColor = .black.withAlphaComponent(0.5)
-        UITabBar.appearance().scrollEdgeAppearance = appearance
-        UITabBar.appearance().standardAppearance = appearance
-        _userObj = StateObject(wrappedValue: userObj)
-    }
+    @EnvironmentObject var userObj: AuthService
     
     var body: some View {
         TabView {
+            
             FeedView()
                 .tabItem {
                     Label("My Feed", systemImage: "house")
@@ -22,8 +15,17 @@ struct MainTabBarView: View {
                 .tabItem {
                     Label("Schedule", systemImage: "calendar")
                 }
+            
+<<<<<<< Updated upstream
+            FriendsView()
+=======
+            FriendsView(userObj: userObj)
+>>>>>>> Stashed changes
+                .tabItem {
+                    Label("Friends", systemImage: "person.circle")
+                }
         
-            AccountView(userObj: userObj)
+            AccountView()
                 .tabItem {
                     Label("My Account", systemImage: "person")
                 }
@@ -31,8 +33,4 @@ struct MainTabBarView: View {
         .accentColor(Color.white)
         .navigationBarBackButtonHidden(true)
     }
-}
-
-#Preview {
-    MainTabBarView(userObj: AuthService())
 }

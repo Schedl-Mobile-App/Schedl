@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct LoginView: View {
-    @ObservedObject var userObj = AuthService()
+    @EnvironmentObject var userObj: AuthService
 
     var body: some View {
         NavigationStack {
@@ -38,7 +38,9 @@ struct LoginView: View {
                 }
 
                 Button(action: {
-                    userObj.login(email: userObj.email, password: userObj.password)
+                    Task {
+                        try await userObj.login(email: userObj.email, password: userObj.password)
+                    }
                 }) {
                     Text("Login")
                         .fontWeight(.semibold)
@@ -52,7 +54,8 @@ struct LoginView: View {
             }
             .padding()
             .navigationDestination(isPresented: $userObj.isLoggedIn) {
-                MainTabBarView(userObj: userObj)
+                MainTabBarView()
+                    .environmentObject(userObj)
             }
         }
     }

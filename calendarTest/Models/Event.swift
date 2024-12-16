@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Event: Codable, Identifiable {
+struct Event: Codable, Identifiable, Equatable {
     var id: String
     var scheduleId: String
     var title: String
@@ -24,5 +24,12 @@ struct Event: Codable, Identifiable {
         self.startTime = startTime
         self.endTime = endTime
         self.creationDate = creationDate
+    }
+    
+    static func == (lhs: Event, rhs: Event) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.title == rhs.title &&
+               lhs.startTime == rhs.startTime &&
+               lhs.endTime == rhs.endTime
     }
 }

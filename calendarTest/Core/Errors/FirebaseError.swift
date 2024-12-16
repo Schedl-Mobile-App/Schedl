@@ -12,4 +12,16 @@ enum FirebaseError: Error {
     case failedToCreateSchedule
     case failedToFetchEvent
     case failedToCreateEvent
+    case failedToCreatePost
+    case failedToFetchPost
+    case failedToUpdateFeed
+    case failedToFetchFriendsPostsIds
+    case failedToFetchFriendsPosts
+    case failedToHandleFriendRequest
+    case failedToUpdateFriendRequest
+    case incorrectFriendRequestId
+<<<<<<< Updated upstream
+    case failedToFetchFriendRequests
+=======
+>>>>>>> Stashed changes
 }

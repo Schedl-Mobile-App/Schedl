@@ -14,10 +14,7 @@ struct PopUpView: View {
     @State private var startDate = Date()
     @State private var endDate = Date()
     
-    // Add this to get the current schedule ID
-    var scheduleId: String
-    
-    @State var viewModel: ScheduleViewModel = ScheduleViewModel()
+    @EnvironmentObject var viewModel: ScheduleViewModel
     
     var body: some View {
         NavigationView {
@@ -84,7 +81,7 @@ struct PopUpView: View {
     private func makeEvent() {
         let newEvent = Event(
             id: UUID().uuidString,  // Generate new ID
-            scheduleId: scheduleId,
+            scheduleId: viewModel.schedule?.id ?? "",
             title: title,
             description: description,
             startTime: startDate.timeIntervalSince1970,
