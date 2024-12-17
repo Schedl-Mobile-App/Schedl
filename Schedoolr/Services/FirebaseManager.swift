@@ -316,7 +316,6 @@ class FirebaseManager {
         }
     }
     
-    @MainActor
     func fetchPostAsync(id: String) async throws -> Post {
         let postsRef = ref.child("posts").child(id)
         let snapshot = try await postsRef.getData()
@@ -358,7 +357,6 @@ class FirebaseManager {
         }
     }
     
-    @MainActor
     func fetchFriendsPosts(id: String) async throws -> [Post] {
         let postsRef = ref.child("feeds").child(id)
         let snapshot = try await postsRef.getData()
