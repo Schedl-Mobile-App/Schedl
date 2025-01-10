@@ -53,14 +53,10 @@ struct FriendCell: View {
 }
 
 struct FriendsView: View {
-   @State private var searchText = ""
-    @StateObject var viewModel: NotificationViewModel
+    @State private var searchText = ""
+    @StateObject var viewModel: FriendViewModel = FriendViewModel()
     @EnvironmentObject var userObj: AuthService
 
-    init(viewModel: NotificationViewModel = NotificationViewModel()) {
-        self._viewModel = StateObject(wrappedValue: viewModel)
-    }
-   
    var body: some View {
        VStack(spacing: 0) {
            // Search bar
@@ -68,8 +64,6 @@ struct FriendsView: View {
                Button(action: {
                    if let user: User = userObj.currentUser {
                        viewModel.sendFriendRequest(toUserName: searchText, fromUserObj: user)
-                       print("Friend Request Sent From: \(user.username)")
-                       print("Friend Request Sent To: \(searchText)")
                    }
                }) {
                    Image(systemName: "magnifyingglass")
@@ -94,28 +88,23 @@ struct FriendsView: View {
            // Friend list
            ScrollView {
                VStack(spacing: 12) {
-                   // Filter friends based on search text
-                   if searchText.isEmpty {
-                       FriendCell(username: "JohnDoe")
-                       FriendCell(username: "SarahSmith")
-                       FriendCell(username: "MikeJones")
+                   if viewModel.isLoading {
+                       Text("Loading...")
+                   } else if let error = viewModel.errorMessage {
+                       Text(error)
+                   } else if viewModel.friends != nil {
+                       ForEach(viewModel.friends ?? [], id: \.self) { friend in
+                           FriendCell(username: friend)
+                       }
                    } else {
-                       // Show filtered results
-                       let filtered = ["JohnDoe", "SarahSmith", "MikeJones"].filter {
-                           $0.lowercased().contains(searchText.lowercased())
-                       }
-                       
-                       if filtered.isEmpty {
-                           Text("No results found")
-                               .foregroundStyle(.gray)
-                               .padding(.top)
-                       } else {
-                           ForEach(filtered, id: \.self) { username in
-                               FriendCell(username: username)
-                           }
-                       }
+                       Text("No friends yet")
                    }
                }
+           }
+       }
+       .onAppear() {
+           if let friendIds = userObj.currentUser?.friendIds {
+               viewModel.fetchFriends(friendIds: friendIds)
            }
        }
    }

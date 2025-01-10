@@ -14,22 +14,7 @@ class NotificationViewModel: ObservableObject {
     @Published var isLoading: Bool = false      // indicates loading state
     @Published var errorMessage: String?        // holds error messages if any
     @Published var incomingFriendRequests: [FriendRequests]?
-    
-    @MainActor
-    func sendFriendRequest(toUserName: String, fromUserObj: User) {
-        Task {
-            self.isLoading = true
-            self.errorMessage = nil
-            do {
-                try await FirebaseManager.shared.handleFriendRequest(fromUserObj: fromUserObj, toUserName: toUserName)
-                self.isLoading = false
-            } catch {
-                print("Friend request was not successfully sent")
-                self.errorMessage = "Failed to fetch schedule: \(error.localizedDescription)"
-                self.isLoading = false
-            }
-        }
-    }
+    @Published var friends: [String]?
     
     @MainActor
     func handleFriendRequestResponse(requestId: String, response: Bool) {

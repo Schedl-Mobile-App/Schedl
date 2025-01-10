@@ -73,7 +73,6 @@ struct ScheduleView: View {
         .environmentObject(viewModel)
         .onAppear {
             if let user = userObj.currentUser {
-                print("Fetching schedule with ID: \(user.schedules[0])")
                 viewModel.fetchSchedule(id: user.schedules[0])
             }
         }
