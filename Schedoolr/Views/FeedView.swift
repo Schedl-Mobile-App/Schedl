@@ -28,6 +28,9 @@ struct FeedView: View {
                 viewModel.fetchFeed(userId: user.id)
             }
         }
+        .onDisappear {
+            viewModel.removeFeedListener()
+        }
         .navigationTitle("Home")
     }
 }

@@ -7,6 +7,8 @@
 
 enum FirebaseError: Error {
     case failedToFetchUser
+    case failedToFetchUserByName
+    case failedToFetchUserById
     case failedToCreateUser
     case failedToFetchSchedule
     case failedToCreateSchedule

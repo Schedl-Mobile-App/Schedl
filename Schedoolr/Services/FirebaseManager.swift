@@ -17,17 +17,29 @@ class FirebaseManager {
         ref = Database.database().reference()
     }
     
-    func fetchUserByName(username: String) async throws -> String {
+    func fetchUserNameByName(username: String) async throws -> String {
         let userRef = ref.child("usernames").child(username)
         let snapshot = try await userRef.getData()
         
-        print(snapshot.value ?? "No data")
-        
         guard let id = snapshot.value as? String else {
-            throw FirebaseError.failedToFetchUser
+            throw FirebaseError.failedToFetchUserByName
         }
         
         return id
+    }
+    
+    func fetchUserNameById(userId: String) async throws -> String {
+        let userRef = ref.child("users").child(userId)
+        
+        let snapshot = try await userRef.getData()
+        
+        guard let userData = snapshot.value as? [String: Any] else {
+            throw FirebaseError.failedToFetchUserById
+        }
+        
+        let username = userData["username"] as? String ?? ""
+        
+        return username
     }
     
     func fetchUserAsync(id: String) async throws -> User {
@@ -252,9 +264,6 @@ class FirebaseManager {
 
         copyEventData.id = id
         
-        
-//        let scheduleRef = ref.child("schedules").child(copyEventData.scheduleId).child("eventIds")
-        
         let encoder = JSONEncoder()
         do {
             // Encode the Schedule object into JSON data
@@ -264,14 +273,6 @@ class FirebaseManager {
             guard let jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
                 throw EventError.eventDataSerializationFailed
             }
-            
-//            let snapshot = try await scheduleRef.getData()
-//            var eventIds = (snapshot.value as? [String]) ?? []
-//            
-//            // Append new event ID
-//            eventIds.append(id)
-            
-            // Create updates dictionary
             let updates: [String: Any] = [
                 "/events/\(id)": jsonDictionary,
                 "/schedules/\(copyEventData.scheduleId)/eventIds/\(id)": true
@@ -389,6 +390,46 @@ class FirebaseManager {
         return posts
     }
     
+    func observeFeedChanges(userId: String, completion: @escaping ([Post]?) -> Void) -> DatabaseHandle {
+        let feedRef = ref.child("feeds").child(userId)
+        return feedRef.observe(.value) { snapshot, _ in
+            guard let feedData = snapshot.value as? [String: Any] else {
+                completion(nil)
+                return
+            }
+            
+            let postIds = feedData.keys
+            var posts: [Post] = []
+            
+            Task {
+                do {
+                    try await withThrowingTaskGroup(of: Post.self) { group in
+                        for id in postIds {
+                            group.addTask {
+                                try await self.fetchPostAsync(id: id)
+                            }
+                            
+                            // Collect results in batches
+                            for try await post in group {
+                                posts.append(post)
+                            }
+                        }
+                    }
+                    
+                    completion(posts)
+                    
+                } catch {
+                    completion(nil)
+                }
+            }
+        }
+    }
+    
+    func removeFeedObserver(handle: DatabaseHandle) {
+        let feedRef = ref.child("feeds")
+        feedRef.removeObserver(withHandle: handle)
+    }
+    
     func fetchIncomingFriendRequest(id: String) async throws -> FriendRequests {
         let requestRef = ref.child("friendRequests").child(id)
         
@@ -439,16 +480,13 @@ class FirebaseManager {
                 }
             }
             
-            print(requests)
             return requests
         }
     }
     
     func handleFriendRequest(fromUserObj: User, toUserName: String) async throws -> Void {
-        let otherUserId = "1PX5iLyRh2PAQ1byEYSAPqo2bbn1"
+        let otherUserId = try await self.fetchUserNameByName(username: toUserName)
         let requestId = "\(fromUserObj.id)_\(otherUserId)"
-        print(otherUserId)
-        print(fromUserObj.id)
         
         let request: [String: Any] = [
             "fromUserId": fromUserObj.id,
@@ -507,6 +545,28 @@ class FirebaseManager {
             
         } else {
             throw FirebaseError.incorrectFriendRequestId
+        }
+    }
+    
+    func fetchUserFriends(friendIds: [String]) async throws -> [String] {
+        var friendNames: [String] = []
+        
+        if friendIds.isEmpty {
+            return friendNames
+        } else {
+            try await withThrowingTaskGroup(of: String.self) { group in
+                for id in friendIds {
+                    group.addTask {
+                        try await self.fetchUserNameById(userId: id)
+                    }
+                }
+                
+                for try await friend in group {
+                    friendNames.append(friend)
+                }
+            }
+            
+            return friendNames
         }
     }
     
