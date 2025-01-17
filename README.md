@@ -1,1 +1,1 @@
-# calendar-test
+# Schedulr - Productivity focused application
