@@ -8,62 +8,53 @@
 import SwiftUI
 
 struct NotificationsView: View {
-    @Binding var isShowing: Bool
     @StateObject var viewModel: NotificationViewModel = NotificationViewModel()
     @EnvironmentObject var userModel: AuthService
-    
-    init(isShowing: Binding<Bool>) {
-        self._isShowing = isShowing
-    }
+    @Environment(\.presentationMode) var presentationMode
    
     var body: some View {
-        ZStack {
+        VStack(spacing: 20) {
+            HStack(spacing: 12) {
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Image(systemName: "chevron.left")
+                            .font(.system(size: 24, weight: .medium))
+                            .labelStyle(.titleAndIcon)
+                            .foregroundStyle(Color.primary)
+                }
+                Text("Notifications")
+                    .foregroundStyle(Color.primary)
+                    .font(.system(size: 25, weight: .bold))
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemBackground))
             
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Text("Friend Requests")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Spacer()
-                    
-                    Button(action: { isShowing.toggle() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.gray)
-                            .font(.title2)
+            // Friend Request List
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    if let requests = viewModel.incomingFriendRequests {
+                        ForEach(requests) { request in
+                            requestCell(request: request)
+                        }
+                    } else if let error = viewModel.errorMessage {
+                        Text(error)
                     }
                 }
                 .padding()
-                
-                Divider()
-                
-                // Friend Request List
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        if let requests = viewModel.incomingFriendRequests {
-                            ForEach(requests) { request in
-                                requestCell(request: request)
-                            }
-                        } else if let error = viewModel.errorMessage {
-                            Text(error)
-                        }
-                    }
-                    .padding()
+            }
+            .onAppear{
+                if let user = userModel.currentUser {
+                    viewModel.showFriendRequests(requestIds: user.requestIds)
                 }
-                .onAppear{
-                    if let user = userModel.currentUser {
-                        viewModel.showFriendRequests(requestIds: user.requestIds)
-                    }
-                }
-                .onChange(of: userModel.currentUser?.requestIds) { newRequestIds in
-                    if let requestIds = newRequestIds {
-                        viewModel.showFriendRequests(requestIds: requestIds)
-                    }
-                }
+            }
+            .onChange(of: userModel.currentUser?.requestIds) {
+                viewModel.showFriendRequests(requestIds: userModel.currentUser?.requestIds ?? [])
             }
         }
         .environmentObject(userModel)
+        .navigationBarBackButtonHidden(true)
     }
         
     private func requestCell(request: FriendRequests) -> some View {

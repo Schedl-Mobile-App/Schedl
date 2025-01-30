@@ -11,25 +11,18 @@ struct Event: Codable, Identifiable, Equatable {
     var id: String
     var scheduleId: String
     var title: String
-    var description: String
-    var startTime: TimeInterval
-    var endTime: TimeInterval
+    var eventDate: Date
+    var startTime: Date
+    var endTime: Date
     var creationDate: TimeInterval
     
-    init(id: String, scheduleId: String, title: String, description: String, startTime: Double, endTime: Double, creationDate: Double) {
+    init(id: String, scheduleId: String, title: String, eventDate: Date, startTime: Date, endTime: Date, creationDate: Double) {
         self.id = id
         self.scheduleId = scheduleId
         self.title = title
-        self.description = description
+        self.eventDate = eventDate
         self.startTime = startTime
         self.endTime = endTime
         self.creationDate = creationDate
-    }
-    
-    static func == (lhs: Event, rhs: Event) -> Bool {
-        return lhs.id == rhs.id &&
-               lhs.title == rhs.title &&
-               lhs.startTime == rhs.startTime &&
-               lhs.endTime == rhs.endTime
     }
 }

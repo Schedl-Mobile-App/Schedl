@@ -18,8 +18,14 @@ class AuthService: ObservableObject {
     @Published var isLoggedIn: Bool = false
     private var userListener: DatabaseHandle?
 
+    func resetInfo() {
+        self.username = ""
+        self.email = ""
+        self.password = ""
+    }
+    
     @MainActor
-    func login(email: String, password: String) async throws {
+    func login() async throws {
         do {
             let authResult = try await Auth.auth().signIn(withEmail: email, password: password)
             let userId = authResult.user.uid
@@ -28,14 +34,16 @@ class AuthService: ObservableObject {
             setupUserListener(userId: userId)
             self.currentUser = fetchedUser
             self.isLoggedIn = true
+            resetInfo()
+            
         } catch {
             self.errorMsg = "Failed to login: \(error.localizedDescription)"
-            self.password = ""
+            resetInfo()
         }
     }
     
     @MainActor
-    func signUp(username: String, email: String, password: String) async throws {
+    func signUp() async throws {
         do {
             let authResult = try await Auth.auth().createUser(withEmail: email, password: password)
             let userId = authResult.user.uid
@@ -55,7 +63,9 @@ class AuthService: ObservableObject {
             let scheduleId: String = try await FirebaseManager.shared.createNewScheduleAsync(scheduleData: defaultSchedule, userId: userId)
             userObj.schedules.append(scheduleId)
             try await FirebaseManager.shared.saveNewUserAsync(userData: userObj)
-            try await login(email: email, password: password)
+            self.currentUser = userObj
+            self.isLoggedIn = true
+            resetInfo()
             
         } catch {
             throw AuthError.signUpError
