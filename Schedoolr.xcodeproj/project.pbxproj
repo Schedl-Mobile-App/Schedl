@@ -49,6 +49,7 @@
 		CB6B6C702CA0C9A90001BFE1 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = CB6B6C6F2CA0C9A90001BFE1 /* FirebaseAppCheck */; };
 		CB6B6C722CA0C9A90001BFE1 /* FirebaseAppDistribution-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = CB6B6C712CA0C9A90001BFE1 /* FirebaseAppDistribution-Beta */; };
 		CB7058C52CA66BDB00C4EE00 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = CB7058C42CA66BDB00C4EE00 /* FirebaseAuth */; };
+		CBABE0CD2D4AB5330066F5E3 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBABE0CC2D4AB5300066F5E3 /* Extensions.swift */; };
 		CBC9A7492CA1CACC0000A18C /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = CBC9A7482CA1CACC0000A18C /* FirebaseDatabase */; };
 		CBC9A7612CA21D3D0000A18C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */; };
 		CBC9A7652CA22CB50000A18C /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7642CA22CB50000A18C /* .gitignore */; };
@@ -62,6 +63,7 @@
 		046B83522C867DE700F97BB4 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugAppCheckProviderFactory.swift; sourceTree = "<group>"; };
 		CB8D57502C9D465F0051A415 /* Schedoolr.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Schedoolr.xctestplan; sourceTree = SOURCE_ROOT; };
+		CBABE0CC2D4AB5300066F5E3 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		CBC9A7642CA22CB50000A18C /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -69,6 +71,7 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CB53080D2CA0824600A8AA04 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 		CB5308112CA0829300A8AA04 /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
+		CB5F72422D3DBF20004C7FC8 /* Enums */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Enums; sourceTree = "<group>"; };
 		CB7058BD2CA660AE00C4EE00 /* ViewModels */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ViewModels; sourceTree = "<group>"; };
 		CBB233CC2CA4B96D00BDBFC0 /* Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Models; sourceTree = "<group>"; };
 		CBFD83D52CF51C240034BE9F /* Core */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Core; sourceTree = "<group>"; };
@@ -146,6 +149,8 @@
 		046B83492C867DE600F97BB4 /* Schedoolr */ = {
 			isa = PBXGroup;
 			children = (
+				CBABE0CC2D4AB5300066F5E3 /* Extensions.swift */,
+				CB5F72422D3DBF20004C7FC8 /* Enums */,
 				CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */,
 				CBFD83D52CF51C240034BE9F /* Core */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
@@ -194,6 +199,7 @@
 			fileSystemSynchronizedGroups = (
 				CB53080D2CA0824600A8AA04 /* Services */,
 				CB5308112CA0829300A8AA04 /* Views */,
+				CB5F72422D3DBF20004C7FC8 /* Enums */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,
 				CBFD83D52CF51C240034BE9F /* Core */,
@@ -259,6 +265,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CB27B9652D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift in Sources */,
+				CBABE0CD2D4AB5330066F5E3 /* Extensions.swift in Sources */,
 				046B834B2C867DE600F97BB4 /* SchedoolrApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -327,6 +334,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
@@ -383,6 +391,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
@@ -409,14 +418,14 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.schedulrApp;
 				PRODUCT_NAME = Schedoolr;
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
@@ -448,14 +457,14 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.schedulrApp;
 				PRODUCT_NAME = Schedoolr;
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
