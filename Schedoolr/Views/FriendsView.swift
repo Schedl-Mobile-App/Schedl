@@ -8,104 +8,85 @@
 import SwiftUI
 
 struct FriendCell: View {
-   var username: String
+    let userToDisplay: User
    
-   var body: some View {
-       HStack(spacing: 12) {
-           // Profile circle with first letter
-           Circle()
-               .fill(Color.blue.opacity(0.1))
-               .frame(width: 50, height: 50)
-               .overlay(
-                   Text(String(username.prefix(1)).uppercased())
-                       .font(.title2)
-                       .fontWeight(.semibold)
-                       .foregroundColor(.blue)
-               )
-           
-           VStack(alignment: .leading, spacing: 4) {
-               Text(username)
-                   .font(.headline)
-               
-               Text("Friend")
-                   .font(.subheadline)
-                   .foregroundStyle(.gray)
-           }
-           
-           Spacer()
-           
-           // Message/Connect button
-           Button(action: {
-               // Handle message/connect action
-           }) {
-               Image(systemName: "message.fill")
-                   .foregroundStyle(.blue)
-                   .padding(8)
-                   .background(Color.blue.opacity(0.1))
-                   .clipShape(Circle())
-           }
-       }
-       .padding()
-       .background(Color.gray.opacity(0.05))
-       .clipShape(RoundedRectangle(cornerRadius: 12))
-       .padding(.horizontal)
-   }
+    var body: some View {
+        NavigationLink(destination: ProfileView(userid: userToDisplay.id)) {
+            HStack(spacing: 12) {
+                AsyncImage(url: URL(string: userToDisplay.profileImage ?? "")) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    // Show while loading or if image fails to load
+                    Image(systemName: "person.circle.fill")
+                        .foregroundColor(.gray)
+                }
+                .clipShape(Circle())
+                .frame(width: 40, height: 40)
+                
+                Text(userToDisplay.username)
+            }
+            .padding()
+            .background(Color.gray.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal)
+        }
+    }
 }
 
 struct FriendsView: View {
-    @State private var searchText = ""
-    @StateObject var viewModel: FriendViewModel = FriendViewModel()
+    
+    @StateObject var viewModel: FriendsViewModel = FriendsViewModel()
     @EnvironmentObject var userObj: AuthService
+    @Environment(\.presentationMode) var presentationMode
 
-   var body: some View {
-       VStack(spacing: 0) {
-           // Search bar
-           HStack {
-               Button(action: {
-                   if let user: User = userObj.currentUser {
-                       viewModel.sendFriendRequest(toUserName: searchText, fromUserObj: user)
-                   }
-               }) {
-                   Image(systemName: "magnifyingglass")
-                       .foregroundStyle(.gray)
-               }
-               
-               TextField("Search friends", text: $searchText)
-                   .textFieldStyle(.plain)
-               
-               if !searchText.isEmpty {
-                   Button(action: { searchText = "" }) {
-                       Image(systemName: "xmark.circle.fill")
-                           .foregroundStyle(.gray)
-                   }
-               }
-           }
-           .padding()
-           .background(Color.gray.opacity(0.1))
-           .clipShape(RoundedRectangle(cornerRadius: 12))
-           .padding()
-           
-           // Friend list
-           ScrollView {
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Image(systemName: "chevron.left")
+                            .font(.system(size: 24, weight: .medium))
+                            .labelStyle(.titleAndIcon)
+                            .foregroundStyle(Color.primary)
+                }
+                Text("Friends")
+                    .foregroundStyle(Color.primary)
+                    .font(.system(size: 25, weight: .bold))
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemBackground))
+            
+            ScrollView {
                VStack(spacing: 12) {
                    if viewModel.isLoading {
                        Text("Loading...")
                    } else if let error = viewModel.errorMessage {
                        Text(error)
-                   } else if viewModel.friends != nil {
-                       ForEach(viewModel.friends ?? [], id: \.self) { friend in
-                           FriendCell(username: friend)
+                   } else if !viewModel.friends.isEmpty {
+                       ForEach(viewModel.friends) { friend in
+                           FriendCell(userToDisplay: friend)
                        }
                    } else {
                        Text("No friends yet")
                    }
                }
-           }
-       }
-       .onAppear() {
-           if let friendIds = userObj.currentUser?.friendIds {
-               viewModel.fetchFriends(friendIds: friendIds)
-           }
-       }
-   }
+            }
+        }
+        .onAppear {
+            if let user = userObj.currentUser {
+               viewModel.fetchFriends(friendIds: user.friendIds)
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+    }
+}
+
+#Preview {
+    FriendsView()
+        .environmentObject(FriendsViewModel())
+        .environmentObject(AuthService())
 }

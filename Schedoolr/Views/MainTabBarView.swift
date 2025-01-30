@@ -1,32 +1,36 @@
 import SwiftUI
 
 struct MainTabBarView: View {
-    @EnvironmentObject var userObj: AuthService
+    @EnvironmentObject var authService: AuthService
     
     var body: some View {
-        TabView {
-            
-            FeedView()
-                .tabItem {
-                    Label("My Feed", systemImage: "house")
+        if authService.isLoggedIn {
+            Group {
+                TabView {
+                    FeedView()
+                        .tabItem {
+                            Image(systemName: "house.fill")
+                        }
+                    
+                    ScheduleView()
+                        .tabItem {
+                            Image(systemName: "calendar")
+                        }
+                    
+                    SearchView()
+                        .tabItem {
+                            Image(systemName: "magnifyingglass")
+                        }
+                    ProfileView(userid: authService.currentUser?.id ?? "")
+                        .tabItem {
+                            Image(systemName: "person")
+                        }
                 }
-            
-            ScheduleView()
-                .tabItem {
-                    Label("Schedule", systemImage: "calendar")
-                }
-            
-            FriendsView()
-                .tabItem {
-                    Label("Friends", systemImage: "person.circle")
-                }
-        
-            AccountView()
-                .tabItem {
-                    Label("My Account", systemImage: "person")
-                }
+                .accentColor(Color.primary)
+                .navigationBarBackButtonHidden(true)
+            }
+        } else {
+            LoginView()
         }
-        .accentColor(Color.white)
-        .navigationBarBackButtonHidden(true)
     }
 }

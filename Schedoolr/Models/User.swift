@@ -16,6 +16,9 @@ struct User: Codable, Identifiable {
     var requestIds: [String] = []
     var friendIds: [String] = []
     var creationDate: TimeInterval
+    var postIds: [String] = []
+    var likedPosts: [String] = []
+    var taggedPosts: [String] = []
     
     init(id: String, username: String, email: String, schedules: [String], profileImage: String, requestIds: [String], friendIds: [String], creationDate: Double) {
         self.id = id

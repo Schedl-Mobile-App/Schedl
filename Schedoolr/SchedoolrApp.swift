@@ -41,8 +41,10 @@ struct SchedoolrApp: App {
     
     var body: some Scene {
         WindowGroup {
-            WelcomeView()
-                .environmentObject(authService)
+            NavigationStack {
+                WelcomeView()
+            }
+            .environmentObject(authService)
         }
     }
 }

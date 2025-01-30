@@ -14,7 +14,6 @@ class NotificationViewModel: ObservableObject {
     @Published var isLoading: Bool = false      // indicates loading state
     @Published var errorMessage: String?        // holds error messages if any
     @Published var incomingFriendRequests: [FriendRequests]?
-    @Published var friends: [String]?
     
     @MainActor
     func handleFriendRequestResponse(requestId: String, response: Bool) {

@@ -8,29 +8,48 @@
 import SwiftUI
 
 struct LoginView: View {
-    @EnvironmentObject var userObj: AuthService
+    @EnvironmentObject var authService: AuthService
 
     var body: some View {
-        NavigationStack {
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer()
             VStack(spacing: 20) {
                 Text("Schedulr")
                     .font(.largeTitle)
+                    .fontDesign(.monospaced)
                     .fontWeight(.bold)
-                    .padding(.top)
 
                 Text("Sign in to continue")
-                    .font(.headline)
+                    .font(.system(size: 20, design: .monospaced))
 
                 Group {
-                    TextField("Email", text: $userObj.email)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    RoundedRectangle(cornerRadius: 10)
+                        .frame(maxWidth: .infinity, maxHeight: 40)
+                        .foregroundStyle(.clear)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.gray, lineWidth: 1)
+                        )
+                        .overlay {
+                            TextField("Email", text: $authService.email)
+                                .padding(.horizontal)
+                        }
                     
-                    SecureField("Password", text: $userObj.password)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    RoundedRectangle(cornerRadius: 10)
+                        .frame(maxWidth: .infinity, maxHeight: 40)
+                        .foregroundStyle(.clear)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.gray, lineWidth: 1)
+                        )
+                        .overlay {
+                            TextField("Password", text: $authService.password)
+                                .padding(.horizontal)
+                        }
                 }
-                .padding([.leading, .trailing], 16)
+                .padding(.horizontal)
 
-                if let error = userObj.errorMsg {
+                if let error = authService.errorMsg {
                     Text(error)
                         .foregroundColor(.red)
                         .font(.caption)
@@ -39,28 +58,32 @@ struct LoginView: View {
 
                 Button(action: {
                     Task {
-                        try await userObj.login(email: userObj.email, password: userObj.password)
+                        try await authService.login()
                     }
                 }) {
-                    Text("Login")
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .cornerRadius(8)
+                    RoundedRectangle(cornerRadius: 10)
+                        .overlay {
+                            Text("Login")
+                                .foregroundColor(Color.white)
+                                .font(.system(size: 18, weight: .medium, design: .rounded))
+                                .tracking(2)
+                        }
                 }
-                .padding([.leading, .trailing], 16)
+                .padding(.horizontal)
+                .frame(maxWidth: .infinity, maxHeight: 50)
+                .foregroundStyle(Color("FormButtons"))
             }
-            .padding()
-            .navigationDestination(isPresented: $userObj.isLoggedIn) {
+            .padding(.horizontal)
+            .navigationDestination(isPresented: $authService.isLoggedIn) {
                 MainTabBarView()
-                    .environmentObject(userObj)
+                    .environmentObject(authService)
             }
+            Spacer()
         }
     }
 }
 
 #Preview {
     LoginView()
+        .environmentObject(AuthService())
 }

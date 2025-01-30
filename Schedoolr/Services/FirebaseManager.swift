@@ -17,7 +17,7 @@ class FirebaseManager {
         ref = Database.database().reference()
     }
     
-    func fetchUserNameByName(username: String) async throws -> String {
+    func fetchUserIdByName(username: String) async throws -> String {
         let userRef = ref.child("usernames").child(username)
         let snapshot = try await userRef.getData()
         
@@ -26,6 +26,36 @@ class FirebaseManager {
         }
         
         return id
+    }
+    
+    func fetchUserSearchInfo(username: String) async throws -> [User] {
+        
+        let userRef = ref.child("usernames").queryOrderedByKey()
+            .queryStarting(atValue: username)
+            .queryEnding(atValue: username + "\u{f8ff}")
+            .queryLimited(toFirst: 6)
+        
+        // fetches entire usernames node so that we can filter cloest matched results
+        let snapshot = try await userRef.getData()
+        guard let DBUserNames = snapshot.value as? [String: String] else {
+            throw FirebaseError.failedToFetchUserById
+        }
+        
+        var users: [User] = []
+        
+        try await withThrowingTaskGroup(of: User.self) { group in
+            for (_, userid) in DBUserNames {
+                group.addTask {
+                    return try await self.fetchUserAsync(id: userid)
+                }
+            }
+                        
+            for try await user in group {
+                users.append(user)
+            }
+        }
+        
+        return users
     }
     
     func fetchUserNameById(userId: String) async throws -> String {
@@ -220,12 +250,16 @@ class FirebaseManager {
             let id = eventData["id"] as? String,
             let scheduleId = eventData["scheduleId"] as? String,
             let title = eventData["title"] as? String,
-            let description = eventData["description"] as? String,
+            let eventDate = eventData["eventDate"] as? Double,
             let startTime = eventData["startTime"] as? Double,
             let endTime = eventData["endTime"] as? Double,
             let createdAt = eventData["creationDate"] as? Double {
             
-            let event = Event(id: id, scheduleId: scheduleId, title: title, description: description, startTime: startTime, endTime: endTime, creationDate: createdAt)
+            let eventDateUpdated = Date.convertTimeToDate(time: eventDate)
+            let startTimeUpdated = Date.convertTimeToDate(time: startTime)
+            let endTimeUpdated = Date.convertTimeToDate(time: endTime)
+            
+            let event = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDateUpdated, startTime: startTimeUpdated, endTime: endTimeUpdated, creationDate: createdAt)
             return event
             
         } else {
@@ -358,6 +392,50 @@ class FirebaseManager {
         }
     }
     
+    func fetchUserPosts(id: String) async throws -> [Post] {
+        let postsRef = ref.child("posts").child(id)
+        let snapshot = try await postsRef.getData()
+        
+        guard let userPostsDict = snapshot.value as? [String: Any] else {
+            throw FirebaseError.failedToFetchPost
+        }
+        
+        var posts: [Post] = []
+        
+        for (_, postValue) in userPostsDict {
+            guard let postData = postValue as? [String: Any],
+                let id = postData["id"] as? String,
+                let title = postData["title"] as? String,
+                let description = postData["description"] as? String,
+                let likes = postData["likes"] as? Int,
+                let eventLocation = postData["eventLocation"] as? String,
+                let creationDate = postData["creationDate"] as? Double
+            else {
+                throw PostError.invalidPostData
+            }
+            
+            let eventPhotos = postData["eventPhotos"] as? [String] ?? []
+            let taggedUsers = postData["taggedUsers"] as? [String] ?? []
+            let comments = postData["comments"] as? [String] ?? []
+
+            let post = Post(
+                id: id,
+                title: title,
+                description: description,
+                eventPhotos: eventPhotos,
+                comments: comments,
+                likes: Double(likes),  // Convert Int to Double since your Post model uses Double
+                taggedUsers: taggedUsers,
+                eventLocation: eventLocation,
+                creationDate: creationDate
+            )
+            
+            posts.append(post)
+        }
+        
+        return posts
+    }
+    
     func fetchFriendsPosts(id: String) async throws -> [Post] {
         let postsRef = ref.child("feeds").child(id)
         let snapshot = try await postsRef.getData()
@@ -485,7 +563,7 @@ class FirebaseManager {
     }
     
     func handleFriendRequest(fromUserObj: User, toUserName: String) async throws -> Void {
-        let otherUserId = try await self.fetchUserNameByName(username: toUserName)
+        let otherUserId = try await self.fetchUserIdByName(username: toUserName)
         let requestId = "\(fromUserObj.id)_\(otherUserId)"
         
         let request: [String: Any] = [
@@ -548,26 +626,33 @@ class FirebaseManager {
         }
     }
     
-    func fetchUserFriends(friendIds: [String]) async throws -> [String] {
-        var friendNames: [String] = []
+    func fetchUserFriends(friendIds: [String]) async throws -> [User] {
+        var friends: [User] = []
         
         if friendIds.isEmpty {
-            return friendNames
+            return friends
         } else {
-            try await withThrowingTaskGroup(of: String.self) { group in
+            try await withThrowingTaskGroup(of: User.self) { group in
                 for id in friendIds {
                     group.addTask {
-                        try await self.fetchUserNameById(userId: id)
+                        try await self.fetchUserAsync(id: id)
                     }
                 }
                 
                 for try await friend in group {
-                    friendNames.append(friend)
+                    friends.append(friend)
                 }
             }
             
-            return friendNames
+            return friends
         }
     }
+    
+//    func fetchSomeFriends(userid: String) async throws -> [User] {
+//        let userRef = ref.child("usernames").queryOrderedByKey()
+//            .queryStarting(atValue: username)
+//            .queryEnding(atValue: username + "\u{f8ff}")
+//            .queryLimited(toFirst: 6)
+//    }
     
 }

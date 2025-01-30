@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct EventView: View {
+struct PostView: View {
     @State var post: Post
     
     var body: some View {
