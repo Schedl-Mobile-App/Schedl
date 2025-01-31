@@ -151,7 +151,7 @@ struct ScheduleView: View {
     @StateObject var offsetManager: ScrollOffsetManager = ScrollOffsetManager()
     @EnvironmentObject var authService: AuthService
     @StateObject var scheduleViewModel: ScheduleViewModel = ScheduleViewModel()
-    private let hourHeight: CGFloat = 60
+    private let hourHeight: CGFloat = 80
     private let dayWidth: CGFloat = 150
     private let timeColumnWidth: CGFloat = 50
     private let currentMonth: Int = Calendar.current.component(.month, from: Date())
@@ -166,7 +166,6 @@ struct ScheduleView: View {
                 HStack(spacing: 0) {
                     Text("")
                         .frame(width: timeColumnWidth)
-                        .background(Color.white)
                     
                     GeometryReader { geometry in
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -178,7 +177,7 @@ struct ScheduleView: View {
                         .clipped()  // This will clip/hide content that scrolls outside the frame
                     }
                 }
-                .background(Color.white)
+                .background(Color(.systemBackground))
                 .frame(height: 40)
                 
                 HStack(spacing: 0) {
@@ -236,32 +235,83 @@ struct ScheduleView: View {
 struct SideBar: View {
     
     @EnvironmentObject var scheduleViewModel: ScheduleViewModel
+    @State var showMySchedules = false
+    @State var showFriendsSchedules = false
     
     var body: some View {
-        ZStack(alignment: .leading) {
+        ZStack(alignment: .topLeading) {
             Color.black.opacity(0.5)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            VStack(alignment: .leading) {
-                Button(action: {
-                    scheduleViewModel.toggleSideBar()
-                }) {
-                    Rectangle()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .foregroundStyle(.clear)
-                        .overlay {
-                            Image(systemName: "xmark")
-                                .foregroundStyle(.black)
-                                .font(.system(size: 24))
+            VStack() {
+                VStack(alignment: .leading, spacing: 25) {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            scheduleViewModel.toggleSideBar()
+                        }) {
+                            Rectangle()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .foregroundStyle(.clear)
+                                .overlay {
+                                    Image(systemName: "xmark")
+                                        .foregroundStyle(Color.primary)
+                                        .font(.system(size: 24))
+                                }
                         }
+                        .frame(width: 25, height: 50, alignment: .trailing)
+                        .padding(.horizontal)
+                        .padding(.top, 65)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(alignment: .center) {
+                            Text(scheduleViewModel.schedule?.title ?? "David's Schedule")
+                                .font(.system(size: 20, design: .monospaced))
+                                .padding(.bottom, 30)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        
+                        HStack(alignment: .center, spacing: 10) {
+                            Text("My Schedules")
+                                .font(.system(size: 20, design: .monospaced))
+                            Image(systemName: "chevron.down")
+                                .rotationEffect(.degrees(showMySchedules ? 180 : 0))
+                                .animation(.easeInOut, value: showMySchedules)
+                        }
+                        .padding()
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .border(width: 1, edges: [.top], color: Color.primary)
+                        .onTapGesture {
+                            showMySchedules.toggle()
+                        }
+                        
+                        HStack(alignment: .center, spacing: 10) {
+                            Text("Friends Schedules")
+                                .multilineTextAlignment(.center)
+                                .font(.system(size: 20, design: .monospaced))
+                            Image(systemName: "chevron.down")
+                                .rotationEffect(.degrees(showFriendsSchedules ? 180 : 0))
+                                .animation(.easeInOut, value: showFriendsSchedules)
+                        }
+                        .padding()
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .border(width: 1, edges: [.top, .bottom], color: Color.primary)
+                        .onTapGesture {
+                            showFriendsSchedules.toggle()
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-                .frame(width: 25, height: 50, alignment: .trailing)
-                .padding(.horizontal)
-                .padding(.top, 50)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .ignoresSafeArea(edges: .all)
+                .background(Color("DarkBackground"))
             }
+            .foregroundStyle(Color.primary)
             .transition(.move(edge: .leading))
-            .frame(maxWidth: 275, maxHeight: .infinity, alignment: .top)
-            .background(Color.white)
+            .frame(maxWidth: UIScreen.main.bounds.width * 0.70, maxHeight: .infinity, alignment: .top)
         }
         .zIndex(1)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -291,30 +341,30 @@ struct ScheduleHeader: View {
     @State private var selectedDate = Date()
     
     var body: some View {
-        HStack(spacing: 0) {
-            Button(action: {
-                scheduleViewModel.toggleSideBar()
-            }) {
-                Rectangle()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .foregroundStyle(.clear)
-                    .overlay {
-                        Image(systemName: "line.3.horizontal")
-                            .foregroundStyle(.black)
-                            .font(.system(size: 24))
-                    }
-            }
-            .frame(width: 25, height: 50)
-            .padding(.horizontal)
+        HStack(spacing: 15) {
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(Color.primary)
+                .font(.system(size: 24))
+                .onTapGesture {
+                    scheduleViewModel.toggleSideBar()
+                }
             
-            Text(monthText)
+            HStack (spacing: 0) {
+                Text(monthText)
+                    .foregroundStyle(Color.primary)
+                    .font(.system(size: 24, weight: .bold, design: .serif))
+                Text(yearText)
+                    .foregroundStyle(Color.primary)
+                    .font(.system(size: 24, weight: .bold, design: .serif))
+            }
+            
+            Spacer()
+            
+            Image(systemName: "line.3.horizontal.decrease.circle")
                 .foregroundStyle(Color.primary)
-                .font(.system(size: 24, weight: .bold, design: .serif))
-                .padding(.trailing, 8)
-            Text(yearText)
-                .foregroundStyle(Color.primary)
-                .font(.system(size: 24, weight: .bold, design: .serif))
+                .font(.system(size: 24))
         }
+        .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     
