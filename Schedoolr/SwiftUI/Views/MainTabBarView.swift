@@ -11,12 +11,10 @@ struct MainTabBarView: View {
                         .tabItem {
                             Image(systemName: "house.fill")
                         }
-                    
                     ScheduleView()
                         .tabItem {
                             Image(systemName: "calendar")
                         }
-                    
                     SearchView()
                         .tabItem {
                             Image(systemName: "magnifyingglass")

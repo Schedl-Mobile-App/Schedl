@@ -69,8 +69,9 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		CB377BFA2D67F9EC0035E855 /* SwiftUI */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = SwiftUI; sourceTree = "<group>"; };
+		CB377BFB2D67F9F30035E855 /* UIKit */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = UIKit; sourceTree = "<group>"; };
 		CB53080D2CA0824600A8AA04 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
-		CB5308112CA0829300A8AA04 /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
 		CB5F72422D3DBF20004C7FC8 /* Enums */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Enums; sourceTree = "<group>"; };
 		CB7058BD2CA660AE00C4EE00 /* ViewModels */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ViewModels; sourceTree = "<group>"; };
 		CBB233CC2CA4B96D00BDBFC0 /* Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Models; sourceTree = "<group>"; };
@@ -149,13 +150,14 @@
 		046B83492C867DE600F97BB4 /* Schedoolr */ = {
 			isa = PBXGroup;
 			children = (
+				CB377BFB2D67F9F30035E855 /* UIKit */,
+				CB377BFA2D67F9EC0035E855 /* SwiftUI */,
 				CBABE0CC2D4AB5300066F5E3 /* Extensions.swift */,
 				CB5F72422D3DBF20004C7FC8 /* Enums */,
 				CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */,
 				CBFD83D52CF51C240034BE9F /* Core */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,
-				CB5308112CA0829300A8AA04 /* Views */,
 				CB53080D2CA0824600A8AA04 /* Services */,
 				046B834A2C867DE600F97BB4 /* SchedoolrApp.swift */,
 				CB8D57502C9D465F0051A415 /* Schedoolr.xctestplan */,
@@ -197,8 +199,9 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				CB377BFA2D67F9EC0035E855 /* SwiftUI */,
+				CB377BFB2D67F9F30035E855 /* UIKit */,
 				CB53080D2CA0824600A8AA04 /* Services */,
-				CB5308112CA0829300A8AA04 /* Views */,
 				CB5F72422D3DBF20004C7FC8 /* Enums */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,

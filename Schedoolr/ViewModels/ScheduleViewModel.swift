@@ -16,7 +16,7 @@ class ScheduleViewModel: ObservableObject {
     @Published var errorMessage: String?        // Holds error messages if any
     @Published var events: [Event]?             // Holds the actual event objects of a schedule instance
     @Published var selectedEvent: Event?
-    @Published var sideBarState = false
+    @Published var sideBarState = true
     
     func togglePopUp() {
         showPopUp.toggle()
