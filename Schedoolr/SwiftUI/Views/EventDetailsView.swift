@@ -37,9 +37,9 @@ struct EventDetailsView: View {
     
     init(event: Event) {
         _eventObject = State(initialValue: event)
-        _eventStartTime = State(initialValue: event.startTime)
-        _eventEndTime = State(initialValue: event.endTime)
-        _eventDate = State(initialValue: event.eventDate)
+        _eventStartTime = State(initialValue: Date.convertHourAndMinuteToDate(time: event.startTime))
+        _eventEndTime = State(initialValue: Date.convertHourAndMinuteToDate(time: event.endTime))
+        _eventDate = State(initialValue: Date.convertTimeSince1970ToDate(time: event.eventDate))
     }
 
     var body: some View {
@@ -70,7 +70,7 @@ struct EventDetailsView: View {
                         
                     HStack {
                         Spacer()
-                        Text(formattedDate(date: scheduleViewModel.selectedEvent?.eventDate ?? Date()))
+                        Text(formattedDate(date: eventDate))
                             .font(.system(size: 18, weight: .regular, design: .monospaced))
                         Spacer()
                     }
@@ -200,10 +200,6 @@ struct EventDetailsView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .onAppear {
-            eventStartTime = scheduleViewModel.selectedEvent?.startTime ?? Date()
-            eventEndTime = scheduleViewModel.selectedEvent?.endTime ?? Date()
-        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
         .foregroundStyle(Color("PrimaryTextColor"))
@@ -223,18 +219,18 @@ struct EventDetailsView: View {
 //    }
 }
 
-let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: Date())
-
-let yearComponents = Calendar.current.dateComponents([.month, .day, .year], from: Date())
-
-let date = Calendar.current.date(from: yearComponents)
-let startTime = Calendar.current.date(from: timeComponents)
-let endTime = Calendar.current.date(from: timeComponents)
-
-let mockEvent: Event = Event(id: "1", scheduleId: "2", title: "Going to the gym", eventDate: date ?? Date(), startTime: startTime ?? Date(), endTime: endTime ?? Date(), creationDate: Date().timeIntervalSince1970)
-
-#Preview {
-    EventDetailsView(event: mockEvent)
-        .environmentObject(ScheduleViewModel())
-        .environmentObject(AuthService())
-}
+//let timeComponents = Calendar.current.dateComponents([.hour, .minute], from: Date())
+//
+//let yearComponents = Calendar.current.dateComponents([.month, .day, .year], from: Date())
+//
+//let date = Calendar.current.date(from: yearComponents)
+//let startTime = Calendar.current.date(from: timeComponents)
+//let endTime = Calendar.current.date(from: timeComponents)
+//
+//let mockEvent: Event = Event(id: "1", scheduleId: "2", title: "Going to the gym", eventDate: date ?? Date(), startTime: startTime ?? Date(), endTime: endTime ?? Date(), creationDate: Date().timeIntervalSince1970)
+//
+//#Preview {
+//    EventDetailsView(event: mockEvent)
+//        .environmentObject(ScheduleViewModel())
+//        .environmentObject(AuthService())
+//}

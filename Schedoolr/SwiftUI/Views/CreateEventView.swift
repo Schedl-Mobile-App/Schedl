@@ -16,24 +16,25 @@ struct CreateEventView: View {
     @State var dayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     @EnvironmentObject var scheduleViewModel: ScheduleViewModel
     @State var location: String = ""
-    let dateRange: ClosedRange<Date> = {
-        let calendar = Calendar.current
-        let startComponents = DateComponents(year: 2025, month: 1, day: 1)
-        let endComponents = DateComponents(year: 2025, month: 12, day: 31, hour: 23, minute: 59, second: 59)
-        return calendar.date(from:startComponents)!
-            ...
-            calendar.date(from:endComponents)!
-    }()
     @Environment(\.presentationMode) var presentationMode
     
     init() {
         let calendar = Calendar.current
         let now = Date()
-        let startOfDay = calendar.startOfDay(for: now)
-        let timeFromStartOfDay = now.timeIntervalSince(startOfDay)
-        
-        _eventStartTime = State(initialValue: Date(timeIntervalSinceReferenceDate: timeFromStartOfDay))
-        _eventEndTime = State(initialValue: Date(timeIntervalSinceReferenceDate: timeFromStartOfDay + 3600))
+        let hour = calendar.component(.hour, from: now)
+        let minute = calendar.component(.minute, from: now)
+
+        // Initialize start time with current hour and minute
+        var startComponents = DateComponents()
+        startComponents.hour = hour
+        startComponents.minute = minute
+        _eventStartTime = State(initialValue: calendar.date(from: startComponents)!)
+
+        // Initialize end time with one hour added to the start time
+        var endComponents = DateComponents()
+        endComponents.hour = hour + 1 // Add one hour
+        endComponents.minute = minute
+        _eventEndTime = State(initialValue: calendar.date(from: endComponents)!)
     }
     
     var body: some View {
@@ -87,7 +88,6 @@ struct CreateEventView: View {
                         DatePicker(
                             "",
                             selection: $eventDate,
-                            in: dateRange,
                             displayedComponents: [.date]
                         )
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -192,7 +192,8 @@ struct CreateEventView: View {
                     
                     Button(action: {
                         Task {
-                            let newEvent: Event = scheduleViewModel.makeNewEvent(title: title, eventDate: eventDate, startTime: eventStartTime, endTime: eventEndTime)
+                            print(eventDate)
+                            let newEvent: Event = scheduleViewModel.makeNewEvent(title: title, eventDate: Date.computeTimeSince1970(date: eventDate), startTime: Date.computeTimeSinceStartOfDay(date: eventStartTime), endTime: Date.computeTimeSinceStartOfDay(date: eventEndTime))
                             await scheduleViewModel.createEvent(newEvent: newEvent)
                             presentationMode.wrappedValue.dismiss()
                         }

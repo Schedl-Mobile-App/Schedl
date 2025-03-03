@@ -17,6 +17,7 @@ class ScheduleViewModel: ObservableObject {
     @Published var events: [Event]?             // Holds the actual event objects of a schedule instance
     @Published var selectedEvent: Event?
     @Published var sideBarState = true
+    @Published var scheduleListener: DatabaseHandle?
     
     func togglePopUp() {
         showPopUp.toggle()
@@ -26,7 +27,7 @@ class ScheduleViewModel: ObservableObject {
         sideBarState.toggle()
     }
     
-    func makeNewEvent(title: String, eventDate: Date, startTime: Date, endTime: Date) -> Event {
+    func makeNewEvent(title: String, eventDate: TimeInterval, startTime: TimeInterval, endTime: TimeInterval) -> Event {
         
         let newEvent = Event(
             id: UUID().uuidString,  // Generate new ID
@@ -49,6 +50,7 @@ class ScheduleViewModel: ObservableObject {
         do {
             let fetchedSchedule = try await FirebaseManager.shared.fetchScheduleAsync(id: id)
             let fetchedEvents = try await FirebaseManager.shared.fetchEventsForScheduleAsync(eventIDs: fetchedSchedule.events)
+            setupScheduleListener(scheduleId: id)
             self.schedule = fetchedSchedule
             self.events = fetchedEvents
             self.isLoading = false
@@ -85,17 +87,22 @@ class ScheduleViewModel: ObservableObject {
         }
     }
     
-    func calculateEventPosition(event: Event, hourHeight: CGFloat) -> (height: CGFloat, offset: CGFloat) {
-        let startHour = Int(Date.convertDateToTime(date: event.startTime) / 60)
-        let startMinute = Date.convertDateToTime(date: event.startTime) - startHour * 60
-        let endHour = Date.convertDateToTime(date: event.endTime) / 60
-        let endMinute = Date.convertDateToTime(date: event.endTime) - (endHour * 60)
-        
-        let startOffset = CGFloat(startHour) * hourHeight + CGFloat(startMinute) / 60.0 * hourHeight
-        let duration = CGFloat(endHour - startHour) * hourHeight +
-                      CGFloat(endMinute - startMinute) / 60.0 * hourHeight
-        
-        return (height: duration, offset: startOffset)
+    @MainActor
+    func setupScheduleListener(scheduleId: String) {
+        removeScheduleListener(scheduleId: scheduleId)
+        scheduleListener = FirebaseManager.shared.observeScheduleChanges(scheduleId: scheduleId) { [weak self] events in
+            DispatchQueue.main.async {
+                self?.events = events
+            }
+        }
+    }
+    
+    @MainActor
+    func removeScheduleListener(scheduleId: String) {
+        if let handle = scheduleListener {
+            FirebaseManager.shared.removeScheduleObserver(handle: handle, scheduleId: scheduleId)
+            scheduleListener = nil
+        }
     }
 }
 
