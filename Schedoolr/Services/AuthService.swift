@@ -75,7 +75,7 @@ class AuthService: ObservableObject {
     @MainActor
     func logout() async throws {
         do {
-            self.removeUserListener()
+            self.removeUserListener(userId: self.currentUser?.id ?? "")
             try Auth.auth().signOut()
             currentUser = nil
             isLoggedIn = false
@@ -86,16 +86,16 @@ class AuthService: ObservableObject {
     
     @MainActor
     func setupUserListener(userId: String) {
-        removeUserListener()
+        removeUserListener(userId: userId)
         userListener = FirebaseManager.shared.observeUserChanges(id: userId) { [weak self] user in
             self?.currentUser = user
         }
     }
     
     @MainActor
-    func removeUserListener() {
+    func removeUserListener(userId: String) {
         if let handle = userListener {
-            FirebaseManager.shared.removeUserObserver(handle: handle)
+            FirebaseManager.shared.removeUserObserver(handle: handle, userId: userId)
             userListener = nil
         }
     }

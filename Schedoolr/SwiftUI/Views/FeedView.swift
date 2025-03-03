@@ -59,7 +59,7 @@ struct FeedView: View {
                 }
             }
             .onDisappear {
-                notificationsViewModel.removeFeedListener()
+                notificationsViewModel.removeFeedListener(userId: authService.currentUser?.id ?? "")
             }
         }
     }

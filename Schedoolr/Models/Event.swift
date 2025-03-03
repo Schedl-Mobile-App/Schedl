@@ -11,12 +11,12 @@ struct Event: Codable, Identifiable, Equatable {
     var id: String
     var scheduleId: String
     var title: String
-    var eventDate: Date
-    var startTime: Date
-    var endTime: Date
+    var eventDate: TimeInterval
+    var startTime: TimeInterval
+    var endTime: TimeInterval
     var creationDate: TimeInterval
     
-    init(id: String, scheduleId: String, title: String, eventDate: Date, startTime: Date, endTime: Date, creationDate: Double) {
+    init(id: String, scheduleId: String, title: String, eventDate: TimeInterval, startTime: TimeInterval, endTime: TimeInterval, creationDate: Double) {
         self.id = id
         self.scheduleId = scheduleId
         self.title = title

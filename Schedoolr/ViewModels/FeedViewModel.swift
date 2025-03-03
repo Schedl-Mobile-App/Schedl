@@ -36,7 +36,7 @@ class FeedViewModel: ObservableObject {
     
     @MainActor
     func setupFeedListener(userId: String) {
-        removeFeedListener()
+        removeFeedListener(userId: userId)
         feedListener = FirebaseManager.shared.observeFeedChanges(userId: userId) { [weak self] posts in
             DispatchQueue.main.async {
                 self?.posts = posts
@@ -45,9 +45,9 @@ class FeedViewModel: ObservableObject {
     }
     
     @MainActor
-    func removeFeedListener() {
+    func removeFeedListener(userId: String) {
         if let handle = feedListener {
-            FirebaseManager.shared.removeUserObserver(handle: handle)
+            FirebaseManager.shared.removeFeedObserver(handle: handle, userId: userId)
             feedListener = nil
         }
     }

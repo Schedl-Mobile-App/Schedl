@@ -135,8 +135,8 @@ class FirebaseManager {
         }
     }
     
-    func removeUserObserver(handle: DatabaseHandle) {
-        let userRef = ref.child("users")  // assuming 'ref' is your database reference
+    func removeUserObserver(handle: DatabaseHandle, userId: String) {
+        let userRef = ref.child("users").child(userId)  // assuming 'ref' is your database reference
         userRef.removeObserver(withHandle: handle)
     }
     
@@ -255,11 +255,7 @@ class FirebaseManager {
             let endTime = eventData["endTime"] as? Double,
             let createdAt = eventData["creationDate"] as? Double {
             
-            let eventDateUpdated = Date.convertTimeToDate(time: eventDate)
-            let startTimeUpdated = Date.convertTimeToDate(time: startTime)
-            let endTimeUpdated = Date.convertTimeToDate(time: endTime)
-            
-            let event = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDateUpdated, startTime: startTimeUpdated, endTime: endTimeUpdated, creationDate: createdAt)
+            let event = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt)
             return event
             
         } else {
@@ -290,6 +286,32 @@ class FirebaseManager {
             
             return events
         }
+    }
+    
+    func observeScheduleChanges(scheduleId: String, completion: @escaping ([Event]) -> Void) -> DatabaseHandle {
+        let eventsRef = ref.child("schedules").child(scheduleId).child("eventIds")
+        return eventsRef.observe(.value) { snapshot, _ in
+            guard let eventData = snapshot.value as? [String: Bool] else {
+                return
+            }
+            
+            // since events are stored as [EventId: true]
+            let eventIds = Array(eventData.keys)
+            
+            Task {
+                do {
+                    let events = try await self.fetchEventsForScheduleAsync(eventIDs: eventIds)
+                    completion(events)
+                } catch {
+                    return
+                }
+            }
+        }
+    }
+    
+    func removeScheduleObserver(handle: DatabaseHandle, scheduleId: String) {
+        let eventsRef = ref.child("schedules").child(scheduleId).child("eventIds")
+        eventsRef.removeObserver(withHandle: handle)
     }
     
     func createNewEventAsync(eventData: Event) async throws -> Event {
@@ -503,8 +525,8 @@ class FirebaseManager {
         }
     }
     
-    func removeFeedObserver(handle: DatabaseHandle) {
-        let feedRef = ref.child("feeds")
+    func removeFeedObserver(handle: DatabaseHandle, userId: String) {
+        let feedRef = ref.child("feeds").child(userId)
         feedRef.removeObserver(withHandle: handle)
     }
     

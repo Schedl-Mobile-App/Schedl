@@ -17,25 +17,30 @@ extension Date {
         return Date(timeIntervalSince1970: timestamp)
     }
     
-    static func convertTimeToDate(time: Double) -> Date {
-        let hours = Int(floor(time/3600))
-        let minutes = Int(time.truncatingRemainder(dividingBy: 3600))
-        
+    static func convertHourAndMinuteToDate(time: TimeInterval) -> Date {
+        let hours = Int(floor(time / 3600))
+        let minutes = Int(time.truncatingRemainder(dividingBy: 3600) / 60)
+
         var dateComponents = DateComponents()
         dateComponents.hour = hours
         dateComponents.minute = minutes
-        
-        let dateObj: Date = Calendar.current.date(from: dateComponents) ?? Date()
-        return dateObj
+
+        return Calendar.current.date(from: dateComponents)!
     }
     
-    static func convertDateToTime(date: Date) -> Int {
-        let hours = Calendar.current.component(.hour, from: date)
-        let minutes = Calendar.current.component(.minute, from: date)
-        
-        let timeInMinutes = hours * 60 + minutes
-        
-        return timeInMinutes
+    static func convertTimeSince1970ToDate(time: TimeInterval) -> Date {
+        print(Date(timeIntervalSince1970: time))
+        return Date(timeIntervalSince1970: time)
+    }
+    
+    static func computeTimeSinceStartOfDay(date: Date) -> TimeInterval {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        return date.timeIntervalSince(startOfDay)
+    }
+    
+    static func computeTimeSince1970(date: Date) -> TimeInterval {
+        return date.timeIntervalSince1970
     }
 }
 

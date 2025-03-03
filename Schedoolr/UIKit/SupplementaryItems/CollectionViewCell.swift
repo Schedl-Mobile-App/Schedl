@@ -10,7 +10,7 @@ import UIKit
 class CollectionViewCell: UICollectionViewCell {
     
     static let identifier = "EventCell"
-    
+        
     // Lazy initialization of the UIImageView
     private lazy var cellView: UILabel = {
         let cellView = UILabel()
@@ -29,8 +29,8 @@ class CollectionViewCell: UICollectionViewCell {
     
     func configureUI() {
         cellView.backgroundColor = .systemBackground
+        cellView.layer.borderColor = UIColor(named: "PrimaryTextColor")?.cgColor
         cellView.layer.borderWidth = 0.25
-        cellView.layer.cornerRadius = 5
     }
     
     // Setup the view and add imageView with constraints
