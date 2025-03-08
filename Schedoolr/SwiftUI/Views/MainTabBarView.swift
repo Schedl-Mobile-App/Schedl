@@ -12,6 +12,7 @@ struct MainTabBarView: View {
                             Image(systemName: "house.fill")
                         }
                     ScheduleView()
+                        .ignoresSafeArea(.all)
                         .tabItem {
                             Image(systemName: "calendar")
                         }

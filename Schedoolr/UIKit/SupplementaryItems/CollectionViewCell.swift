@@ -28,9 +28,9 @@ class CollectionViewCell: UICollectionViewCell {
     }
     
     func configureUI() {
-        cellView.backgroundColor = .systemBackground
         cellView.layer.borderColor = UIColor(named: "PrimaryTextColor")?.cgColor
         cellView.layer.borderWidth = 0.25
+        cellView.backgroundColor = UIColor(named: "DarkBackground")
     }
     
     // Setup the view and add imageView with constraints

@@ -215,8 +215,7 @@ struct CreateEventView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
-        .foregroundStyle(Color("PrimaryTextColor"))
+        .background(Color("DarkBackground"))
         .navigationBarBackButtonHidden(true)
     }
 }
