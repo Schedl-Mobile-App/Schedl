@@ -24,6 +24,10 @@ struct ScheduleView: UIViewControllerRepresentable {
     
     func makeUIViewController(context: Context) -> ScheduleViewController {
         let scheduleView = ScheduleViewController()
+//        scheduleView.edgesForExtendedLayout = .all
+//        
+//        // Make the view controller properly fill its container
+//        scheduleView.view.insetsLayoutMarginsFromSafeArea = false
         
         // anytime that a specific action occurs, particularly in the
         // schedule view model object, our view controller will report

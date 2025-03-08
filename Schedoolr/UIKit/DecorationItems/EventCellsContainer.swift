@@ -21,7 +21,6 @@ class EventCellsContainer: UICollectionReusableView {
         super.init(frame: frame)
         EventCellsContainer.instance = self
         configureUI()
-        print("Frame of Event Cells Container", frame)
     }
     
     required init?(coder: NSCoder) {
@@ -42,6 +41,10 @@ class EventCellsContainer: UICollectionReusableView {
     }
     
     func populateEventCells(rootVC: UIViewController, viewModel: ScheduleViewModel, events: [Event], centerDate: Date, calendarInterval: Int) {
+        
+        for subview in containerView.subviews {
+            subview.removeFromSuperview()
+        }
         
         self.rootVC = rootVC
         self.viewModel = viewModel
@@ -72,7 +75,7 @@ class EventCellsContainer: UICollectionReusableView {
         guard let dayDifference = components.day else { return nil }
 
         // Add 30 to adjust for the -30 to +29 range in dayList
-        let dayIndex = dayDifference + 30
+        let dayIndex = dayDifference + 45
 
         // Ensure the index is within the valid range of dayList (0 to 59)
         guard dayIndex >= 0 && dayIndex < calendarInterval else { return nil }

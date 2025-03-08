@@ -38,7 +38,7 @@ class TimeLabel: UIView {
         let label = InsetLabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textAlignment = .center
-        label.font = UIFont.systemFont(ofSize: 12)
+        label.font = UIFont.monospacedSystemFont(ofSize: 12, weight: .medium)
         return label
     }()
     
@@ -89,10 +89,8 @@ class CollectionViewTimesColumn: UICollectionReusableView {
         stackView.axis = .vertical
         stackView.distribution = .fillEqually
         stackView.translatesAutoresizingMaskIntoConstraints = false
-        stackView.layer.cornerRadius = 5
         stackView.layer.borderColor = UIColor.clear.cgColor
-        stackView.layer.borderWidth = 0
-        stackView.backgroundColor = .systemBackground
+        stackView.backgroundColor = UIColor(named: "DarkBackground")
         addSubview(stackView)
         
         NSLayoutConstraint.activate([
