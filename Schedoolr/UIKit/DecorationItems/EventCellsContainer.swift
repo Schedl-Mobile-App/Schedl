@@ -7,19 +7,24 @@
 
 import UIKit
 
-class EventCellsContainer: UICollectionReusableView {
+class SecondPassthroughView: UIView {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let view = super.hitTest(point, with: event)
+        return view == self ? nil : view
+    }
+}
+
+class EventCellsContainer: SecondPassthroughView {
     
     weak var rootVC: UIViewController?
     weak var viewModel: ScheduleViewModel?
     
     var events: [Event] = []
-    let containerView = UIView()
-    
-    static weak var instance: EventCellsContainer?
+    let containerView = SecondPassthroughView()
     
     override init(frame: CGRect) {
         super.init(frame: frame)
-        EventCellsContainer.instance = self
+        print("EventCellsContainer initialized with frame: \(frame)")
         configureUI()
     }
     
@@ -40,6 +45,11 @@ class EventCellsContainer: UICollectionReusableView {
         ])
     }
     
+    func updateContentOffset(to offset: CGPoint) {
+        // Apply transforms to the containerView to match scroll position
+        containerView.transform = CGAffineTransform(translationX: -offset.x, y: -offset.y)
+    }
+    
     func populateEventCells(rootVC: UIViewController, viewModel: ScheduleViewModel, events: [Event], centerDate: Date, calendarInterval: Int) {
         
         for subview in containerView.subviews {
@@ -57,6 +67,7 @@ class EventCellsContainer: UICollectionReusableView {
             
             let eventCell = EventCell(frame: CGRect(x: Double(xPosition), y: yStartPosition, width: 75, height: yOffset))
             eventCell.configureUI(viewModel: viewModel, event: event, rootVC: rootVC)
+            eventCell.isUserInteractionEnabled = true
             containerView.addSubview(eventCell)
         }
     }
@@ -75,7 +86,7 @@ class EventCellsContainer: UICollectionReusableView {
         guard let dayDifference = components.day else { return nil }
 
         // Add 30 to adjust for the -30 to +29 range in dayList
-        let dayIndex = dayDifference + 45
+        let dayIndex = dayDifference + 30
 
         // Ensure the index is within the valid range of dayList (0 to 59)
         guard dayIndex >= 0 && dayIndex < calendarInterval else { return nil }

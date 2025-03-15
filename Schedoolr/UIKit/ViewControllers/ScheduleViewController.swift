@@ -9,7 +9,15 @@ import UIKit
 import SwiftUI
 import Combine
 
+class PassthroughView: UIScrollView {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let view = super.hitTest(point, with: event)
+        return view == self ? nil : view
+    }
+}
+
 class ScheduleViewController: UIViewController {
+    
     
     var coordinator: ScheduleView.Coordinator?
     
@@ -24,18 +32,9 @@ class ScheduleViewController: UIViewController {
         "July", "August", "September", "October", "November", "December"
     ]
     
-    let weekList: [Int: String] = [
-        1 : "Sun",
-        2 : "Mon",
-        3 : "Tue",
-        4 : "Wed",
-        5 : "Thu",
-        6 : "Fri",
-        7 : "Sat"
-    ]
-    
     // Store the previous horizontal offset
     private var previousContentOffsetX: CGFloat = 0
+    private var previousContentOffsetY: CGFloat = 0
     
     var currentDate = Date()
     
@@ -50,7 +49,7 @@ class ScheduleViewController: UIViewController {
     
     lazy var displayedYear = Calendar.current.component(.year, from: currentDate)
     lazy var displayedMonth = monthsList[Calendar.current.component(.month, from: currentDate)-1]
-    lazy var datesToAdd: Int = numberOfDays / 2
+    lazy var datesToAdd: Int = 30
     
     var dayList: [Date] = []
     
@@ -74,14 +73,10 @@ class ScheduleViewController: UIViewController {
         let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
         
-        collectionView.register(CollectionViewDaysHeader.self, forSupplementaryViewOfKind: "DayHeader", withReuseIdentifier: "DayHeader")
-        collectionView.register(CollectionViewTimesColumn.self, forSupplementaryViewOfKind: "TimeColumn", withReuseIdentifier: "TimeColumn")
-        
         //        older method of cell registration which is handled in the initialization of our collection view
         //        view.register(EventCell.self, forCellWithReuseIdentifier: "EventCell")
         
         collectionView.isDirectionalLockEnabled = true
-        collectionView.bounces = false
         collectionView.decelerationRate = .fast
         collectionView.showsHorizontalScrollIndicator = false
         collectionView.showsVerticalScrollIndicator = false
@@ -101,6 +96,19 @@ class ScheduleViewController: UIViewController {
         cell.configureUI()
     }
     
+    lazy var eventContainerScrollView: PassthroughView  = {
+        let scrollView = PassthroughView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.backgroundColor = .clear
+        scrollView.isScrollEnabled = false
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.contentSize = CGSize(width: horizontalGroupWidth, height: singleDayGroupHeight)
+        return scrollView
+    }()
+    
+    let eventContainer = EventCellsContainer()
+    
     let sidebarButton = UIButton()
     let scheduleLabel = UILabel()
     let headerContainerView = UIView()
@@ -116,6 +124,29 @@ class ScheduleViewController: UIViewController {
     
     let createEventButton = UIButton()
     
+    let dayHeader = CollectionViewDaysHeader()
+    let timeColumn = CollectionViewTimesColumn()
+    
+    private lazy var dayHeaderScrollView: UIScrollView = {
+        let scrollView = UIScrollView()
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.isScrollEnabled = false // We'll control this programmatically
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.contentSize = CGSize(width: horizontalGroupWidth, height: 60)
+        return scrollView
+    }()
+
+    private lazy var timeColumnScrollView: UIScrollView = {
+        let scrollView = UIScrollView()
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.isScrollEnabled = false // We'll control this programmatically
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.contentSize = CGSize(width: 44, height: singleDayGroupHeight)
+        return scrollView
+    }()
+    
+    private var isHandlingScroll = false
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -127,6 +158,8 @@ class ScheduleViewController: UIViewController {
         
         displayedDateContainerView.addSubview(displayedMonthLabel)
         displayedDateContainerView.addSubview(displayedYearLabel)
+        
+        collectionView.backgroundColor = UIColor(named: "DarkBackground")
         
         // add the collection view to root view
         view.addSubview(collectionView)
@@ -158,7 +191,7 @@ class ScheduleViewController: UIViewController {
         headerContainerView.addSubview(sidebarButton)
         headerContainerView.addSubview(scheduleLabel)
         headerContainerView.addSubview(searchButton)
-        
+                
         displayedDateContainerView.translatesAutoresizingMaskIntoConstraints = false
         displayedDateContainerView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: 15, bottom: 0, trailing: 3)
         
@@ -166,7 +199,7 @@ class ScheduleViewController: UIViewController {
         displayedMonthLabel.font = .systemFont(ofSize: 30, weight: .bold)
         displayedMonthLabel.translatesAutoresizingMaskIntoConstraints = false
         displayedMonthLabel.textAlignment = .right
-        displayedMonthLabel.textColor = UIColor(red: 202, green: 177, blue: 210, alpha: 1)
+        displayedMonthLabel.textColor = UIColor(named: "PrimaryTextColor")
         
         displayedDateContainerView.addSubview(displayedMonthLabel)
         displayedDateContainerView.addSubview(displayedYearLabel)
@@ -174,6 +207,9 @@ class ScheduleViewController: UIViewController {
         displayedYearLabel.text = "\(displayedYear)"
         displayedYearLabel.font = .systemFont(ofSize: 30, weight: .medium)
         displayedYearLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        timeColumn.translatesAutoresizingMaskIntoConstraints = false
+        dayHeader.translatesAutoresizingMaskIntoConstraints = false
         
         createEventButton.configuration = .borderless()
         createEventButton.configuration?.image = UIImage(systemName: "plus")
@@ -183,8 +219,20 @@ class ScheduleViewController: UIViewController {
         createEventButton.addTarget(self, action: #selector(showCreateEvent), for: .touchUpInside)
         
         view.addSubview(createEventButton)
+        // Add the scroll views first
+        view.addSubview(dayHeaderScrollView)
+        view.addSubview(timeColumnScrollView)
         
+        // Add headers to scroll views
+        dayHeaderScrollView.addSubview(dayHeader)
+        timeColumnScrollView.addSubview(timeColumn)
         view.addSubview(overlayView)
+        
+        eventContainer.translatesAutoresizingMaskIntoConstraints = false
+        
+        eventContainerScrollView.addSubview(eventContainer)
+        
+        view.addSubview(eventContainerScrollView)
         
         // constraints for our collection view
         NSLayoutConstraint.activate([
@@ -216,15 +264,46 @@ class ScheduleViewController: UIViewController {
             searchButton.topAnchor.constraint(equalTo: displayedDateContainerView.topAnchor),
             searchButton.bottomAnchor.constraint(equalTo: displayedDateContainerView.bottomAnchor),
             
+            dayHeaderScrollView.topAnchor.constraint(equalTo: displayedDateContainerView.bottomAnchor, constant: 5),
+            dayHeaderScrollView.leadingAnchor.constraint(equalTo: overlayView.trailingAnchor),
+            dayHeaderScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            dayHeaderScrollView.heightAnchor.constraint(equalToConstant: 60),
+           
+            // Time column scroll view
+            timeColumnScrollView.topAnchor.constraint(equalTo: overlayView.bottomAnchor),
+            timeColumnScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            timeColumnScrollView.widthAnchor.constraint(equalToConstant: 48),
+            timeColumnScrollView.bottomAnchor.constraint(equalTo: view.layoutMarginsGuide.bottomAnchor),
             
-            collectionView.topAnchor.constraint(equalTo: displayedDateContainerView.bottomAnchor, constant: 5),
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            // Headers inside scroll views (position at 0,0)
+            dayHeader.topAnchor.constraint(equalTo: dayHeaderScrollView.contentLayoutGuide.topAnchor),
+            dayHeader.leadingAnchor.constraint(equalTo: dayHeaderScrollView.contentLayoutGuide.leadingAnchor),
+            dayHeader.widthAnchor.constraint(equalToConstant: horizontalGroupWidth),
+            dayHeader.heightAnchor.constraint(equalToConstant: 60),
+            
+            timeColumn.topAnchor.constraint(equalTo: timeColumnScrollView.contentLayoutGuide.topAnchor),
+            timeColumn.leadingAnchor.constraint(equalTo: timeColumnScrollView.contentLayoutGuide.leadingAnchor),
+            timeColumn.widthAnchor.constraint(equalToConstant: 48),
+            timeColumn.heightAnchor.constraint(equalToConstant: singleDayGroupHeight),
+            
+            collectionView.topAnchor.constraint(equalTo: dayHeaderScrollView.bottomAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: timeColumnScrollView.trailingAnchor),
             collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             collectionView.bottomAnchor.constraint(equalTo: view.layoutMarginsGuide.bottomAnchor),
             
+            eventContainerScrollView.topAnchor.constraint(equalTo: dayHeaderScrollView.bottomAnchor),
+            eventContainerScrollView.leadingAnchor.constraint(equalTo: timeColumnScrollView.trailingAnchor),
+            eventContainerScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            eventContainerScrollView.bottomAnchor.constraint(equalTo: view.layoutMarginsGuide.bottomAnchor),
+
+            eventContainer.topAnchor.constraint(equalTo: eventContainerScrollView.bottomAnchor),
+            eventContainer.leadingAnchor.constraint(equalTo: eventContainerScrollView.trailingAnchor),
+            eventContainer.widthAnchor.constraint(equalToConstant: horizontalGroupWidth),
+            eventContainer.heightAnchor.constraint(equalToConstant: horizontalGroupHeight),
+            
             overlayView.topAnchor.constraint(equalTo: displayedDateContainerView.bottomAnchor, constant: 5),
             overlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            overlayView.widthAnchor.constraint(equalToConstant: 44),
+            overlayView.widthAnchor.constraint(equalToConstant: 48),
             overlayView.heightAnchor.constraint(equalToConstant: 60),
             
             createEventButton.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -234,6 +313,7 @@ class ScheduleViewController: UIViewController {
         ])
         
         setDisplayedDates(centerDate: currentDate)
+        dayHeader.setDates(dayList: dayList)
         
         // Access the view model through the coordinator
         if let viewModel = coordinator?.viewModel {
@@ -261,10 +341,10 @@ class ScheduleViewController: UIViewController {
     }
     
     private func updateEventsOverlay() {
-        if let eventsOverlay = EventCellsContainer.instance,
-           let viewModel = coordinator?.viewModel,
+        if let viewModel = coordinator?.viewModel,
            let events = coordinator?.viewModel.events {
-            eventsOverlay.populateEventCells(rootVC: self, viewModel: viewModel, events: events, centerDate: currentDate, calendarInterval: numberOfDays)
+            print("Hello, World")
+            eventContainer.populateEventCells(rootVC: self, viewModel: viewModel, events: events, centerDate: currentDate, calendarInterval: numberOfDays)
         }
     }
     
@@ -344,10 +424,6 @@ class ScheduleViewController: UIViewController {
         }
     }
     
-    //    @objc func showEventDetails() {
-    //        let hostingController = UIHostingController(rootView: EventDetailsView())
-    //    }
-    
     // handles the initial scrolling to the current time to give the user an animated experience
     func scrollToCurrentPosition() {
         let calendar = Calendar.current
@@ -368,9 +444,14 @@ class ScheduleViewController: UIViewController {
         let itemWidth: CGFloat = 75
         
         // initial horizontal offset so that the current day is the first day displayed
-        let xOffset = CGFloat(currentDayIndex) * itemWidth - 40
+        let xOffset = CGFloat(currentDayIndex) * itemWidth
         
         collectionView.setContentOffset(CGPoint(x: xOffset, y: safeYOffset), animated: false)
+        
+        UIView.performWithoutAnimation {
+            dayHeader.frame.origin.x += xOffset
+            timeColumn.frame.origin.y += safeYOffset
+        }
     }
     
     func layout() -> UICollectionViewCompositionalLayout {
@@ -395,76 +476,12 @@ class ScheduleViewController: UIViewController {
         let horizontalGroupContainer = NSCollectionLayoutGroup.horizontal(layoutSize: horizontalGroupContainerSize,
                                                                           subitems: [singleDayGroup])
         
+        
         let section = NSCollectionLayoutSection(group: horizontalGroupContainer)
         
-        let headerFooterSize = NSCollectionLayoutSize(widthDimension: .absolute(horizontalGroupWidth),
-                                                      heightDimension: .absolute(60))
-        
-        let dayHeader = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: headerFooterSize,
-                                                                    elementKind: "DayHeader",
-                                                                    alignment: .top)
-        
-        dayHeader.pinToVisibleBounds = true
-        dayHeader.zIndex = 999
-        
-        let timeColumnSize = NSCollectionLayoutSize(widthDimension: .absolute(44),
-                                                    heightDimension: .absolute(singleDayGroupHeight))
-        
-        let timeColumn = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: timeColumnSize,
-                                                                     elementKind: "TimeColumn",
-                                                                     alignment: .leading)
-        timeColumn.pinToVisibleBounds = true
-        timeColumn.zIndex = 999
-        
-        let eventsOverlay = NSCollectionLayoutDecorationItem.background(elementKind: "EventsOverlay")
-        eventsOverlay.contentInsets = NSDirectionalEdgeInsets(top: 60, leading: 0, bottom: 0, trailing: 0)
-        eventsOverlay.zIndex = 10  // Above cells but below supplementary items
-        
-        section.decorationItems = [eventsOverlay]
-        section.boundarySupplementaryItems = [timeColumn, dayHeader]
-        
-        let layout = CustomCompositionalLayout(section: section, scrollableWidth: horizontalGroupWidth)
-        layout.register(EventCellsContainer.self, forDecorationViewOfKind: "EventsOverlay")
+        let layout = UICollectionViewCompositionalLayout(section: section)
         
         return layout
-    }
-    
-    func updateVisibleMonthTitle() {
-        
-        // Calculate current visible day index
-        let timeColumnWidth: CGFloat = 44
-        let itemWidth: CGFloat = 75
-        
-        // Get content offset adjusted for time column
-        let adjustedOffset = collectionView.contentOffset.x - timeColumnWidth
-        
-        // Calculate visible day index
-        let visibleDayIndex = Int(round(adjustedOffset / itemWidth))
-        let safeDayIndex = max(0, min(visibleDayIndex, numberOfDays-1))
-        
-        // Make sure we have enough days in our list
-        guard safeDayIndex < dayList.count else { return }
-        
-        // Get date from our computed index
-        let visibleDate = dayList[safeDayIndex]
-        
-        // Extract month and year
-        let calendar = Calendar.current
-        let month = calendar.component(.month, from: visibleDate) - 1 // Months are 1-based, array is 0-based
-        let year = calendar.component(.year, from: visibleDate)
-        
-        // Only update if changed
-        let newMonth = monthsList[month]
-        let newYear = year
-        
-        if newMonth != displayedMonthLabel.text || String(newYear) != displayedYearLabel.text {
-            // Update our properties
-            self.displayedMonth = newMonth
-            self.displayedYear = newYear
-            
-            self.displayedMonthLabel.text = displayedMonth
-            self.displayedYearLabel.text = "\(displayedYear)"
-        }
     }
     
     var shouldIgnorePreviousTrigger = false
@@ -475,8 +492,8 @@ class ScheduleViewController: UIViewController {
         guard !isLoadingPreviousDates else { return }
         isLoadingPreviousDates = true
         
-        // IMPORTANT: Save current contentOffset before making any changes
         let currentOffset = collectionView.contentOffset
+        let newOffset = CGPoint(x: currentOffset.x + CGFloat(datesToAdd) * itemWidth, y: currentOffset.y)
         
         // Get the first date in current range
         let firstDate = dayList.first ?? Date()
@@ -490,35 +507,22 @@ class ScheduleViewController: UIViewController {
             }
         }
         
-        newDays = newDays.reversed()
-        
-        for i in 0...(numberOfDays - datesToAdd - 1) {
-            newDays.append(dayList[i])
-        }
-        
         // Update the data source with new days
-        dayList = newDays
+        dayList.removeLast(datesToAdd)
+        dayList.insert(contentsOf: newDays.reversed(), at: 0)
         
         currentDate = firstDate
         
-        // Important: First reload data, then update layout
-        collectionView.reloadData()
+        UIView.performWithoutAnimation {
+            resetModifiedCells()
+            collectionView.reloadSections(IndexSet(integer: 0))
+            collectionView.setContentOffset(newOffset, animated: false)
+            updateEventsOverlay()
+            dayHeader.addPreviousDates(updatedDayList: newDays)
+            self.snapCellPosition()
+        }
         
-        // Create a new layout with updated dimensions
-        let newLayout = self.layout()
-        
-        // Apply the new layout without animation
-        collectionView.setCollectionViewLayout(newLayout, animated: false, completion: { [weak self] completed in
-            // Adjust content offset to account for removed days
-            var adjustedOffset = currentOffset
-            adjustedOffset.x += (self?.singleDayGroupWidth ?? 0) * Double(self?.datesToAdd ?? 0)
-            
-            self?.updateEventsOverlay()
-            
-            // RESTORE the adjusted content offset after layout update
-            self?.collectionView.contentOffset = adjustedOffset
-            self?.isLoadingPreviousDates = false
-        })
+        isLoadingPreviousDates = false
     }
     
     private func loadNextDateInterval() {
@@ -528,68 +532,184 @@ class ScheduleViewController: UIViewController {
         // Set a flag to temporarily ignore the previous date loading trigger
         shouldIgnorePreviousTrigger = true
         
-        // IMPORTANT: Save current contentOffset before making any changes
         let currentOffset = collectionView.contentOffset
+        let newOffset = CGPoint(x: currentOffset.x - CGFloat(datesToAdd-1) * itemWidth, y: currentOffset.y)
         
         // Get the last date in current range
         let lastDate = dayList.last ?? Date()
         
-        // Add another 30 days
+        // Create new days to add
         var newDays: [Date] = []
-        for i in 1...datesToAdd {
+        for i in 1..<datesToAdd {
             if let newDate = Calendar.current.date(byAdding: .day, value: i, to: lastDate) {
                 newDays.append(newDate)
             }
         }
         
-        dayList.removeFirst(datesToAdd)
-        
-        // Update the data source with new days
+        // since we've created the new 30 days, we now remove 30 from the beginning of dayList
+        dayList.removeFirst(datesToAdd-1)
         dayList.append(contentsOf: newDays)
         
+        // set the currentDate as the previously saved last date since this is our new 'middle' reference date
         currentDate = lastDate
         
-        // Important: First reload data, then update layout
-        collectionView.reloadData()
-        
-        // Create a new layout with updated dimensions
-        let newLayout = self.layout()
-        
-        // Apply the new layout without animation
-        collectionView.setCollectionViewLayout(newLayout, animated: false, completion: { [weak self] completed in
-            // Adjust content offset to account for removed days
-            var adjustedOffset = currentOffset
-            adjustedOffset.x -= (self?.singleDayGroupWidth ?? 0) * Double(self?.datesToAdd ?? 0)
-
-            self?.updateEventsOverlay()
+        // necessary to ensure that all of these updates happen without animation to provide the smoothest transition
+        UIView.performWithoutAnimation {
+            resetModifiedCells()
+            // since we reload the section, the offset from this will make our prefetching delegate
+            // call to loadPreviousDateInterval, so we must set ignoring trigger as such
+            shouldIgnorePreviousTrigger = true
+            collectionView.reloadSections(IndexSet(integer: 0))
+            collectionView.setContentOffset(newOffset, animated: false)
+            dayHeader.addNextDates(updatedDayList: newDays)
+            updateEventsOverlay()
+            self.snapCellPosition()
             
-            // RESTORE the adjusted content offset after layout update
-            self?.collectionView.contentOffset = adjustedOffset
-            self?.isLoadingNextDates = false
-            
-            // Add a small delay before allowing previous triggers again
+            // before we set it back to false, we set a slight delay in case the new offset does not execute before our
+            // prefetch delegate is called upon
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self?.shouldIgnorePreviousTrigger = false
+                self.shouldIgnorePreviousTrigger = false
             }
-        })
+        }
+        
+        isLoadingNextDates = false
+    }
+    
+    var modifiedCells = Set<UICollectionViewCell>()
+    
+    deinit {
+        modifiedCells.removeAll()
+        cancellables.removeAll()
     }
 }
 
 extension ScheduleViewController: UICollectionViewDelegate {
-
+    
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        // check if the user has scrolled in the horizontal direction to trigger the block
-        if collectionView.contentOffset.x != previousContentOffsetX {
-            // cancel previous timers
-            scrollDebounceTimer?.invalidate()
+        // Prevent recursive scroll handling
+        guard !isHandlingScroll, scrollView === collectionView else { return }
+        
+        isHandlingScroll = true
+    
+        let dayIndex = Int(scrollView.contentOffset.x / singleDayGroupWidth)
+        
+        if dayIndex >= 0 && dayIndex < dayList.count {
+            let visibleDate = dayList[dayIndex]
             
-            // creates a timer that will call the function after 0.1 seconds of delay of the function not being called
-            // (0.1s of no horizontal scrolling)
-            scrollDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { [weak self] _ in
-                self?.updateVisibleMonthTitle()
+            let month = Calendar.current.component(.month, from: visibleDate) - 1
+            let year = Calendar.current.component(.year, from: visibleDate)
+            
+            let newMonth = monthsList[month]
+            if newMonth != displayedMonthLabel.text {
+                displayedMonthLabel.text = newMonth
+                displayedYearLabel.text = "\(year)"
             }
-            previousContentOffsetX = collectionView.contentOffset.x
         }
+                
+        // Sync horizontal scrolling for day header
+        if scrollView.contentOffset.x != previousContentOffsetX {
+            dayHeaderScrollView.contentOffset.x = scrollView.contentOffset.x
+            eventContainerScrollView.contentOffset.x = scrollView.contentOffset.x
+            previousContentOffsetX = scrollView.contentOffset.x
+        }
+        
+        // Sync vertical scrolling for time column
+        if scrollView.contentOffset.y != previousContentOffsetY {
+            timeColumnScrollView.contentOffset.y = scrollView.contentOffset.y
+            eventContainerScrollView.contentOffset.y = scrollView.contentOffset.y
+            previousContentOffsetY = scrollView.contentOffset.y
+        }
+        
+        // Handle stretching cells at boundaries
+        handleBoundaryCellStretching(scrollView)
+        
+        isHandlingScroll = false
+    }
+    
+    private func handleBoundaryCellStretching(_ scrollView: UIScrollView) {
+        let tolerance: CGFloat = 15
+        
+        // Calculate the maximum scroll position (without adding tolerance yet)
+        let maxScrollY = collectionView.contentSize.height - collectionView.bounds.height
+        
+        // Check for boundary conditions with proper tolerance
+        let isAtTopBoundary = collectionView.contentOffset.y < 0
+        let isAtBottomBoundary = maxScrollY > 0 && collectionView.contentOffset.y > maxScrollY + tolerance
+        
+        if isAtTopBoundary || isAtBottomBoundary {
+            // Calculate actual offsets
+            let topOffset = isAtTopBoundary ? -collectionView.contentOffset.y : 0
+            let bottomOffset = isAtBottomBoundary ? collectionView.contentOffset.y - maxScrollY : 0
+            
+            let visibleCells = collectionView.indexPathsForVisibleItems
+            let topVisibleCells = visibleCells.filter {
+                $0.item % numberOfTimeIntervals == 0
+            }
+            
+            let bottomVisibleCells = visibleCells.filter {
+                ($0.item + 1) % numberOfTimeIntervals == 0
+            }
+            
+            // Handle top cells stretching
+            for indexPath in topVisibleCells {
+                if let cell = collectionView.cellForItem(at: indexPath) {
+                    if !modifiedCells.contains(cell) {
+                        cell.layer.setValue(cell.frame.origin.y, forKey: "normal")
+                        cell.layer.setValue(cell.frame.size.height, forKey: "normalHeight")
+                        modifiedCells.insert(cell)
+                    }
+                    
+                    var frame = cell.frame
+                    frame.origin.y = (cell.layer.value(forKey: "normal") as? CGFloat ?? frame.origin.y) - topOffset
+                    frame.size.height = (cell.layer.value(forKey: "normalHeight") as? CGFloat ?? itemHeight) + topOffset
+                    
+                    cell.frame = frame
+                }
+            }
+            
+            // Handle bottom cells stretching
+            for indexPath in bottomVisibleCells {
+                print("I'm here")
+                if let cell = collectionView.cellForItem(at: indexPath) {
+                    if !modifiedCells.contains(cell) {
+                        cell.layer.setValue(cell.frame.origin.y, forKey: "normal")
+                        cell.layer.setValue(cell.frame.size.height, forKey: "normalHeight")
+                        modifiedCells.insert(cell)
+                    }
+                    
+                    var frame = cell.frame
+                    frame.origin.y = (cell.layer.value(forKey: "normal") as? CGFloat ?? frame.origin.y)
+                    frame.size.height = (cell.layer.value(forKey: "normalHeight") as? CGFloat ?? itemHeight) + bottomOffset
+                    
+                    cell.frame = frame
+                }
+            }
+        } else {
+            resetModifiedCells()
+        }
+    }
+
+    func resetModifiedCells() {
+        // Create a copy to avoid mutation during iteration
+        let cellsToReset = modifiedCells
+        
+        for cell in cellsToReset {
+            // Only modify cells that are still in the view hierarchy
+            if cell.superview != nil {
+                if let originalPosition = cell.layer.value(forKey: "normal") as? CGFloat,
+                   let originalHeight = cell.layer.value(forKey: "normalHeight") as? CGFloat {
+                    var frame = cell.frame
+                    frame.origin.y = originalPosition
+                    frame.size.height = originalHeight
+                    cell.frame = frame
+                    
+                    // Clear stored values
+                    cell.layer.setValue(nil, forKey: "normal")
+                    cell.layer.setValue(nil, forKey: "normalHeight")
+                }
+            }
+        }
+        modifiedCells.removeAll()
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
@@ -602,34 +722,35 @@ extension ScheduleViewController: UICollectionViewDelegate {
     
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
         if !decelerate {
+            resetModifiedCells()
             snapCellPosition()
         }
         showCreateEventButton()
     }
     
+    func scrollViewWillEndDragging(_ scrollView: UIScrollView) {
+        resetModifiedCells()
+    }
+    
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         snapCellPosition()
+        resetModifiedCells()
     }
     
     func snapCellPosition() {
-        collectionView.stopScrollingAndZooming()
-        
-        let timeColumnWidth: CGFloat = 44
         let itemWidth: CGFloat = 75
         
         // Get the total offset from the left edge
         let totalOffset = collectionView.contentOffset.x
         
         // Calculate which day we're closest to, accounting for the time column
-        let adjustedOffset = totalOffset - timeColumnWidth
-        let estimatedIndex = round(adjustedOffset / itemWidth)
+        let estimatedIndex = round(totalOffset / itemWidth)
         
         // Ensure the index is within bounds (0 to 59 for your 60 days)
         let safeIndex = max(0, min(Int(estimatedIndex), numberOfDays-1))
         
         // Calculate the precise final position
-        // Add a small adjustment factor (e.g., 1-2 points) if needed to fine-tune alignment
-        let finalXOffset = (CGFloat(safeIndex) * itemWidth) + timeColumnWidth-12
+        let finalXOffset = (CGFloat(safeIndex) * itemWidth)
         
         // Maintain the current y offset
         let currentYOffset = collectionView.contentOffset.y
@@ -640,12 +761,14 @@ extension ScheduleViewController: UICollectionViewDelegate {
 
 extension ScheduleViewController: UICollectionViewDataSourcePrefetching {
     func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+        // calculate the total number of items in the collection view
         let totalItems = numberOfDays * numberOfTimeIntervals
         
+        // 
         let endIndex = indexPaths.max(by: { $0.item < $1.item })?.item
         let startIndex = indexPaths.min(by: { $0.item < $1.item })?.item
         
-        let daysBeforeThreshold = 12
+        let daysBeforeThreshold = 7
         let threshold = numberOfTimeIntervals * daysBeforeThreshold
         
         if endIndex ?? totalItems >= (totalItems - threshold) && !isLoadingNextDates {
@@ -665,20 +788,7 @@ extension ScheduleViewController: UICollectionViewDataSource {
     
     // 24 represents the number of hours in a day => number of cells needed since an item represents a single hour
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return 24 * numberOfDays
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
-        if kind == "TimeColumn" {
-            let timeView = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: "TimeColumn", for: indexPath) as! CollectionViewTimesColumn
-            return timeView
-        } else if kind == "DayHeader" {
-            let dayView = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: "DayHeader", for: indexPath) as! CollectionViewDaysHeader
-            dayView.setDates(dayList: dayList, weekList: weekList)
-            return dayView
-        }
-        
-        return UICollectionReusableView()
+        return numberOfTimeIntervals * numberOfDays
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
@@ -696,34 +806,24 @@ extension ScheduleViewController: UICollectionViewDataSource {
     }
 }
 
-class CustomCompositionalLayout: UICollectionViewCompositionalLayout {
-    var scrollableWidth: CGFloat
-    
-    init(section: NSCollectionLayoutSection, scrollableWidth: CGFloat) {
-        self.scrollableWidth = scrollableWidth
-        super.init(section: section)
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    // this function is called every time the collection view asks for it's registered attributes
-    override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
-        guard let attributes = super.layoutAttributesForElements(in: rect) else { return nil }
+extension UICollectionView {
+
+    func indexPathsForFullyVisibleItems() -> [IndexPath] {
         
-        // search through our defined attributes which include the collection view's cells, supplementary items, and decoration items
-        for attribute in attributes {
-            // the whole idea of this custom class was to manipulate the decoration item to "match" the width of our collection view
-            // even though technically the EventsOverlay has a width the size of the visible screen, we force it to think
-            // that it has a width the size of the collection view so that we can actually overlay our events throughout the collection view
-            if attribute.representedElementKind == "EventsOverlay" {
-                var frame = attribute.frame
-                frame.size.width = scrollableWidth
-                attribute.frame = frame
+        let visibleIndexPaths = indexPathsForVisibleItems
+        var indexPaths: [IndexPath] = []
+        
+        for cell in visibleIndexPaths {
+            if cell.item % 24 == 0 || (cell.item % 23 == 0 && cell.item != 0) {
+                indexPaths.append(cell)
             }
         }
         
-        return attributes
+        return indexPaths
     }
 }
+
+protocol SchedulrRootViewwController: UIViewController {
+    var displayedMonth: String { get set }
+}
+
