@@ -67,7 +67,7 @@ class TimeLabel: UIView {
     }
 }
 
-class CollectionViewTimesColumn: UICollectionReusableView {
+class CollectionViewTimesColumn: UIView {
     
     static let identifier = "TimeColumn"
     
