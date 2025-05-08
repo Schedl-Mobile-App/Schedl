@@ -40,7 +40,7 @@ struct SidebarView: View {
                 .padding(.top, 50)
                 
                 // Schedule title
-                Text(scheduleViewModel.schedule?.title ?? "David's Schedule")
+                Text(scheduleViewModel.userSchedule?.title ?? "David's Schedule")
                     .font(.system(size: 20, design: .monospaced))
                     .padding(.bottom, 30)
                     .frame(maxWidth: .infinity, alignment: .center)

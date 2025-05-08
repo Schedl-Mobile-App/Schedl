@@ -193,8 +193,7 @@ struct CreateEventView: View {
                     Button(action: {
                         Task {
                             print(eventDate)
-                            let newEvent: Event = scheduleViewModel.makeNewEvent(title: title, eventDate: Date.computeTimeSince1970(date: eventDate), startTime: Date.computeTimeSinceStartOfDay(date: eventStartTime), endTime: Date.computeTimeSinceStartOfDay(date: eventEndTime))
-                            await scheduleViewModel.createEvent(newEvent: newEvent)
+                            await scheduleViewModel.createEvent(title: title, eventDate: Date.convertCurrentDateToTimeInterval(date: eventDate), startTime: Date.computeTimeSinceStartOfDay(date: eventStartTime), endTime: Date.computeTimeSinceStartOfDay(date: eventEndTime))
                             presentationMode.wrappedValue.dismiss()
                         }
                     }) {

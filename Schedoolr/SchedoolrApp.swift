@@ -15,16 +15,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
   func application(_ application: UIApplication,
                    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
       
-//    #if DEBUG
-//    // Add this before Firebase.configure()
-//    let providerFactory = AppCheckDebugProviderFactory()
-//    AppCheck.setAppCheckProviderFactory(providerFactory)
-//    #endif
-      
     #if DEBUG
-    let providerFactory = DebugAppCheckProviderFactory()
+    // Add this before Firebase.configure()
+    let providerFactory = AppCheckDebugProviderFactory()
     AppCheck.setAppCheckProviderFactory(providerFactory)
     #endif
+      
+    
       
     FirebaseApp.configure()
     return true
@@ -37,14 +34,15 @@ struct SchedoolrApp: App {
     // register app delegate for Firebase setup
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     
-    @StateObject private var authService = AuthService()
+    // define an instance of our AuthViewModel to gain access to our log in functions
+    @StateObject private var authViewModel = AuthViewModel()
     
     var body: some Scene {
         WindowGroup {
             NavigationStack {
                 WelcomeView()
             }
-            .environmentObject(authService)
+            .environmentObject(authViewModel)
         }
     }
 }

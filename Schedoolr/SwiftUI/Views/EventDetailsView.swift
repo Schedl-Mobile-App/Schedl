@@ -19,7 +19,7 @@ struct EventDetailsView: View {
     @State var eventStartTime: Date
     @State var eventEndTime: Date
     @EnvironmentObject private var scheduleViewModel: ScheduleViewModel
-    @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var authViewModel: AuthViewModel
     var components = DateComponents(hour: Calendar.current.component(.hour, from: Date()), minute: Calendar.current.component(.minute, from: Date()))
     @State var dayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     @State var location: String = ""

@@ -9,12 +9,13 @@ import SwiftUI
 
 struct UserSearchCell: View {
    
-   let user: User
-   
-   var body: some View {
-       NavigationLink(destination: ProfileView(userid: user.id)) {
+    let currentUser: User
+    let user: User
+
+    var body: some View {
+       NavigationLink(destination: ProfileView(currentUser: currentUser, profileUserId: user.id)) {
            HStack(spacing: 18) {
-               AsyncImage(url: URL(string: user.profileImage ?? "")) { image in
+               AsyncImage(url: URL(string: user.profileImage)) { image in
                    image
                        .font(.system(size: 35))
                } placeholder: {
@@ -32,12 +33,15 @@ struct UserSearchCell: View {
            .padding()
            .padding(.horizontal)
        }
-   }
+    }
 }
 
 struct SearchView: View {
-    @StateObject var viewModel: SearchViewModel = SearchViewModel()
-    @EnvironmentObject var userObj: AuthService
+    @StateObject var searchViewModel: SearchViewModel
+    
+    init(currentUser: User) {
+        _searchViewModel = StateObject(wrappedValue: SearchViewModel(currentUser: currentUser))
+    }
 
     var body: some View {
         NavigationStack {
@@ -49,7 +53,7 @@ struct SearchView: View {
                            .foregroundStyle(.gray)
                     }
 
-                    TextField("Search friends", text: $viewModel.searchText)
+                    TextField("Search friends", text: $searchViewModel.searchText)
                         .textFieldStyle(.plain)
                 }
                 .padding()
@@ -57,21 +61,21 @@ struct SearchView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 25))
                 .frame(maxWidth: .infinity, alignment: .center)
                             
-                if viewModel.isLoading {
+                if searchViewModel.isLoading {
                     Spacer()
                     ProgressView("Loading...")
                         .frame(maxWidth: .infinity, alignment: .center)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     Spacer()
-                } else if let error = viewModel.errorMessage {
+                } else if let error = searchViewModel.errorMessage {
                     Spacer()
                     Text("\(error)")
                         .frame(maxWidth: .infinity, alignment: .center)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     Spacer()
-                } else if viewModel.searchResults.isEmpty {
+                } else if searchViewModel.searchResults.isEmpty {
                     Spacer()
                     Text("Search for your friends using their unique username!")
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -82,8 +86,8 @@ struct SearchView: View {
                     Spacer(minLength: 10)
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(spacing: 5) {
-                            ForEach (viewModel.searchResults) { user in
-                                UserSearchCell(user: user)
+                            ForEach (searchViewModel.searchResults) { user in
+                                UserSearchCell(currentUser: searchViewModel.currentUser, user: user)
                             }
                         }
                     }
@@ -92,13 +96,8 @@ struct SearchView: View {
                 
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .environmentObject(viewModel)
+            .environmentObject(searchViewModel)
             .padding(.horizontal)
         }
     }
-}
-
-#Preview {
-    SearchView()
-        .environmentObject(AuthService())
 }

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct LoginView: View {
-    @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var authViewModel: AuthViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -31,7 +31,7 @@ struct LoginView: View {
                                 .stroke(Color.gray, lineWidth: 1)
                         )
                         .overlay {
-                            TextField("Email", text: $authService.email)
+                            TextField("Email", text: $authViewModel.email)
                                 .padding(.horizontal)
                         }
                     
@@ -43,13 +43,13 @@ struct LoginView: View {
                                 .stroke(Color.gray, lineWidth: 1)
                         )
                         .overlay {
-                            TextField("Password", text: $authService.password)
+                            TextField("Password", text: $authViewModel.password)
                                 .padding(.horizontal)
                         }
                 }
                 .padding(.horizontal)
 
-                if let error = authService.errorMsg {
+                if let error = authViewModel.errorMessage {
                     Text(error)
                         .foregroundColor(.red)
                         .font(.caption)
@@ -58,7 +58,7 @@ struct LoginView: View {
 
                 Button(action: {
                     Task {
-                        try await authService.login()
+                        try await authViewModel.login()
                     }
                 }) {
                     RoundedRectangle(cornerRadius: 10)
@@ -74,9 +74,9 @@ struct LoginView: View {
                 .foregroundStyle(Color("FormButtons"))
             }
             .padding(.horizontal)
-            .navigationDestination(isPresented: $authService.isLoggedIn) {
+            .navigationDestination(isPresented: $authViewModel.isLoggedIn) {
                 MainTabBarView()
-                    .environmentObject(authService)
+                    .environmentObject(authViewModel)
             }
             Spacer()
         }
@@ -85,5 +85,5 @@ struct LoginView: View {
 
 #Preview {
     LoginView()
-        .environmentObject(AuthService())
+        .environmentObject(AuthViewModel())
 }

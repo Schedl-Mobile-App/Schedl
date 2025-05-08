@@ -28,17 +28,4 @@ enum Tab: Int, Identifiable, CaseIterable, Comparable {
             return "Likes"
         }
     }
-    
-    var color: Color {
-        switch self {
-        case .schedules:
-            return .indigo
-        case .posts:
-            return .pink
-        case .tagged:
-            return .orange
-        case .likes:
-            return .yellow
-        }
-    }
 }

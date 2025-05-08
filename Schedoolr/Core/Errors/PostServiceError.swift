@@ -5,7 +5,7 @@
 //  Created by David Medina on 12/10/24.
 //
 
-enum PostError: Error {
+enum PostServiceError: Error {
     case postDataSerializationFailed
     case failedToUpdatePost
     case invalidPostData

@@ -7,57 +7,12 @@
 
 import SwiftUI
 
-struct NotificationsView: View {
-    @StateObject var viewModel: NotificationViewModel = NotificationViewModel()
-    @EnvironmentObject var userModel: AuthService
-    @Environment(\.presentationMode) var presentationMode
-   
+struct RequestCell: View {
+    
+    @EnvironmentObject var notificationViewModel: NotificationViewModel
+    let request: FriendRequest
+    
     var body: some View {
-        VStack(spacing: 20) {
-            HStack(spacing: 12) {
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Image(systemName: "chevron.left")
-                            .font(.system(size: 24, weight: .medium))
-                            .labelStyle(.titleAndIcon)
-                            .foregroundStyle(Color.primary)
-                }
-                Text("Notifications")
-                    .foregroundStyle(Color.primary)
-                    .font(.system(size: 25, weight: .bold))
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemBackground))
-            
-            // Friend Request List
-            ScrollView {
-                LazyVStack(spacing: 16) {
-                    if let requests = viewModel.incomingFriendRequests {
-                        ForEach(requests) { request in
-                            requestCell(request: request)
-                        }
-                    } else if let error = viewModel.errorMessage {
-                        Text(error)
-                    }
-                }
-                .padding()
-            }
-            .onAppear{
-                if let user = userModel.currentUser {
-                    viewModel.showFriendRequests(requestIds: user.requestIds)
-                }
-            }
-            .onChange(of: userModel.currentUser?.requestIds) {
-                viewModel.showFriendRequests(requestIds: userModel.currentUser?.requestIds ?? [])
-            }
-        }
-        .environmentObject(userModel)
-        .navigationBarBackButtonHidden(true)
-    }
-        
-    private func requestCell(request: FriendRequests) -> some View {
         HStack(spacing: 12) {
             // Profile Image
             Circle()
@@ -77,8 +32,8 @@ struct NotificationsView: View {
             // Accept/Decline Buttons
             HStack(spacing: 8) {
                 Button(action: {
-                    if let user = userModel.currentUser {
-                        viewModel.handleFriendRequestResponse(requestId: user.requestIds[0], response: true)
+                    Task {
+                        await notificationViewModel.handleFriendRequestResponse(requestId: request.id, accepted: true)
                     }
                 }) {
                     Text("Accept")
@@ -91,8 +46,8 @@ struct NotificationsView: View {
                 .frame(width: 80)
                 
                 Button(action: {
-                    if let user = userModel.currentUser {
-                        viewModel.handleFriendRequestResponse(requestId: user.requestIds[0], response: false)
+                    Task {
+                        await notificationViewModel.handleFriendRequestResponse(requestId: request.id, accepted: false)
                     }
                 }) {
                     Text("Decline")
@@ -108,5 +63,52 @@ struct NotificationsView: View {
         .padding()
         .background(Color.black.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+struct NotificationsView: View {
+    @StateObject var notificationViewModel: NotificationViewModel
+    @Environment(\.presentationMode) var presentationMode
+    
+    init(currentUser: User) {
+        _notificationViewModel = StateObject(wrappedValue: NotificationViewModel(currentUser: currentUser))
+    }
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack(spacing: 12) {
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 24, weight: .medium))
+                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(Color.primary)
+                }
+                Text("Notifications")
+                    .foregroundStyle(Color.primary)
+                    .font(.system(size: 25, weight: .bold))
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemBackground))
+            
+            // Friend Request List
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    ForEach(notificationViewModel.friendRequests) { request in
+                        RequestCell(request: request)
+                    }
+                    .padding()
+                }
+                .onAppear{
+                    Task {
+                        await notificationViewModel.fetchFriendRequests()
+                    }
+                }
+            }
+            .environmentObject(notificationViewModel)
+            .navigationBarBackButtonHidden(true)
+        }
     }
 }

@@ -23,4 +23,6 @@ enum FirebaseError: Error {
     case failedToUpdateFriendRequest
     case incorrectFriendRequestId
     case failedToFetchFriendRequests
+    case failedToDownloadImageURL
+    case failedToUpdateUserInfo
 }
