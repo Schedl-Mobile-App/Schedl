@@ -5,21 +5,25 @@ import UIKit
 // allows for our View Controller to be embedded within a SwiftUI view
 struct ScheduleView: UIViewControllerRepresentable {
     
-    @StateObject var viewModel = ScheduleViewModel()
-    @EnvironmentObject var authService: AuthService
+    @StateObject var scheduleViewModel: ScheduleViewModel
+    @EnvironmentObject var authViewModel: AuthViewModel
+    
+    init(currentUser: User) {
+        _scheduleViewModel = StateObject(wrappedValue: ScheduleViewModel(currentUser: currentUser))
+    }
     
     class Coordinator {
-        var viewModel: ScheduleViewModel
-        var authService: AuthService
+        var scheduleViewModel: ScheduleViewModel
+        var authViewModel: AuthViewModel
         
-        init(viewModel: ScheduleViewModel, authService: AuthService) {
-            self.viewModel = viewModel
-            self.authService = authService
+        init(scheduleViewModel: ScheduleViewModel, authViewModel: AuthViewModel) {
+            self.scheduleViewModel = scheduleViewModel
+            self.authViewModel = authViewModel
         }
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(viewModel: viewModel, authService: authService)
+        Coordinator(scheduleViewModel: scheduleViewModel, authViewModel: authViewModel)
     }
     
     func makeUIViewController(context: Context) -> ScheduleViewController {
@@ -40,9 +44,4 @@ struct ScheduleView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIViewControllerType, context: Context) {
         
     }
-}
-
-#Preview {
-    ScheduleView()
-        .environmentObject(AuthService())
 }

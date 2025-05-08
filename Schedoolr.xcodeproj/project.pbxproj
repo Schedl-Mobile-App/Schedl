@@ -50,6 +50,7 @@
 		CB6B6C722CA0C9A90001BFE1 /* FirebaseAppDistribution-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = CB6B6C712CA0C9A90001BFE1 /* FirebaseAppDistribution-Beta */; };
 		CB7058C52CA66BDB00C4EE00 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = CB7058C42CA66BDB00C4EE00 /* FirebaseAuth */; };
 		CBABE0CD2D4AB5330066F5E3 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBABE0CC2D4AB5300066F5E3 /* Extensions.swift */; };
+		CBB1F87B2DC3BE730002E3F1 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = CBB1F87A2DC3BE730002E3F1 /* FirebaseStorage */; };
 		CBC9A7492CA1CACC0000A18C /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = CBC9A7482CA1CACC0000A18C /* FirebaseDatabase */; };
 		CBC9A7612CA21D3D0000A18C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */; };
 		CBC9A7652CA22CB50000A18C /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7642CA22CB50000A18C /* .gitignore */; };
@@ -74,6 +75,7 @@
 		CB53080D2CA0824600A8AA04 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 		CB5F72422D3DBF20004C7FC8 /* Enums */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Enums; sourceTree = "<group>"; };
 		CB7058BD2CA660AE00C4EE00 /* ViewModels */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ViewModels; sourceTree = "<group>"; };
+		CBB1F87F2DC416700002E3F1 /* Protocols */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Protocols; sourceTree = "<group>"; };
 		CBB233CC2CA4B96D00BDBFC0 /* Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Models; sourceTree = "<group>"; };
 		CBFD83D52CF51C240034BE9F /* Core */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Core; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -96,6 +98,7 @@
 				CB6B6C6C2CA0C9A90001BFE1 /* FirebaseAnalyticsOnDeviceConversion in Frameworks */,
 				CB2E0DEF2D10EDF20069B028 /* FirebaseAnalytics in Frameworks */,
 				CB2E0DF32D10EDF20069B028 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */,
+				CBB1F87B2DC3BE730002E3F1 /* FirebaseStorage in Frameworks */,
 				CB2E0DF52D10EDF20069B028 /* FirebaseAppCheck in Frameworks */,
 				CB2E0E022D10F1800069B028 /* FirebaseAnalytics in Frameworks */,
 				CB2E0D032D10B16F0069B028 /* FirebaseCore in Frameworks */,
@@ -157,6 +160,7 @@
 				CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */,
 				CBFD83D52CF51C240034BE9F /* Core */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
+				CBB1F87F2DC416700002E3F1 /* Protocols */,
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,
 				CB53080D2CA0824600A8AA04 /* Services */,
 				046B834A2C867DE600F97BB4 /* SchedoolrApp.swift */,
@@ -204,6 +208,7 @@
 				CB53080D2CA0824600A8AA04 /* Services */,
 				CB5F72422D3DBF20004C7FC8 /* Enums */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
+				CBB1F87F2DC416700002E3F1 /* Protocols */,
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,
 				CBFD83D52CF51C240034BE9F /* Core */,
 			);
@@ -714,6 +719,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CB5308132CA0862100A8AA04 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAuth;
+		};
+		CBB1F87A2DC3BE730002E3F1 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CB2E0E002D10F1800069B028 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
 		};
 		CBC9A7482CA1CACC0000A18C /* FirebaseDatabase */ = {
 			isa = XCSwiftPackageProductDependency;

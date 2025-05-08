@@ -16,8 +16,8 @@ class PassthroughView: UIScrollView {
     }
 }
 
+
 class ScheduleViewController: UIViewController {
-    
     
     var coordinator: ScheduleView.Coordinator?
     
@@ -106,6 +106,99 @@ class ScheduleViewController: UIViewController {
         scrollView.contentSize = CGSize(width: horizontalGroupWidth, height: singleDayGroupHeight)
         return scrollView
     }()
+    
+    let spinner = UIActivityIndicatorView(style: .large)
+    func showLoading() {
+        view.addSubview(spinner)
+        spinner.center = view.center
+        spinner.startAnimating()
+    }
+    
+    func hideLoading() {
+      spinner.stopAnimating()
+      spinner.removeFromSuperview()
+    }
+    
+    private var placeholderLabel: UILabel?
+    private var createScheduleButton: UIButton?
+
+    // … all your other properties …
+
+    func showSchedule(_ schedule: Schedule) {
+        // 1️⃣ Stop & remove the spinner
+        hideLoading()
+        
+        // 2️⃣ Tear down the “no schedule” UI if present
+        placeholderLabel?.removeFromSuperview()
+        createScheduleButton?.removeFromSuperview()
+        
+        // 3️⃣ Un-hide your calendar UI (you added these in viewDidLoad)
+        headerContainerView.isHidden           = false
+        displayedDateContainerView.isHidden    = false
+        dayHeaderScrollView.isHidden           = false
+        timeColumnScrollView.isHidden          = false
+        collectionView.isHidden                = false
+        eventContainerScrollView.isHidden      = false
+        overlayView.isHidden                   = false
+        createEventButton.isHidden             = false
+        
+        // 4️⃣ Update the title/header
+        scheduleLabel.text                     = schedule.title
+        displayedMonthLabel.text               = displayedMonth
+        displayedYearLabel.text                = "\(displayedYear)"
+        
+        // 5️⃣ Populate your events
+        updateEventsOverlay()
+    }
+
+      /// Call this when `userSchedule == nil`
+    func blankSchedule() {
+        // hide calendar views
+        headerContainerView.isHidden           = true
+        displayedDateContainerView.isHidden    = true
+        dayHeaderScrollView.isHidden           = true
+        timeColumnScrollView.isHidden          = true
+        collectionView.isHidden                = true
+        eventContainerScrollView.isHidden      = true
+        overlayView.isHidden                   = true
+        createEventButton.isHidden             = true
+        
+        // show placeholder
+        let label = UILabel()
+        label.text = "You don’t have a schedule yet."
+        label.font = .systemFont(ofSize: 22, weight: .medium)
+        label.textColor = .secondaryLabel
+        label.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(label)
+        
+        let button = UIButton(type: .system)
+        button.setTitle("Create Schedule", for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        button.addTarget(self, action: #selector(didTapCreateSchedule), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(button)
+        
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
+            
+            button.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 16),
+            button.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+        ])
+        
+        // keep strong refs so we can remove them later
+        placeholderLabel        = label
+        createScheduleButton    = button
+    }
+    
+    // your action to kick off creation
+    @objc private func didTapCreateSchedule() {
+        if let scheduleViewModel = coordinator?.scheduleViewModel {
+            Task {
+                await scheduleViewModel.createSchedule(title: "\(scheduleViewModel.currentUser.displayName)'s Schedule")
+            }
+        }
+    }
     
     let eventContainer = EventCellsContainer()
     
@@ -316,14 +409,14 @@ class ScheduleViewController: UIViewController {
         dayHeader.setDates(dayList: dayList)
         
         // Access the view model through the coordinator
-        if let viewModel = coordinator?.viewModel {
-            if let user = coordinator?.authService.currentUser {
-                let scheduleId = user.schedules[0]
-                Task {
-                    await viewModel.fetchSchedule(id: scheduleId)
-                    setupViewModelObservation(viewModel: viewModel)
-                    print("I have fetched a schedule. Schedule id is: \(viewModel.schedule?.title ?? "No schedule")")
-                    scheduleLabel.text = viewModel.schedule?.title
+        if let scheduleViewModel = coordinator?.scheduleViewModel {
+            Task {
+                setupViewModelObservation(viewModel: scheduleViewModel)
+                await scheduleViewModel.fetchSchedule()
+                await scheduleViewModel.fetchEvents()
+                if let schedule = scheduleViewModel.userSchedule {
+                    print("I have fetched a schedule. Schedule id is: \(schedule.id)")
+                    scheduleLabel.text = schedule.title
                 }
             }
         }
@@ -341,22 +434,42 @@ class ScheduleViewController: UIViewController {
     }
     
     private func updateEventsOverlay() {
-        if let viewModel = coordinator?.viewModel,
-           let events = coordinator?.viewModel.events {
-            print("Hello, World")
-            eventContainer.populateEventCells(rootVC: self, viewModel: viewModel, events: events, centerDate: currentDate, calendarInterval: numberOfDays)
+        if let scheduleViewModel = coordinator?.scheduleViewModel {
+            eventContainer.populateEventCells(rootVC: self, scheduleViewModel: scheduleViewModel, events: scheduleViewModel.scheduleEvents, centerDate: currentDate, calendarInterval: numberOfDays)
         }
     }
     
     private func setupViewModelObservation(viewModel: ScheduleViewModel) {
         // Using Combine for reactive updates
-        viewModel.$events
+        viewModel.$scheduleEvents
             .receive(on: RunLoop.main)
             .sink { [weak self] newEvents in
                 // Update UI when the scheduleItems changes
                 self?.updateEventsOverlay()
             }
             .store(in: &cancellables)
+        
+        viewModel.$isLoading
+            .receive(on: RunLoop.main)
+            .sink { [weak self] loading in
+                if loading {
+                    self?.showLoading()
+                } else {
+                    self?.hideLoading()
+                }
+            }
+            .store(in: &cancellables)
+        
+        viewModel.$userSchedule
+          .receive(on: RunLoop.main)
+          .sink { [weak self] maybeSchedule in
+            if let schedule = maybeSchedule {
+              self?.showSchedule(schedule)
+            } else {
+              self?.blankSchedule()
+            }
+          }
+          .store(in: &cancellables)
         
         //        viewModel.$isLoading
         //            .receive(on: RunLoop.main)
@@ -381,10 +494,10 @@ class ScheduleViewController: UIViewController {
     }
     
     @objc func toggleSidebar() {
-        if let viewModel = coordinator?.viewModel {
+        if let scheduleViewModel = coordinator?.scheduleViewModel {
             let hostingController = UIHostingController(
                 rootView: SidebarView()
-                    .environmentObject(viewModel)
+                    .environmentObject(scheduleViewModel)
             )
             
             hostingController.modalPresentationStyle = .overFullScreen
@@ -408,12 +521,12 @@ class ScheduleViewController: UIViewController {
     }
     
     @objc func showCreateEvent() {
-        if let viewModel = coordinator?.viewModel {
+        if let scheduleViewModel = coordinator?.scheduleViewModel {
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(
                 rootView: CreateEventView()
-                    .environmentObject(viewModel)
+                    .environmentObject(scheduleViewModel)
             )
             
             hostingController.modalPresentationStyle = .fullScreen

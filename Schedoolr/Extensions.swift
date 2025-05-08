@@ -30,7 +30,11 @@ extension Date {
     
     static func convertTimeSince1970ToDate(time: TimeInterval) -> Date {
         print(Date(timeIntervalSince1970: time))
-        return Date(timeIntervalSince1970: time)
+        return Date(timeIntervalSince1970: time) - computeTimeSinceStartOfDay(date: Date())
+    }
+    
+    static func convertCurrentDateToTimeInterval(date: Date) -> TimeInterval {
+        return date.timeIntervalSince1970 - computeTimeSinceStartOfDay(date: date)
     }
     
     static func computeTimeSinceStartOfDay(date: Date) -> TimeInterval {
@@ -63,5 +67,17 @@ struct EdgeBorder: Shape {
             case .trailing: return Path(.init(x: rect.maxX - width, y: rect.minY, width: width, height: rect.height))
             }
         }.reduce(into: Path()) { $0.addPath($1) }
+    }
+}
+
+extension Color {
+    init(hex: Int, opacity: Double = 1) {
+        self.init(
+            .sRGB,
+            red: Double((hex >> 16) & 0xff) / 255,
+            green: Double((hex >> 08) & 0xff) / 255,
+            blue: Double((hex >> 00) & 0xff) / 255,
+            opacity: opacity
+        )
     }
 }

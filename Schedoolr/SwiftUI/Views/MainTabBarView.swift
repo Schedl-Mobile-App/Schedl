@@ -1,26 +1,27 @@
 import SwiftUI
 
 struct MainTabBarView: View {
-    @EnvironmentObject var authService: AuthService
+    
+    @EnvironmentObject var authViewModel: AuthViewModel
     
     var body: some View {
-        if authService.isLoggedIn {
+        if let user = authViewModel.currentUser {
             Group {
                 TabView {
-                    FeedView()
+                    FeedView(currentUser: user)
                         .tabItem {
                             Image(systemName: "house.fill")
                         }
-                    ScheduleView()
+                    ScheduleView(currentUser: user)
                         .ignoresSafeArea(.all)
                         .tabItem {
                             Image(systemName: "calendar")
                         }
-                    SearchView()
+                    SearchView(currentUser: user)
                         .tabItem {
                             Image(systemName: "magnifyingglass")
                         }
-                    ProfileView(userid: authService.currentUser?.id ?? "")
+                    ProfileView(currentUser: user, profileUserId: user.id)
                         .tabItem {
                             Image(systemName: "person")
                         }

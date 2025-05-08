@@ -8,12 +8,14 @@
 import SwiftUI
 
 struct FriendCell: View {
+    
+    let currentUser: User
     let userToDisplay: User
    
     var body: some View {
-        NavigationLink(destination: ProfileView(userid: userToDisplay.id)) {
+        NavigationLink(destination: ProfileView(currentUser: currentUser, profileUserId: userToDisplay.id)) {
             HStack(spacing: 12) {
-                AsyncImage(url: URL(string: userToDisplay.profileImage ?? "")) { image in
+                AsyncImage(url: URL(string: userToDisplay.profileImage)) { image in
                     image
                         .resizable()
                         .scaledToFill()
@@ -37,8 +39,7 @@ struct FriendCell: View {
 
 struct FriendsView: View {
     
-    @StateObject var viewModel: FriendsViewModel = FriendsViewModel()
-    @EnvironmentObject var userObj: AuthService
+    @EnvironmentObject var profileViewModel: ProfileViewModel
     @Environment(\.presentationMode) var presentationMode
 
     var body: some View {
@@ -62,13 +63,13 @@ struct FriendsView: View {
             
             ScrollView {
                VStack(spacing: 12) {
-                   if viewModel.isLoading {
+                   if profileViewModel.isLoading {
                        Text("Loading...")
-                   } else if let error = viewModel.errorMessage {
+                   } else if let error = profileViewModel.errorMessage {
                        Text(error)
-                   } else if !viewModel.friends.isEmpty {
-                       ForEach(viewModel.friends) { friend in
-                           FriendCell(userToDisplay: friend)
+                   } else if let friends = profileViewModel.friends {
+                       ForEach(friends) { friend in
+                           FriendCell(currentUser: profileViewModel.currentUser, userToDisplay: friend)
                        }
                    } else {
                        Text("No friends yet")
@@ -77,16 +78,8 @@ struct FriendsView: View {
             }
         }
         .onAppear {
-            if let user = userObj.currentUser {
-               viewModel.fetchFriends(friendIds: user.friendIds)
-            }
+            profileViewModel.fetchFriends()
         }
         .navigationBarBackButtonHidden(true)
     }
-}
-
-#Preview {
-    FriendsView()
-        .environmentObject(FriendsViewModel())
-        .environmentObject(AuthService())
 }

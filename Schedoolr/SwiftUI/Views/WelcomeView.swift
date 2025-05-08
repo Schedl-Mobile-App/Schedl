@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct WelcomeView: View {
-    @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var authViewModel: AuthViewModel
     @State var shouldNavigate: Bool = false
 
     var body: some View {
@@ -32,7 +32,7 @@ struct WelcomeView: View {
                                 .stroke(Color.gray, lineWidth: 1)
                         )
                         .overlay {
-                            TextField("Username", text: $authService.username)
+                            TextField("Username", text: $authViewModel.username)
                                 .padding(.horizontal)
                         }
                     
@@ -44,7 +44,7 @@ struct WelcomeView: View {
                                 .stroke(Color.gray, lineWidth: 1)
                         )
                         .overlay {
-                            TextField("Email", text: $authService.email)
+                            TextField("Display Name", text: $authViewModel.displayName)
                                 .padding(.horizontal)
                         }
                     
@@ -56,7 +56,19 @@ struct WelcomeView: View {
                                 .stroke(Color.gray, lineWidth: 1)
                         )
                         .overlay {
-                            TextField("Password", text: $authService.password)
+                            TextField("Email", text: $authViewModel.email)
+                                .padding(.horizontal)
+                        }
+                    
+                    RoundedRectangle(cornerRadius: 10)
+                        .frame(maxWidth: .infinity, maxHeight: 40)
+                        .foregroundStyle(.clear)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.gray, lineWidth: 1)
+                        )
+                        .overlay {
+                            TextField("Password", text: $authViewModel.password)
                                 .padding(.horizontal)
                         }
                 }
@@ -66,7 +78,7 @@ struct WelcomeView: View {
                 
                 Button(action: {
                     Task {
-                        try await authService.signUp()
+                        try await authViewModel.signUp()
                     }
                 }) {
                     RoundedRectangle(cornerRadius: 10)
@@ -94,9 +106,9 @@ struct WelcomeView: View {
                     }
                 }
             }
-            .navigationDestination(isPresented: $authService.isLoggedIn) {
+            .navigationDestination(isPresented: $authViewModel.isLoggedIn) {
                 MainTabBarView()
-                    .environmentObject(authService)
+                    .environmentObject(authViewModel)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .padding(.horizontal)
@@ -108,5 +120,5 @@ struct WelcomeView: View {
 
 #Preview {
     WelcomeView()
-        .environmentObject(AuthService())
+        .environmentObject(AuthViewModel())
 }

@@ -6,269 +6,388 @@
 //
 
 import SwiftUI
-
-struct UserTabbedSchedulesView: View {
-    
-    @EnvironmentObject var viewModel: ProfileViewModel
-    
-    var body: some View {
-        if viewModel.profileUser != nil {
-            ScrollView(.vertical, showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Circle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 40, height: 40)
-                        
-                        VStack(alignment: .leading) {
-                            Text(viewModel.schedules?.title ?? "")
-                                .fontWeight(.medium)
-                            Text(viewModel.schedules?.userId ?? "")
-                                .foregroundColor(.gray)
-                                .font(.subheadline)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: 100)
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-                }
-            }
-            .onAppear {
-                Task {
-                    await viewModel.fetchTabInfo()
-                }
-            }
-        }
-    }
-}
-
-struct UserTabbedPostsView: View {
-    
-    @EnvironmentObject var viewModel: ProfileViewModel
-    
-    var body: some View {
-        if !(viewModel.posts?.isEmpty ?? true) {
-            ScrollView(.vertical, showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(viewModel.posts ?? []) { post in
-                        HStack {
-                            Circle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 40, height: 40)
-                            
-                            VStack(alignment: .leading) {
-                                Text(post.title)
-                                    .fontWeight(.medium)
-                                Text(post.description)
-                                    .foregroundColor(.gray)
-                                    .font(.subheadline)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: 100)
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
-                        .padding(.horizontal)
-                    }
-                }
-            }
-            .onAppear {
-                Task {
-                    await viewModel.fetchTabInfo()
-                }
-            }
-        } else {
-            Text("You haven't made any posts yet...")
-        }
-    }
-}
-
-struct UserInfoView: View {
-    
-    @EnvironmentObject var viewModel: ProfileViewModel
-    @EnvironmentObject var userObj: AuthService
-        
-    var body: some View {
-        
-        Image(viewModel.profileUser?.profileImage ?? "avatar")
-            .resizable()
-            .frame(width: 80, height: 80)
-            .clipShape(Circle())
-            .overlay(
-                Circle()
-                    .stroke(Color.black, lineWidth: 2)
-            )
-            .padding(.top, -90)
-        
-        VStack(spacing: 0) {
-            Text(viewModel.profileUser?.username ?? "")
-                .font(.title2)
-                .bold()
-        }
-        
-        if viewModel.isCurrentUser {
-            NavigationLink(destination: FriendsView()) {
-                HStack {
-                    // Follower avatars
-                    HStack(spacing: -8) {
-                        ForEach(0..<min(viewModel.numOfFriends(), 5), id: \.self) { index in
-                            Image(systemName: "avatar")
-                                .frame(width: 32, height: 32)
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.black, lineWidth: 2)
-                                )
-                        }
-                    }
-                    
-                    Text("\(viewModel.numOfFriends()) Friends")
-                        .foregroundColor(.gray)
-                        .padding(.leading, 8)
-                }
-            }
-        } else if !(userObj.currentUser?.friendIds.contains(viewModel.profileUser?.id ?? "") ?? false){
-            Button(action: {
-                if let user = userObj.currentUser {
-                    Task {
-                        await viewModel.sendFriendRequest(toUserName: viewModel.profileUser?.username ?? "", fromUserObj: user)
-                    }
-                }
-            }, label: {
-                Label("Send Friend Request", systemImage: "person.fill.checkmark.rtl")
-            })
-            .clipShape(RoundedRectangle(cornerRadius: 25))
-        }
-    }
-}
-
-struct ProfileTabbedView: View {
-    
-    @EnvironmentObject var viewModel: ProfileViewModel
-    
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Tab.allCases) { tab in
-                VStack(spacing: 0) {
-                    Text(tab.title)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .onTapGesture {
-                            viewModel.selectedTab = tab
-                        }
-                    
-                    // Active indicator
-                    if tab == viewModel.selectedTab {
-                        Rectangle()
-                            .fill(Color.blue)
-                            .frame(height: 2)
-                    } else {
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(height: 2)
-                    }
-                }
-            }
-        }
-    }
-}
+import PhotosUI
 
 struct ProfileView: View {
     
-    @EnvironmentObject var authService: AuthService
-    @StateObject var scheduleViewModel: ProfileViewModel
-    @Environment(\.presentationMode) var presentationMode
+    @StateObject var profileViewModel: ProfileViewModel
+    @EnvironmentObject var authViewModel: AuthViewModel
     
-    init(userid: String) {
-        _scheduleViewModel = StateObject(wrappedValue: ProfileViewModel(
-            userid: userid
-        ))
+    lazy var size: CGSize = profileViewModel.currentUser.username.size(withAttributes: [.font: UIFont.systemFont(ofSize: 14)])
+    
+    init(currentUser: User, profileUserId: String) {
+        _profileViewModel = StateObject(wrappedValue: ProfileViewModel(currentUser: currentUser, profileUserId: profileUserId))
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Backdrop gradient with lines effect
-            ZStack(alignment: .top) {
-                // Background gradient
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(red: 0.1, green: 0.4, blue: 0.5).opacity(0.3),
-                        Color.clear
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                
-                HStack(spacing: 0) {
-                    ForEach(0..<8) { _ in
-                        Rectangle()
-                            .fill(Color.cyan.opacity(0.05))
+        ZStack {
+            VStack(alignment: .center, spacing: 20) {
+                ZStack {
+                    Text("Profile")
+                        .font(.system(size: 20, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Color(hex: 0x333333))
+                        .tracking(0.001)
+                    
+                    HStack {
+                        Button(action: {
+                            if profileViewModel.isEditingProfile {
+                                profileViewModel.triggerSaveChanges.toggle()
+                            }
+                            profileViewModel.isEditingProfile.toggle()
+                        }) {
+                            Text(profileViewModel.isEditingProfile ? "Done" : "Edit")
+                                .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                .foregroundStyle(Color(hex: 0x333333))
+                                .tracking(0.001)
+                        }
+                        Spacer()
+                        NavigationLink(destination: NotificationsView(currentUser: profileViewModel.currentUser)) {
+                            Image(systemName: "bell")
+                                .font(.system(size: 26, weight: .medium))
+                                .foregroundStyle(Color(hex: 0x333333))
+                        }
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal)
                 }
                 
-                if !scheduleViewModel.isCurrentUser {
-                    Button(action: {
-                        presentationMode.wrappedValue.dismiss()
-                    }) {
-                        Image(systemName: "chevron.left")
-                                .font(.system(size: 24, weight: .medium))
-                                .labelStyle(.titleAndIcon)
-                                .foregroundStyle(Color.primary)
-                                .padding(.vertical, 55)
-                                .padding(.horizontal, 20)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                VStack(spacing: 8) {
+                    UserProfileImage()
+                    UserDisplayName()
                 }
+                
+                ProfileInformatics()
+                
+                UserViewOptions()
+                
+                ScheduleEventCards()
+                
             }
-            .frame(height: 200)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .ignoresSafeArea()
+            .padding(.vertical)
             
-            ZStack(alignment: .top) {
-                Circle()
-                    .trim(from: 0.5, to: 1)
-                    .frame(width: UIScreen.main.bounds.width * 2)
-                    .offset(y: -75)
-                    .foregroundColor(Color(.systemBackground))
-                    .zIndex(1)
-
-                
-                // Profile content
-                VStack(spacing: 16) {
-                    UserInfoView()
-                    ProfileTabbedView()
-                    switch scheduleViewModel.selectedTab {
-                    case .schedules:
-                        UserTabbedSchedulesView()
-                    case .posts:
-                        UserTabbedPostsView()
-                    case .tagged:
-                        Text("Tagged Posts Section")
-                    case .likes:
-                        Text("Liked Posts Section")
-                    }
-                }
-                .environmentObject(scheduleViewModel)
-                .frame(maxWidth: UIScreen.main.bounds.width)
-                .padding(.horizontal)
-                .zIndex(2)
-                .background(Color(.systemBackground))
+            if profileViewModel.triggerSaveChanges {
+                SaveChangesForm()
             }
         }
-        .background(Color(.systemBackground))
-        .ignoresSafeArea()
-        .onAppear() {
-            if let user = authService.currentUser {
-                scheduleViewModel.checkIfCurrentUser(user: user)
-            }
-        }
-        .navigationBarBackButtonHidden(true)
+        .background(Color(hex: 0xf7f4f2))
+        .environmentObject(profileViewModel)
     }
 }
 
-#Preview {
-    ProfileView(userid: "1")
-        .environmentObject(AuthService())
-        .environmentObject(ProfileViewModel(userid: "2"))
+struct EventCard: View {
+    
+    let event: Event
+    
+    var body: some View {
+        let dateObj = Date.convertTimeSince1970ToDate(time: event.startTime)
+        let secs = Date.computeTimeSinceStartOfDay(date: dateObj)
+        let hours = Int(secs) / 3600
+        let minutes = Int(secs) % 3600 / 60
+        let ampm = Int(secs) >= 43200 ? "PM" : "AM"
+
+        HStack {
+          Text(event.title)
+          Text("\(hours):\(String(format: "%02d", minutes)) \(ampm)")
+        }
+    }
+}
+
+struct SaveChangesForm: View {
+    
+    @EnvironmentObject var profileViewModel: ProfileViewModel
+    
+    var body: some View {
+        ZStack {
+            VStack {
+                Rectangle()
+                    .fill(Color(hex: 0xe0dad5))
+                    .frame(maxWidth: 150, maxHeight: 150, alignment: .center)
+                    .overlay {
+                        VStack(alignment: .center, spacing: 20) {
+                            Text("Would you like to save these changes?")
+                                .font(.system(size: 16, weight: .medium, design: .monospaced))
+                            HStack {
+                                Button(action: {
+                                    profileViewModel.triggerSaveChanges.toggle()
+                                }) {
+                                    Text("Cancel")
+                                        .font(.system(size: 16, weight: .medium, design: .monospaced))
+                                        .multilineTextAlignment(.center)
+                                        .foregroundStyle(Color(hex: 0x333333))
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: 50)
+                                .cornerRadius(15)
+                                .foregroundStyle(Color(hex: 0xe0dad5))
+                                
+                                Button(action: {
+                                    Task {
+                                        await profileViewModel.updateUserProfile()
+                                        profileViewModel.triggerSaveChanges.toggle()
+                                    }
+                                }) {
+                                    Text("Save")
+                                        .font(.system(size: 16, weight: .medium, design: .monospaced))
+                                        .multilineTextAlignment(.center)
+                                        .foregroundStyle(Color(hex: 0xf7f4f2))
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: 50)
+                                .cornerRadius(15)
+                                .foregroundStyle(Color(hex: 0x6d8a96))
+                            }
+                        }
+                    }
+            }
+            .background(Color.gray.opacity(0.2))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .ignoresSafeArea()
+        }
+        .zIndex(999)
+    }
+}
+
+struct ProfileInformatics: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color(hex: 0xe0dad5))
+            .cornerRadius(15)
+            .overlay {
+                HStack {
+                    VStack(alignment: .center, spacing: 6) {
+                        Text("126")
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x333333))
+                        Text("Friends")
+                            .font(.system(size: 14, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .tracking(0.01)
+                            .fixedSize()
+                    }
+                    .frame(maxWidth: .infinity)
+                    Divider()
+                        .foregroundStyle(Color(hex: 0xc0b8b2))
+                        .frame(maxWidth: 1.75, maxHeight: 50)
+                        .background(Color(hex: 0xc0b8b2))
+                    VStack(alignment: .center, spacing: 6) {
+                        Text("8")
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x333333))
+                        Text("Schedules")
+                            .font(.system(size: 14, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .tracking(0.01)
+                            .fixedSize()
+                    }
+                    .frame(maxWidth: .infinity)
+                    Divider()
+                        .foregroundStyle(Color(hex: 0xc0b8b2))
+                        .frame(maxWidth: 1.75, maxHeight: 50)
+                        .background(Color(hex: 0xc0b8b2))
+                    
+                    VStack(alignment: .center, spacing: 6) {
+                        Text("42")
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x333333))
+                        Text("Events")
+                            .font(.system(size: 14, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .tracking(0.01)
+                            .fixedSize()
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal)
+                
+            }
+            .frame(maxWidth: .infinity, maxHeight: 70, alignment: .center)
+            .padding(.horizontal, 50)
+    }
+}
+
+struct UserViewOptions: View {
+    
+    var utilities = ["My Schedule", "Events", "Activity"]
+    @State var selectedUtility = 1
+    
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color(hex: 0xe0dad5))
+                .cornerRadius(30)
+            
+            GeometryReader { proxy in
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(Color(hex: 0x6d8a96))
+                    .frame(width: proxy.size.width / CGFloat(utilities.count))
+                    .offset(x: CGFloat(proxy.size.width / CGFloat(utilities.count)) * CGFloat(selectedUtility))
+                    .animation(.bouncy, value: selectedUtility)
+            }
+            
+            HStack {
+                ForEach(utilities.indices, id: \.self) { index in
+                    Text(utilities[index])
+                        .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(selectedUtility == index ? Color(hex: 0xf7f4f2) : Color(hex: 0x666666))
+                        .tracking(0.001)
+                        .fixedSize()
+                        .frame(maxWidth: .infinity)
+                        .onTapGesture {
+                            selectedUtility = index
+                        }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: 45, alignment: .center)
+        .padding(.horizontal, 25)
+    }
+}
+
+struct ScheduleEventCards: View {
+    
+    @EnvironmentObject var profileViewModel: ProfileViewModel
+    let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    
+    var body: some View {
+        ForEach(Array(profileViewModel.partitionedEvents.keys), id: \.self) { key in
+            
+            // 1) Pull out all your date/event logic up front:
+            let events = profileViewModel.partitionedEvents[key] ?? []
+            let todayStart = Date.convertCurrentDateToTimeInterval(date: Date())
+            let tomorrowStart = todayStart + 86400
+            let blockDate = Date(timeIntervalSince1970: key)
+            let dayText: String = {
+            if key == todayStart     { return "Today" }
+            if key == tomorrowStart  { return "Tomorrow" }
+            let wd = Calendar.current.component(.weekday, from: blockDate)
+            return weekdays[wd]
+            }()
+            let monthIdx = Calendar.current.component(.month, from: blockDate) - 1
+            let monthName = months[monthIdx]
+            let dayOfMonth = Calendar.current.component(.day, from: blockDate)
+
+            // 2) Now your view is just plain SwiftUI:
+            Rectangle()
+            .fill(Color(hex: 0xe0dad5))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal)
+            .overlay {
+              HStack(spacing: 12) {
+                Divider()
+                  .frame(width: 3)
+                  .background(Color(hex: 0xc0b8b2))
+
+                VStack(spacing: 8) {
+                  Text(dayText)
+                    .font(.headline)
+
+                    ForEach(events, id: \.id) { event in
+                        Text("\(event.title)")
+                    }
+                }
+
+                VStack {
+                  Text("\(monthName) \(dayOfMonth)")
+                }
+              }
+              .padding(.vertical, 8)
+            }
+        }
+    }
+}
+
+struct UserProfileImage: View {
+    
+    @EnvironmentObject var profileViewModel: ProfileViewModel
+    @State private var pickerItem: PhotosPickerItem?
+    
+    var body: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(Color(hex: 0x6d8a96), lineWidth: 1.5)
+                .frame(width: 112.5, height: 112.5)
+                .overlay {
+                    if let selectedImage = profileViewModel.selectedImage {
+                        Image(uiImage: selectedImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 112.5, height: 112.5)
+                            .clipShape(Circle())
+                    } else if profileViewModel.currentUser.profileImage != "" {
+                        AsyncImage(url: URL(string: profileViewModel.currentUser.profileImage)) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 112.5, height: 112.5)
+                                .clipShape(Circle())
+                        } placeholder: {
+                            ProgressView()
+                        }
+                        .frame(width: 112.5, height: 112.5)
+                        .clipShape(Circle())
+                    } else {
+                        Image(systemName: "person.crop.circle.badge.exclamationmark")
+                                .resizable()
+                                .scaledToFit()
+                    }
+                }
+            if profileViewModel.isEditingProfile {
+                PhotosPicker(selection: $pickerItem, matching: .images) {
+                    Circle()
+                        .foregroundStyle(Color(hex: 0x6d8a96))
+                        .frame(maxWidth: 30, maxHeight: 30)
+                        .foregroundStyle(.clear)
+                        .overlay {
+                            Image(systemName: "plus")
+                                .font(.system(size: 14, weight: .heavy))
+                                .foregroundStyle(.white)
+                                .containerShape(Circle())
+                        }
+                }
+                .frame(width: 125, height: 112.5, alignment: .topTrailing)
+            }
+        }
+        .onChange(of: pickerItem) {
+            Task {
+                if let imageData = try await pickerItem?.loadTransferable(type: Data.self) {
+                    profileViewModel.selectedImage = UIImage(data: imageData)
+                }
+            }
+        }
+    }
+}
+
+struct UserDisplayName: View {
+    
+    @EnvironmentObject var profileViewModel: ProfileViewModel
+    @State var isEditingProfile = false
+    @State var isEditingUsername = false
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            TextField("Placeholder", text: $profileViewModel.currentUser.id)
+              .font(.system(size: 18, weight: .bold, design: .monospaced))
+              .multilineTextAlignment(.center)
+              .disabled(!isEditingProfile && !isEditingUsername)
+              .overlay {
+                  Rectangle()
+                      .foregroundStyle(.clear)
+                      .border(width: 1, edges: [.leading, .top, .bottom, .trailing], color: (isEditingUsername ? .red : .clear))
+                      .clipShape(RoundedRectangle(cornerRadius: 5))
+                      .padding(-5)
+              }
+
+            if isEditingProfile {
+              Image(systemName: "pencil")
+                .font(.system(size: 14, weight: .medium))
+                .padding(.leading, 5)
+                .onTapGesture {
+                    isEditingUsername.toggle()
+                }
+            }
+          }
+          .fixedSize(horizontal: true, vertical: false)
+          .frame(maxWidth: .infinity, alignment: .center)
+    }
 }

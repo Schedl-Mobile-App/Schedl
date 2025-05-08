@@ -13,10 +13,13 @@ import Observation
 
 class SearchViewModel: ObservableObject {
     
+    var currentUser: User
     @Published var showPopUp = false
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var searchResults: [User] = []
+    private var searchService: SearchServiceProtocol
+    private var userService: UserServiceProtocol
     
     var searchTask: Task<Void, Never>?
         
@@ -24,7 +27,11 @@ class SearchViewModel: ObservableObject {
     @ObservationIgnored var cancellables: Set<AnyCancellable> = []
     
     @MainActor
-    init() {
+    init(searchService: SearchServiceProtocol = SearchService.shared, userService: UserServiceProtocol = UserService.shared, currentUser: User) {
+        self.searchService = searchService
+        self.userService = userService
+        self.currentUser = currentUser
+        
         searchTextSubject
             .filter { $0.isEmpty }
             .sink { [weak self] _ in
@@ -65,7 +72,8 @@ class SearchViewModel: ObservableObject {
             self.isLoading = true
             self.errorMessage = nil
             do {
-                let searchData = try await FirebaseManager.shared.fetchUserSearchInfo(username: text)
+                let matchedUserIds = try await searchService.fetchUserSearchInfo(username: text)
+                let searchData = try await self.userService.fetchUsers(userIds: matchedUserIds)
                 try Task.checkCancellation()
                 self.searchResults = searchData
                 self.isLoading = false
@@ -88,7 +96,8 @@ class SearchViewModel: ObservableObject {
             self.isLoading = true
             self.errorMessage = nil
             do {
-                self.searchResults = try await FirebaseManager.shared.fetchUserSearchInfo(username: userName)
+                let matchedUserIds = try await searchService.fetchUserSearchInfo(username: userName)
+                self.searchResults = try await userService.fetchUsers(userIds: matchedUserIds)
                 self.isLoading = false
             } catch {
                 self.errorMessage = error.localizedDescription

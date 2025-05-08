@@ -50,14 +50,14 @@ class EventCellsContainer: SecondPassthroughView {
         containerView.transform = CGAffineTransform(translationX: -offset.x, y: -offset.y)
     }
     
-    func populateEventCells(rootVC: UIViewController, viewModel: ScheduleViewModel, events: [Event], centerDate: Date, calendarInterval: Int) {
+    func populateEventCells(rootVC: UIViewController, scheduleViewModel: ScheduleViewModel, events: [Event], centerDate: Date, calendarInterval: Int) {
         
         for subview in containerView.subviews {
             subview.removeFromSuperview()
         }
         
         self.rootVC = rootVC
-        self.viewModel = viewModel
+        self.viewModel = scheduleViewModel
         self.events = events
         
         for event in events {
@@ -66,7 +66,7 @@ class EventCellsContainer: SecondPassthroughView {
             let yOffset = (event.endTime - event.startTime) / 3600 * 100
             
             let eventCell = EventCell(frame: CGRect(x: Double(xPosition), y: yStartPosition, width: 75, height: yOffset))
-            eventCell.configureUI(viewModel: viewModel, event: event, rootVC: rootVC)
+            eventCell.configureUI(viewModel: scheduleViewModel, event: event, rootVC: rootVC)
             eventCell.isUserInteractionEnabled = true
             containerView.addSubview(eventCell)
         }
