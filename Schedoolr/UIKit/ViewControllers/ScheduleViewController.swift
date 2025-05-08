@@ -116,7 +116,9 @@ class ScheduleViewController: UIViewController {
     
     func hideLoading() {
       spinner.stopAnimating()
+        spinner.hidesWhenStopped = true
       spinner.removeFromSuperview()
+        spinner.isHidden = true
     }
     
     private var placeholderLabel: UILabel?
@@ -153,6 +155,8 @@ class ScheduleViewController: UIViewController {
 
       /// Call this when `userSchedule == nil`
     func blankSchedule() {
+        hideLoading()
+        
         // hide calendar views
         headerContainerView.isHidden           = true
         displayedDateContainerView.isHidden    = true
@@ -442,7 +446,7 @@ class ScheduleViewController: UIViewController {
     private func setupViewModelObservation(viewModel: ScheduleViewModel) {
         // Using Combine for reactive updates
         viewModel.$scheduleEvents
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] newEvents in
                 // Update UI when the scheduleItems changes
                 self?.updateEventsOverlay()
@@ -450,7 +454,7 @@ class ScheduleViewController: UIViewController {
             .store(in: &cancellables)
         
         viewModel.$isLoading
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] loading in
                 if loading {
                     self?.showLoading()
@@ -461,12 +465,13 @@ class ScheduleViewController: UIViewController {
             .store(in: &cancellables)
         
         viewModel.$userSchedule
-          .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
           .sink { [weak self] maybeSchedule in
             if let schedule = maybeSchedule {
               self?.showSchedule(schedule)
             } else {
-              self?.blankSchedule()
+                self?.hideLoading()
+                self?.blankSchedule()
             }
           }
           .store(in: &cancellables)

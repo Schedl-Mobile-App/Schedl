@@ -21,7 +21,7 @@ struct MainTabBarView: View {
                         .tabItem {
                             Image(systemName: "magnifyingglass")
                         }
-                    ProfileView(currentUser: user, profileUserId: user.id)
+                    ProfileView(currentUser: user, profileUser: user)
                         .tabItem {
                             Image(systemName: "person")
                         }

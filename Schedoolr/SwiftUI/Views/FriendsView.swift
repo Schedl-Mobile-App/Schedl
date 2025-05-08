@@ -13,7 +13,7 @@ struct FriendCell: View {
     let userToDisplay: User
    
     var body: some View {
-        NavigationLink(destination: ProfileView(currentUser: currentUser, profileUserId: userToDisplay.id)) {
+        NavigationLink(destination: ProfileView(currentUser: currentUser, profileUser: userToDisplay)) {
             HStack(spacing: 12) {
                 AsyncImage(url: URL(string: userToDisplay.profileImage)) { image in
                     image
@@ -78,7 +78,9 @@ struct FriendsView: View {
             }
         }
         .onAppear {
-            profileViewModel.fetchFriends()
+            Task {
+                await profileViewModel.fetchFriends()
+            }
         }
         .navigationBarBackButtonHidden(true)
     }

@@ -114,7 +114,7 @@ class UserService: UserServiceProtocol {
         }
     }
     
-    func updateProfileInfo(userId: String, username: String?, profileImage: UIImage?, email: String?) async throws -> Void {
+    func updateProfileInfo(userId: String, username: String? = nil, profileImage: UIImage? = nil, email: String? = nil) async throws -> Void {
         var updates: [String : Any] = [:]
         
         if let username = username {

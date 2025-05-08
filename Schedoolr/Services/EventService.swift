@@ -78,7 +78,11 @@ class EventService: EventServiceProtocol {
             throw EventServiceError.invalidEventData
         }
         
+        print(data)
+        
         let eventIds = Array(data.keys)
+        
+        print(eventIds)
         
         return try await fetchEvents(eventIds: eventIds)
     }
@@ -128,6 +132,7 @@ class EventService: EventServiceProtocol {
             }
             let updates: [String: Any] = [
                 "/events/\(id)": jsonDictionary,
+                "/schedules/\(scheduleId)/eventIds/\(id)" : true,
                 "/scheduleEvents/\(scheduleId)/\(id)" : true
             ]
             

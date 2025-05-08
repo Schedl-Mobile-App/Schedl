@@ -15,8 +15,8 @@ struct ProfileView: View {
     
     lazy var size: CGSize = profileViewModel.currentUser.username.size(withAttributes: [.font: UIFont.systemFont(ofSize: 14)])
     
-    init(currentUser: User, profileUserId: String) {
-        _profileViewModel = StateObject(wrappedValue: ProfileViewModel(currentUser: currentUser, profileUserId: profileUserId))
+    init(currentUser: User, profileUser: User) {
+        _profileViewModel = StateObject(wrappedValue: ProfileViewModel(currentUser: currentUser, profileUser: profileUser))
     }
     
     var body: some View {
@@ -28,27 +28,29 @@ struct ProfileView: View {
                         .foregroundStyle(Color(hex: 0x333333))
                         .tracking(0.001)
                     
-                    HStack {
-                        Button(action: {
-                            if profileViewModel.isEditingProfile {
-                                profileViewModel.triggerSaveChanges.toggle()
+                    if profileViewModel.isCurrentUser {
+                        HStack {
+                            Button(action: {
+                                if profileViewModel.isEditingProfile {
+                                    profileViewModel.triggerSaveChanges.toggle()
+                                }
+                                profileViewModel.isEditingProfile.toggle()
+                            }) {
+                                Text(profileViewModel.isEditingProfile ? "Done" : "Edit")
+                                    .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(Color(hex: 0x333333))
+                                    .tracking(0.001)
                             }
-                            profileViewModel.isEditingProfile.toggle()
-                        }) {
-                            Text(profileViewModel.isEditingProfile ? "Done" : "Edit")
-                                .font(.system(size: 18, weight: .bold, design: .monospaced))
-                                .foregroundStyle(Color(hex: 0x333333))
-                                .tracking(0.001)
+                            Spacer()
+                            NavigationLink(destination: NotificationsView(currentUser: profileViewModel.currentUser)) {
+                                Image(systemName: "bell")
+                                    .font(.system(size: 26, weight: .medium))
+                                    .foregroundStyle(Color(hex: 0x333333))
+                            }
                         }
-                        Spacer()
-                        NavigationLink(destination: NotificationsView(currentUser: profileViewModel.currentUser)) {
-                            Image(systemName: "bell")
-                                .font(.system(size: 26, weight: .medium))
-                                .foregroundStyle(Color(hex: 0x333333))
-                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal)
                 }
                 
                 VStack(spacing: 8) {
@@ -60,8 +62,10 @@ struct ProfileView: View {
                 
                 UserViewOptions()
                 
-                ScheduleEventCards()
-                
+                ForEach(Array(profileViewModel.partitionedEvents.keys), id: \.self) { key in
+                    ScheduleEventCards(key: key)
+                }
+                                
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .ignoresSafeArea()
@@ -73,6 +77,12 @@ struct ProfileView: View {
         }
         .background(Color(hex: 0xf7f4f2))
         .environmentObject(profileViewModel)
+        .onAppear {
+            Task {
+                await profileViewModel.fetchUserSchedule()
+                await profileViewModel.partionEventsByDay()
+            }
+        }
     }
 }
 
@@ -246,54 +256,54 @@ struct UserViewOptions: View {
 struct ScheduleEventCards: View {
     
     @EnvironmentObject var profileViewModel: ProfileViewModel
+    let key: Double
     let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     
     var body: some View {
-        ForEach(Array(profileViewModel.partitionedEvents.keys), id: \.self) { key in
             
-            // 1) Pull out all your date/event logic up front:
-            let events = profileViewModel.partitionedEvents[key] ?? []
-            let todayStart = Date.convertCurrentDateToTimeInterval(date: Date())
-            let tomorrowStart = todayStart + 86400
-            let blockDate = Date(timeIntervalSince1970: key)
-            let dayText: String = {
-            if key == todayStart     { return "Today" }
-            if key == tomorrowStart  { return "Tomorrow" }
-            let wd = Calendar.current.component(.weekday, from: blockDate)
-            return weekdays[wd]
-            }()
-            let monthIdx = Calendar.current.component(.month, from: blockDate) - 1
-            let monthName = months[monthIdx]
-            let dayOfMonth = Calendar.current.component(.day, from: blockDate)
+        // 1) Pull out all your date/event logic up front:
+        let events = profileViewModel.partitionedEvents[key] ?? []
+        let todayStart = Date.convertCurrentDateToTimeInterval(date: Date())
+        let tomorrowStart = todayStart + 86400
+        let blockDate = Date(timeIntervalSince1970: key)
+        let dayText: String = {
+        if key == todayStart     { return "Today" }
+        if key == tomorrowStart  { return "Tomorrow" }
+        let wd = Calendar.current.component(.weekday, from: blockDate)
+        return weekdays[wd]
+        }()
+        let monthIdx = Calendar.current.component(.month, from: blockDate) - 1
+        let monthName = months[monthIdx]
+        let dayOfMonth = Calendar.current.component(.day, from: blockDate)
 
-            // 2) Now your view is just plain SwiftUI:
-            Rectangle()
-            .fill(Color(hex: 0xe0dad5))
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal)
-            .overlay {
-              HStack(spacing: 12) {
-                Divider()
-                  .frame(width: 3)
-                  .background(Color(hex: 0xc0b8b2))
+        // 2) Now your view is just plain SwiftUI:
+        Rectangle()
+        .fill(Color(hex: 0xe0dad5))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal)
+        .overlay {
+          HStack(spacing: 12) {
+            Divider()
+              .frame(width: 3)
+              .background(Color(hex: 0xc0b8b2))
 
-                VStack(spacing: 8) {
-                  Text(dayText)
-                    .font(.headline)
+            VStack(spacing: 8) {
+              Text(dayText)
+                .font(.headline)
 
-                    ForEach(events, id: \.id) { event in
-                        Text("\(event.title)")
-                    }
+                ForEach(events, id: \.id) { event in
+                    Text("\(event.title)")
                 }
-
-                VStack {
-                  Text("\(monthName) \(dayOfMonth)")
-                }
-              }
-              .padding(.vertical, 8)
             }
+
+            VStack {
+              Text("\(monthName) \(dayOfMonth)")
+            }
+          }
+          .padding(.vertical, 8)
         }
+        
     }
 }
 
@@ -314,8 +324,8 @@ struct UserProfileImage: View {
                             .scaledToFill()
                             .frame(width: 112.5, height: 112.5)
                             .clipShape(Circle())
-                    } else if profileViewModel.currentUser.profileImage != "" {
-                        AsyncImage(url: URL(string: profileViewModel.currentUser.profileImage)) { image in
+                    } else if profileViewModel.profileUser.profileImage != "" {
+                        AsyncImage(url: URL(string: profileViewModel.profileUser.profileImage)) { image in
                             image
                                 .resizable()
                                 .scaledToFill()
@@ -366,14 +376,13 @@ struct UserDisplayName: View {
     
     var body: some View {
         HStack(spacing: 4) {
-            TextField("Placeholder", text: $profileViewModel.currentUser.id)
+            TextField("Placeholder", text: $profileViewModel.profileUser.displayName)
               .font(.system(size: 18, weight: .bold, design: .monospaced))
               .multilineTextAlignment(.center)
               .disabled(!isEditingProfile && !isEditingUsername)
               .overlay {
                   Rectangle()
                       .foregroundStyle(.clear)
-                      .border(width: 1, edges: [.leading, .top, .bottom, .trailing], color: (isEditingUsername ? .red : .clear))
                       .clipShape(RoundedRectangle(cornerRadius: 5))
                       .padding(-5)
               }
@@ -386,8 +395,8 @@ struct UserDisplayName: View {
                     isEditingUsername.toggle()
                 }
             }
-          }
-          .fixedSize(horizontal: true, vertical: false)
-          .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 }
