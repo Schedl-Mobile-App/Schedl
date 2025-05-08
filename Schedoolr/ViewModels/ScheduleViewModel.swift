@@ -122,7 +122,10 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            guard let scheduleId = userSchedule?.id as? String else { return }
+            guard let scheduleId = userSchedule?.id as? String else {
+                self.isLoading = false
+                return
+            }
             let fetchedEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
             self.scheduleEvents = fetchedEvents
             

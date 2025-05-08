@@ -13,11 +13,14 @@ struct UserSearchCell: View {
     let user: User
 
     var body: some View {
-       NavigationLink(destination: ProfileView(currentUser: currentUser, profileUserId: user.id)) {
+        NavigationLink(destination: ProfileView(currentUser: currentUser, profileUser: user)) {
            HStack(spacing: 18) {
                AsyncImage(url: URL(string: user.profileImage)) { image in
                    image
-                       .font(.system(size: 35))
+                       .resizable()
+                       .scaledToFill()
+                       .frame(width: 50, height: 50)
+                       .clipShape(Circle())
                } placeholder: {
                    // Show while loading or if image fails to load
                    Image(systemName: "person.circle.fill")
@@ -33,6 +36,7 @@ struct UserSearchCell: View {
            .padding()
            .padding(.horizontal)
        }
+        .navigationBarBackButtonHidden(true)
     }
 }
 

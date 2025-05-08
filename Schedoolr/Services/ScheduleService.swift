@@ -19,7 +19,7 @@ class ScheduleService: ScheduleServiceProtocol {
     
     func fetchSchedule(userId: String) async throws -> Schedule {
         
-        let userScheduleRef = ref.child("users").child(userId).child("scheduleId")
+        let userScheduleRef = ref.child("users").child(userId).child("schedule")
         let userSnapshot = try await userScheduleRef.getData()
         
         guard let scheduleId = userSnapshot.value as? String else {
