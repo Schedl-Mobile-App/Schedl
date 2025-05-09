@@ -8,7 +8,7 @@
 import FirebaseDatabase
 import FirebaseStorage
 
-class PostService {
+class PostService: PostServiceProtocol, ObservableObject {
     static let shared = PostService()
     let ref: DatabaseReference
     let storage: Storage

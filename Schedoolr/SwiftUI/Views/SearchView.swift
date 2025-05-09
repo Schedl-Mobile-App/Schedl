@@ -13,7 +13,9 @@ struct UserSearchCell: View {
     let user: User
 
     var body: some View {
-        NavigationLink(destination: ProfileView(currentUser: currentUser, profileUser: user)) {
+        NavigationLink(destination: ProfileView(currentUser: currentUser, profileUser: user)
+            .toolbar(.visible, for: .tabBar)
+        ) {
            HStack(spacing: 18) {
                AsyncImage(url: URL(string: user.profileImage)) { image in
                    image
@@ -36,7 +38,6 @@ struct UserSearchCell: View {
            .padding()
            .padding(.horizontal)
        }
-        .navigationBarBackButtonHidden(true)
     }
 }
 

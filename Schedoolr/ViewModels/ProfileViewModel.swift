@@ -13,19 +13,24 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     @Published var userSchedule: Schedule?
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
-    @Published var friends: [User]?
-    @Published var posts: [Post]?
-    @Published var userEvents: [Event]?
+    @Published var friends: [User] = []
+    @Published var userPosts: [Post] = []
+    @Published var userEvents: [Event] = []
+    @Published var pastEvents: [Event] = []
+    @Published var invitedEvents: [Event] = []
+    @Published var currentEvents: [Event] = []
     @Published var partitionedEvents: [Double : [Event]] = [:]
     @Published var selectedTab: Tab = .schedules
     @Published var triggerSaveChanges = false
     @Published var isEditingProfile: Bool = false
     @Published var selectedImage: UIImage? = nil
     var profileUser: User
+    var tabOptions: [Tab] = [.schedules, .events, .activity]
     private var userService: UserServiceProtocol
     private var scheduleService: ScheduleServiceProtocol
     private var eventService: EventServiceProtocol
     private var notificationService: NotificationServiceProtocol
+    private var postService: PostServiceProtocol
     
     // only needs to be read-only since we will be creating new instances of the view model whether the current user is on their profile
     // or visiting their friends profile
@@ -33,81 +38,49 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         currentUser.id == profileUser.id
     }
     
-    init(userService: UserServiceProtocol = UserService.shared, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared, currentUser: User, profileUser: User){
+    init(userService: UserServiceProtocol = UserService.shared, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared, postService: PostServiceProtocol = PostService.shared, currentUser: User, profileUser: User){
         self.userService = userService
         self.scheduleService = scheduleService
         self.eventService = eventService
         self.notificationService = notificationService
+        self.postService = postService
         self.currentUser = currentUser
         self.profileUser = profileUser
     }
     
+    func returnSelectedOptionIndex() -> Int {
+        if let index = tabOptions.firstIndex(of: selectedTab) {
+            return index
+        }
+        return 0
+    }
     
-//    func fetchSomeFriends() async {
-//        self.isLoading = true
-//        self.errorMessage = nil
-//        
-//        do {
-//            self.friends = try await FirebaseManager.shared.fetchSomeFriends(id: self.profileUserId ?? "")
-//            self.isLoading = false
-//        } catch {
-//            self.errorMessage = error.localizedDescription
-//            self.isLoading = false
-//        }
-//    }
-    
-//    func numOfFriends() -> Int {
-//        return self.profileUser?.friendIds.count ?? 0
-//    }
-    
-//    @MainActor
-//    func loadViewModel() async {
-//        self.isLoading = true
-//        self.errorMessage = nil
-//        
-//        do {
-//            try await userService.fetchUser(userid: currentUser.id)
-//            await self.fetchTabInfo()
-//            self.isLoading = false
-//        } catch {
-//            self.errorMessage = error.localizedDescription
-//            self.isLoading = false
-//        }
-//    }
-    
-//    @MainActor
-//    func fetchTabInfo() async {
-//        self.isLoading = true
-//        self.errorMessage = nil
-//        
-//        do {
-//            switch self.selectedTab {
-//            case .schedules:
-//                let schedule = try await FirebaseManager.shared.fetchScheduleAsync(id: profileUser?.schedules.first ?? "")
-//                self.schedules = schedule
-//                self.isLoading = false
-//                break
-//            case .posts:
-//                let posts = try await FirebaseManager.shared.fetchUserPosts(id: profileUser?.id ?? "")
-//                self.posts = posts
-//                self.isLoading = false
-//                break
-//            case .tagged:
-//                let taggedPosts = try await FirebaseManager.shared.fetchUserPosts(id: profileUser?.id ?? "")
-//                self.taggedPosts = taggedPosts
-//                self.isLoading = false
-//                break
-//            case .likes:
-//                let likedPosts = try await FirebaseManager.shared.fetchUserPosts(id: profileUser?.id ?? "")
-//                self.likedPosts = likedPosts
-//                self.isLoading = false
-//                break
-//            }
-//        } catch {
-//            self.errorMessage = error.localizedDescription
-//            self.isLoading = false
-//        }
-//    }
+    @MainActor
+    func fetchTabInfo() async {
+        self.isLoading = true
+        self.errorMessage = nil
+        
+        do {
+            switch self.selectedTab {
+            case .schedules:
+                await fetchEvents()
+                self.isLoading = false
+                break
+            case .events:
+                await fetchEvents()
+                self.isLoading = false
+                break
+            case .activity:
+                let fetchedPosts = try await postService.fetchPostsByUserId(userId: profileUser.id)
+                userPosts = fetchedPosts
+                self.isLoading = false
+                break
+            }
+        } catch {
+            self.errorMessage = error.localizedDescription
+            self.isLoading = false
+        }
+    }
     
     @MainActor
     func sendFriendRequest(toUserName: String) async {
@@ -124,46 +97,22 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     }
     
     @MainActor
-    func fetchUserSchedule() async {
-        self.isLoading = true
-        self.errorMessage = nil
-        do {
-            userSchedule = try await scheduleService.fetchSchedule(userId: profileUser.id)
-            self.isLoading = false
-        } catch {
-            self.errorMessage = "Failed to fetch schedule: \(error.localizedDescription)"
-        }
-    }
-    
-    @MainActor
-    func fetchAllEvents() async {
-        self.isLoading = false
-        self.errorMessage = nil
-        do {
-            guard let scheduleId = userSchedule?.id as? String else { return }
-            let fetchedEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
-            userEvents = fetchedEvents
-            
-            self.isLoading = false
-        } catch {
-            self.errorMessage = "Failed to fetch schedule: \(error.localizedDescription)"
-            self.isLoading = false
-        }
-    }
-    
-    @MainActor
-    func partionEventsByDay() async {
+    func fetchEvents() async {
         self.isLoading = true
         self.errorMessage = nil
         let currentDay = Date.convertCurrentDateToTimeInterval(date: Date())
         do {
-//            guard let scheduleId = userSchedule?.id else { return }
-            let currentEvents = try await eventService.fetchCurrentEvents(currentDay: currentDay, userId: profileUser.id)
+            let scheduleId = try await scheduleService.fetchScheduleId(userId: profileUser.id)
+            let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
+            userEvents = allEvents
+            pastEvents = allEvents.filter { $0.eventDate < currentDay }
+            invitedEvents = allEvents
+            let currentEvents = allEvents.filter { $0.eventDate >= currentDay }
+            self.currentEvents = currentEvents
             self.partitionedEvents = Dictionary(
                 grouping: currentEvents,
                 by: \.eventDate
             )
-            print(self.partitionedEvents)
             self.isLoading = false
         } catch {
             print("Could not partion events by day successfully")
