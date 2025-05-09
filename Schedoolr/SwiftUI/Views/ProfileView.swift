@@ -12,6 +12,8 @@ struct ProfileView: View {
     
     @StateObject var profileViewModel: ProfileViewModel
     @EnvironmentObject var authViewModel: AuthViewModel
+    @State var selectedType: Int = 0
+    var utils = ["Upcoming", "Invited", "Past"]
     
     lazy var size: CGSize = profileViewModel.currentUser.username.size(withAttributes: [.font: UIFont.systemFont(ofSize: 14)])
     
@@ -33,8 +35,9 @@ struct ProfileView: View {
                             Button(action: {
                                 if profileViewModel.isEditingProfile {
                                     profileViewModel.triggerSaveChanges.toggle()
+                                } else {
+                                    profileViewModel.isEditingProfile.toggle()
                                 }
-                                profileViewModel.isEditingProfile.toggle()
                             }) {
                                 Text(profileViewModel.isEditingProfile ? "Done" : "Edit")
                                     .font(.system(size: 18, weight: .bold, design: .monospaced))
@@ -62,10 +65,63 @@ struct ProfileView: View {
                 
                 UserViewOptions()
                 
-                ForEach(Array(profileViewModel.partitionedEvents.keys), id: \.self) { key in
-                    ScheduleEventCards(key: key)
+                switch profileViewModel.selectedTab {
+                case .schedules:
+                    ScrollView(.vertical, showsIndicators: false) {
+                        LazyVStack(spacing: 10) {
+                            ForEach(Array(profileViewModel.partitionedEvents.keys), id: \.self) { key in
+                                ScheduleEventCards(key: key)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .events:
+                    VStack(spacing: 10) {
+                        HStack {
+                            ForEach(utils.indices, id: \.self) { index in
+                                Text("\(utils[index])")
+                                    .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                                    .foregroundStyle(Color(hex: 0x666666))
+                                    .tracking(0.001)
+                                    .fixedSize()
+                                    .frame(maxWidth: .infinity)
+                                    .onTapGesture {
+                                        selectedType = index
+                                    }
+                            }
+                        }
+                        .padding(.horizontal, 25)
+                        
+                        GeometryReader { proxy in
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(hex: 0x6d8a96))
+                                .frame(width: proxy.size.width / CGFloat(utils.count), height: 4)
+                                .offset(x: CGFloat(proxy.size.width / CGFloat(utils.count)) * CGFloat(selectedType))
+                                .animation(.bouncy, value: selectedType)
+                        }
+                        .padding(.horizontal, 25)
+                        .padding(.bottom, 10)
+                        
+                        ScrollView(.vertical, showsIndicators: false) {
+                                    LazyVStack(spacing: 10) {
+                                        switch selectedType {
+                                        case 0: ForEach(profileViewModel.currentEvents) { EventCard(event: $0) }
+                                        case 1: ForEach(profileViewModel.invitedEvents) { EventCard(event: $0) }
+                                        case 2: ForEach(profileViewModel.pastEvents)    { EventCard(event: $0) }
+                                        default: EmptyView()
+                                        }
+                                    }
+                                }
+                                // **Here** we give it a flexible height AND priority:
+                                .frame(minHeight: 0, maxHeight: .infinity)
+                                .layoutPriority(1)
+                    }
+                    .frame(maxHeight: .infinity, alignment: .top)
+                case .activity:
+                    ScrollView(.vertical, showsIndicators: false) {
+                        Text("Activity")
+                    }
                 }
-                                
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .ignoresSafeArea()
@@ -75,12 +131,12 @@ struct ProfileView: View {
                 SaveChangesForm()
             }
         }
+        .navigationBarBackButtonHidden(true)
         .background(Color(hex: 0xf7f4f2))
         .environmentObject(profileViewModel)
         .onAppear {
             Task {
-                await profileViewModel.fetchUserSchedule()
-                await profileViewModel.partionEventsByDay()
+                await profileViewModel.fetchTabInfo()
             }
         }
     }
@@ -90,17 +146,93 @@ struct EventCard: View {
     
     let event: Event
     
-    var body: some View {
-        let dateObj = Date.convertTimeSince1970ToDate(time: event.startTime)
-        let secs = Date.computeTimeSinceStartOfDay(date: dateObj)
-        let hours = Int(secs) / 3600
-        let minutes = Int(secs) % 3600 / 60
-        let ampm = Int(secs) >= 43200 ? "PM" : "AM"
-
-        HStack {
-          Text(event.title)
-          Text("\(hours):\(String(format: "%02d", minutes)) \(ampm)")
+    @EnvironmentObject var profileViewModel: ProfileViewModel
+    let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    
+    func returnTimeFormatted(timeObj: Double) -> String {
+        let hours = timeObj / 3600
+        let minutes = Double(timeObj / 3600.0).truncatingRemainder(dividingBy: hours)
+        if hours <= 11 {
+            return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) AM"
+        } else if hours == 12 {
+            return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) PM"
+        } else if hours == 24 {
+            return "12:\(String(format: "%02d", Int(minutes))) AM"
+        } else {
+            return "\(Int(hours - 12)):\(String(format: "%02d", Int(minutes))) PM"
         }
+    }
+    
+    var body: some View {
+            
+        let todayStart = Date.convertCurrentDateToTimeInterval(date: Date())
+        let tomorrowStart = todayStart + 86400
+        let blockDate = Date(timeIntervalSince1970: event.eventDate)
+        let dayText: String = {
+            if event.eventDate == todayStart     { return "Today" }
+            if event.eventDate == tomorrowStart  { return "Tomorrow" }
+            let wd = Calendar.current.component(.weekday, from: blockDate)
+            return weekdays[wd]
+        }()
+        let monthIdx = Calendar.current.component(.month, from: blockDate) - 1
+        let monthName = months[monthIdx]
+        let dayOfMonth = Calendar.current.component(.day, from: blockDate)
+
+        Rectangle()
+        .fill(.white)
+        .overlay {
+            HStack(alignment: .top, spacing: 20) {
+                Divider()
+                    .frame(width: 6, alignment: .leading)
+                    .background(Color(hex: 0xc0b8b2))
+                    .cornerRadius(15)
+
+                VStack( alignment: .leading, spacing: 8) {
+                    Text("\(event.title)")
+                        .font(.system(size: 17, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(Color(hex: 0x333333))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        
+                        let formattedTime = returnTimeFormatted(timeObj: event.startTime)
+                        Text("\(dayText), \(monthName) \(dayOfMonth) - ")
+                            .font(.system(size: 14, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+
+                        Text("\(formattedTime)")
+                            .font(.system(size: 14, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    
+                    HStack {
+                        Image(systemName: "mappin")
+                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        
+                        Text("Conference Room B")
+                            .font(.system(size: 14, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+                .padding(.top, 6)
+                
+                Spacer()
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
+        .padding(.horizontal, 25)
+        .clipShape(RoundedRectangle(cornerRadius: 15))
+        
     }
 }
 
@@ -135,6 +267,7 @@ struct SaveChangesForm: View {
                                     Task {
                                         await profileViewModel.updateUserProfile()
                                         profileViewModel.triggerSaveChanges.toggle()
+                                        profileViewModel.isEditingProfile.toggle()
                                     }
                                 }) {
                                     Text("Save")
@@ -158,32 +291,37 @@ struct SaveChangesForm: View {
 }
 
 struct ProfileInformatics: View {
+    
+    @EnvironmentObject var profileViewModel: ProfileViewModel
+    
     var body: some View {
         Rectangle()
             .fill(Color(hex: 0xe0dad5))
             .cornerRadius(15)
             .overlay {
                 HStack {
-                    VStack(alignment: .center, spacing: 6) {
-                        Text("126")
-                            .font(.system(size: 18, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x333333))
-                        Text("Friends")
-                            .font(.system(size: 14, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x666666))
-                            .tracking(0.01)
-                            .fixedSize()
+                    NavigationLink(destination: FriendsView().environmentObject(profileViewModel)) {
+                        VStack(alignment: .center, spacing: 6) {
+                            Text("\(profileViewModel.friends.count)")
+                                .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                .foregroundStyle(Color(hex: 0x333333))
+                            Text("Friends")
+                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .foregroundStyle(Color(hex: 0x666666))
+                                .tracking(0.01)
+                                .fixedSize()
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity)
                     Divider()
                         .foregroundStyle(Color(hex: 0xc0b8b2))
                         .frame(maxWidth: 1.75, maxHeight: 50)
                         .background(Color(hex: 0xc0b8b2))
                     VStack(alignment: .center, spacing: 6) {
-                        Text("8")
+                        Text("\(profileViewModel.userEvents.count)")
                             .font(.system(size: 18, weight: .bold, design: .monospaced))
                             .foregroundStyle(Color(hex: 0x333333))
-                        Text("Schedules")
+                        Text("Events")
                             .font(.system(size: 14, weight: .medium, design: .monospaced))
                             .foregroundStyle(Color(hex: 0x666666))
                             .tracking(0.01)
@@ -196,10 +334,10 @@ struct ProfileInformatics: View {
                         .background(Color(hex: 0xc0b8b2))
                     
                     VStack(alignment: .center, spacing: 6) {
-                        Text("42")
+                        Text("\(profileViewModel.userPosts.count)")
                             .font(.system(size: 18, weight: .bold, design: .monospaced))
                             .foregroundStyle(Color(hex: 0x333333))
-                        Text("Events")
+                        Text("Posts")
                             .font(.system(size: 14, weight: .medium, design: .monospaced))
                             .foregroundStyle(Color(hex: 0x666666))
                             .tracking(0.01)
@@ -210,6 +348,9 @@ struct ProfileInformatics: View {
                 .padding(.horizontal)
                 
             }
+            .onAppear {
+                
+            }
             .frame(maxWidth: .infinity, maxHeight: 70, alignment: .center)
             .padding(.horizontal, 50)
     }
@@ -217,9 +358,8 @@ struct ProfileInformatics: View {
 
 struct UserViewOptions: View {
     
-    var utilities = ["My Schedule", "Events", "Activity"]
-    @State var selectedUtility = 1
-    
+    @EnvironmentObject var profileViewModel: ProfileViewModel
+        
     var body: some View {
         ZStack {
             Rectangle()
@@ -229,21 +369,21 @@ struct UserViewOptions: View {
             GeometryReader { proxy in
                 RoundedRectangle(cornerRadius: 30)
                     .fill(Color(hex: 0x6d8a96))
-                    .frame(width: proxy.size.width / CGFloat(utilities.count))
-                    .offset(x: CGFloat(proxy.size.width / CGFloat(utilities.count)) * CGFloat(selectedUtility))
-                    .animation(.bouncy, value: selectedUtility)
+                    .frame(width: proxy.size.width / CGFloat(profileViewModel.tabOptions.count))
+                    .offset(x: CGFloat(proxy.size.width / CGFloat(profileViewModel.tabOptions.count)) * CGFloat(profileViewModel.returnSelectedOptionIndex()))
+                    .animation(.bouncy, value: profileViewModel.selectedTab)
             }
             
             HStack {
-                ForEach(utilities.indices, id: \.self) { index in
-                    Text(utilities[index])
+                ForEach(profileViewModel.tabOptions, id: \.self) { option in
+                    Text("\(option.title)")
                         .font(.system(size: 14, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(selectedUtility == index ? Color(hex: 0xf7f4f2) : Color(hex: 0x666666))
+                        .foregroundStyle(profileViewModel.selectedTab == option ? Color(hex: 0xf7f4f2) : Color(hex: 0x666666))
                         .tracking(0.001)
                         .fixedSize()
                         .frame(maxWidth: .infinity)
                         .onTapGesture {
-                            selectedUtility = index
+                            profileViewModel.selectedTab = option
                         }
                 }
             }
@@ -260,9 +400,22 @@ struct ScheduleEventCards: View {
     let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     
+    func returnTimeFormatted(timeObj: Double) -> String {
+        let hours = timeObj / 3600
+        let minutes = Double(timeObj / 3600.0).truncatingRemainder(dividingBy: hours)
+        if hours < 11 {
+            return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) AM"
+        } else if hours == 12 {
+            return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) PM"
+        } else if hours == 24 {
+            return "12:\(String(format: "%02d", Int(minutes))) AM"
+        } else {
+            return "\(Int(hours - 12)):\(String(format: "%02d", Int(minutes))) PM"
+        }
+    }
+    
     var body: some View {
             
-        // 1) Pull out all your date/event logic up front:
         let events = profileViewModel.partitionedEvents[key] ?? []
         let todayStart = Date.convertCurrentDateToTimeInterval(date: Date())
         let tomorrowStart = todayStart + 86400
@@ -277,32 +430,56 @@ struct ScheduleEventCards: View {
         let monthName = months[monthIdx]
         let dayOfMonth = Calendar.current.component(.day, from: blockDate)
 
-        // 2) Now your view is just plain SwiftUI:
         Rectangle()
-        .fill(Color(hex: 0xe0dad5))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal)
+        .fill(.white)
         .overlay {
-          HStack(spacing: 12) {
-            Divider()
-              .frame(width: 3)
-              .background(Color(hex: 0xc0b8b2))
+            HStack(alignment: .top, spacing: 20) {
+                Divider()
+                    .frame(width: 6, alignment: .leading)
+                  .background(Color(hex: 0xc0b8b2))
+                  .cornerRadius(15)
 
-            VStack(spacing: 8) {
-              Text(dayText)
-                .font(.headline)
+                VStack( alignment: .leading, spacing: 8) {
+                    Text(dayText)
+                      .font(.system(size: 14, weight: .bold, design: .monospaced))
+                      .foregroundStyle(Color(hex: 0x333333))
+                      .multilineTextAlignment(.leading)
+                    ForEach(events, id: \.id) { event in
+                        HStack(spacing: 8) {
+                            let formattedTime = returnTimeFormatted(timeObj: event.startTime)
+                            Text("\(event.title)")
+                              .font(.system(size: 12, weight: .bold, design: .monospaced))
+                              .foregroundStyle(Color(hex: 0x333333))
+                              .lineLimit(1)
+                              .truncationMode(.tail)
 
-                ForEach(events, id: \.id) { event in
-                    Text("\(event.title)")
+                            Spacer(minLength: 4)
+
+                            Text("\(formattedTime)")
+                              .font(.system(size: 12, weight: .medium, design: .monospaced))
+                              .foregroundStyle(Color(hex: 0x666666))
+                              .lineLimit(1)
+                              .truncationMode(.tail)
+                        }
+                    }
                 }
-            }
+                .padding(.top, 12)
 
-            VStack {
-              Text("\(monthName) \(dayOfMonth)")
+                Spacer()
+
+                VStack {
+                    Text("\(monthName) \(dayOfMonth)")
+                      .font(.system(size: 12, weight: .medium, design: .monospaced))
+                      .foregroundStyle(Color(hex: 0x666666))
+                      .lineLimit(1)
+                }
+                .padding(.top, 12)
+                .padding(.trailing, 10)
             }
-          }
-          .padding(.vertical, 8)
         }
+        .frame(maxWidth: .infinity, minHeight: 100)
+        .padding(.horizontal, 25)
+        .clipShape(RoundedRectangle(cornerRadius: 15))
         
     }
 }

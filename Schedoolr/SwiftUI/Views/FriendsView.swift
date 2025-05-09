@@ -67,8 +67,8 @@ struct FriendsView: View {
                        Text("Loading...")
                    } else if let error = profileViewModel.errorMessage {
                        Text(error)
-                   } else if let friends = profileViewModel.friends {
-                       ForEach(friends) { friend in
+                   } else if profileViewModel.friends.count > 0 {
+                       ForEach(profileViewModel.friends) { friend in
                            FriendCell(currentUser: profileViewModel.currentUser, userToDisplay: friend)
                        }
                    } else {

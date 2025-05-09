@@ -12,20 +12,18 @@ enum Tab: Int, Identifiable, CaseIterable, Comparable {
         lhs.rawValue < rhs.rawValue
     }
     
-    case schedules, posts, tagged, likes
+    case schedules, events, activity
     
     internal var id: Int { rawValue }
     
     var title: String {
         switch self {
         case .schedules:
-            return "Schedules"
-        case .posts:
-            return "Posts"
-        case .tagged:
-            return "Tagged"
-        case .likes:
-            return "Likes"
+            return "My Schedule"
+        case .events:
+            return "Events"
+        case .activity:
+            return "Activity"
         }
     }
 }

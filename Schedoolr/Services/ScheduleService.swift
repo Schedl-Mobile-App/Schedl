@@ -53,7 +53,7 @@ class ScheduleService: ScheduleServiceProtocol {
     }
     
     func fetchScheduleId(userId: String) async throws -> String {
-        let userRef = ref.child("users").child(userId).child("scheduleId")
+        let userRef = ref.child("users").child(userId).child("schedule")
         let snapshot = try await userRef.getData()
         
         guard let scheduleId = snapshot.value as? String else {
