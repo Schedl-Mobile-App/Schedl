@@ -37,6 +37,7 @@
 		CB2E0E0E2D10F1800069B028 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0E0D2D10F1800069B028 /* FirebaseCore */; };
 		CB2E0E102D10F1800069B028 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0E0F2D10F1800069B028 /* FirebaseCrashlytics */; };
 		CB2E0E122D10F1800069B028 /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0E112D10F1800069B028 /* FirebaseDatabase */; };
+		CB3C314D2DD9CE6700124F03 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = CB3C314C2DD9CE6700124F03 /* LaunchScreen.storyboard */; };
 		CB5308152CA0862100A8AA04 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = CB5308142CA0862100A8AA04 /* FirebaseAnalytics */; };
 		CB5308172CA0862100A8AA04 /* FirebaseAnalyticsOnDeviceConversion in Frameworks */ = {isa = PBXBuildFile; productRef = CB5308162CA0862100A8AA04 /* FirebaseAnalyticsOnDeviceConversion */; };
 		CB5308192CA0862100A8AA04 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = CB5308182CA0862100A8AA04 /* FirebaseAnalyticsWithoutAdIdSupport */; };
@@ -49,12 +50,25 @@
 		CB6B6C702CA0C9A90001BFE1 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = CB6B6C6F2CA0C9A90001BFE1 /* FirebaseAppCheck */; };
 		CB6B6C722CA0C9A90001BFE1 /* FirebaseAppDistribution-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = CB6B6C712CA0C9A90001BFE1 /* FirebaseAppDistribution-Beta */; };
 		CB7058C52CA66BDB00C4EE00 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = CB7058C42CA66BDB00C4EE00 /* FirebaseAuth */; };
-		CBABE0CD2D4AB5330066F5E3 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBABE0CC2D4AB5300066F5E3 /* Extensions.swift */; };
 		CBB1F87B2DC3BE730002E3F1 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = CBB1F87A2DC3BE730002E3F1 /* FirebaseStorage */; };
 		CBC9A7492CA1CACC0000A18C /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = CBC9A7482CA1CACC0000A18C /* FirebaseDatabase */; };
 		CBC9A7612CA21D3D0000A18C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */; };
 		CBC9A7652CA22CB50000A18C /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7642CA22CB50000A18C /* .gitignore */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+		CB3C31522DD9D4C500124F03 /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = com.apple.compilers.proxy.script;
+			fileType = image.png;
+			inputFiles = (
+			);
+			isEditable = 1;
+			outputFiles = (
+			);
+			script = "# copypng\n";
+		};
+/* End PBXBuildRule section */
 
 /* Begin PBXFileReference section */
 		046B83472C867DE600F97BB4 /* Schedoolr.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Schedoolr.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -63,8 +77,8 @@
 		046B83502C867DE700F97BB4 /* Schedoolr.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Schedoolr.entitlements; sourceTree = "<group>"; };
 		046B83522C867DE700F97BB4 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugAppCheckProviderFactory.swift; sourceTree = "<group>"; };
+		CB3C314C2DD9CE6700124F03 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = ../LaunchScreen.storyboard; sourceTree = "<group>"; };
 		CB8D57502C9D465F0051A415 /* Schedoolr.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Schedoolr.xctestplan; sourceTree = SOURCE_ROOT; };
-		CBABE0CC2D4AB5300066F5E3 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		CBC9A7642CA22CB50000A18C /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -72,6 +86,7 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CB377BFA2D67F9EC0035E855 /* SwiftUI */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = SwiftUI; sourceTree = "<group>"; };
 		CB377BFB2D67F9F30035E855 /* UIKit */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = UIKit; sourceTree = "<group>"; };
+		CB3C31382DD9932000124F03 /* Extensions */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Extensions; sourceTree = "<group>"; };
 		CB53080D2CA0824600A8AA04 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 		CB5F72422D3DBF20004C7FC8 /* Enums */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Enums; sourceTree = "<group>"; };
 		CB7058BD2CA660AE00C4EE00 /* ViewModels */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ViewModels; sourceTree = "<group>"; };
@@ -153,9 +168,10 @@
 		046B83492C867DE600F97BB4 /* Schedoolr */ = {
 			isa = PBXGroup;
 			children = (
+				CB3C314C2DD9CE6700124F03 /* LaunchScreen.storyboard */,
+				CB3C31382DD9932000124F03 /* Extensions */,
 				CB377BFB2D67F9F30035E855 /* UIKit */,
 				CB377BFA2D67F9EC0035E855 /* SwiftUI */,
-				CBABE0CC2D4AB5300066F5E3 /* Extensions.swift */,
 				CB5F72422D3DBF20004C7FC8 /* Enums */,
 				CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */,
 				CBFD83D52CF51C240034BE9F /* Core */,
@@ -199,12 +215,14 @@
 				046B83452C867DE600F97BB4 /* Resources */,
 			);
 			buildRules = (
+				CB3C31522DD9D4C500124F03 /* PBXBuildRule */,
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
 				CB377BFA2D67F9EC0035E855 /* SwiftUI */,
 				CB377BFB2D67F9F30035E855 /* UIKit */,
+				CB3C31382DD9932000124F03 /* Extensions */,
 				CB53080D2CA0824600A8AA04 /* Services */,
 				CB5F72422D3DBF20004C7FC8 /* Enums */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
@@ -261,6 +279,7 @@
 				046B83532C867DE700F97BB4 /* Preview Assets.xcassets in Resources */,
 				046B834F2C867DE700F97BB4 /* Assets.xcassets in Resources */,
 				CBC9A7652CA22CB50000A18C /* .gitignore in Resources */,
+				CB3C314D2DD9CE6700124F03 /* LaunchScreen.storyboard in Resources */,
 				CBC9A7612CA21D3D0000A18C /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -273,7 +292,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				CB27B9652D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift in Sources */,
-				CBABE0CD2D4AB5330066F5E3 /* Extensions.swift in Sources */,
 				046B834B2C867DE600F97BB4 /* SchedoolrApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -408,6 +426,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Schedoolr/Schedoolr.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -415,6 +434,7 @@
 				DEVELOPMENT_TEAM = WFU7CAH8HU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Schedl;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -422,6 +442,7 @@
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -445,6 +466,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Schedoolr/Schedoolr.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
@@ -454,6 +476,7 @@
 				DEVELOPMENT_TEAM = WFU7CAH8HU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Schedl;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -461,6 +484,7 @@
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

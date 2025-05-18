@@ -32,14 +32,14 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
         self.errorMessage = nil
         do {
             let userId = try await authService.login(email: email, password: password)
-            print("User id is \(userId)")
             currentUser = try await userService.fetchUser(userId: userId)
-            print("current user is \(String(describing: currentUser))")
             isLoggedIn = true
             isLoading = false
         } catch {
             errorMessage = "Failed to login. Please try again later."
             isLoading = false
+            email = ""
+            password = ""
         }
     }
     
@@ -50,8 +50,15 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
         do {
             let userId = try await authService.signUp(email: email, password: password)
             currentUser = try await userService.saveNewUser(userId: userId, username: username, email: email, displayName: displayName)
+            isLoggedIn = true
+            isLoading = false
         } catch {
             errorMessage = "Failed to register account. Please try again later."
+            isLoading = false
+            username = ""
+            displayName = ""
+            email = ""
+            password = ""
         }
     }
     

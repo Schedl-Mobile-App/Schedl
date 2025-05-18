@@ -45,11 +45,6 @@ class EventCellsContainer: SecondPassthroughView {
         ])
     }
     
-    func updateContentOffset(to offset: CGPoint) {
-        // Apply transforms to the containerView to match scroll position
-        containerView.transform = CGAffineTransform(translationX: -offset.x, y: -offset.y)
-    }
-    
     func populateEventCells(rootVC: UIViewController, scheduleViewModel: ScheduleViewModel, events: [Event], centerDate: Date, calendarInterval: Int) {
         
         for subview in containerView.subviews {
@@ -61,11 +56,11 @@ class EventCellsContainer: SecondPassthroughView {
         self.events = events
         
         for event in events {
-            let xPosition = (getDayIndex(eventDate: Date.convertTimeSince1970ToDate(time: event.eventDate), centerDate: centerDate, calendarInterval: calendarInterval) ?? 0) * 75
+            let xPosition = (getDayIndex(eventDate: Date.convertTimeSince1970ToDate(time: event.eventDate), centerDate: centerDate, calendarInterval: calendarInterval) ?? 0) * 125
             let yStartPosition = event.startTime / 3600 * 100
             let yOffset = (event.endTime - event.startTime) / 3600 * 100
             
-            let eventCell = EventCell(frame: CGRect(x: Double(xPosition), y: yStartPosition, width: 75, height: yOffset))
+            let eventCell = EventCell(frame: CGRect(x: Double(xPosition), y: yStartPosition, width: 125, height: yOffset))
             eventCell.configureUI(viewModel: scheduleViewModel, event: event, rootVC: rootVC)
             eventCell.isUserInteractionEnabled = true
             containerView.addSubview(eventCell)
