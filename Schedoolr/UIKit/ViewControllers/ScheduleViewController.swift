@@ -40,8 +40,8 @@ class ScheduleViewController: UIViewController {
     
     lazy var numberOfTimeIntervals: Int = 24
     lazy var numberOfDays: Int = 60
-    lazy var itemWidth: CGFloat = 75
-    lazy var itemHeight: CGFloat = 100
+    lazy var itemWidth: CGFloat = 125
+    lazy var itemHeight: CGFloat = 75
     lazy var singleDayGroupWidth: CGFloat = itemWidth
     lazy var singleDayGroupHeight: CGFloat = Double(itemHeight) * Double(numberOfTimeIntervals)
     lazy var horizontalGroupWidth: CGFloat = singleDayGroupWidth * Double(numberOfDays)
@@ -247,7 +247,7 @@ class ScheduleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        view.backgroundColor = UIColor(named: "DarkBackground")
+        view.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
         edgesForExtendedLayout = .all
         
         view.addSubview(headerContainerView)
@@ -256,13 +256,13 @@ class ScheduleViewController: UIViewController {
         displayedDateContainerView.addSubview(displayedMonthLabel)
         displayedDateContainerView.addSubview(displayedYearLabel)
         
-        collectionView.backgroundColor = UIColor(named: "DarkBackground")
+        collectionView.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
         
         // add the collection view to root view
         view.addSubview(collectionView)
         
         overlayView.translatesAutoresizingMaskIntoConstraints = false
-        overlayView.backgroundColor = UIColor(named: "DarkBackground")
+        overlayView.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
         
         headerContainerView.translatesAutoresizingMaskIntoConstraints = false
         headerContainerView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: 15, bottom: 0, trailing: 20)
@@ -548,8 +548,8 @@ class ScheduleViewController: UIViewController {
         let hour = calendar.component(.hour, from: Date())
         
         // Calculate vertical position based on current time
-        let itemHeight: CGFloat = 100
-        let desiredYOffset = max(0, CGFloat(hour) * itemHeight - 100)
+        let itemHeight: CGFloat = 75
+        let desiredYOffset = max(0, CGFloat(hour) * itemHeight - 75)
         
         // Calculate the maximum possible y-offset to prevent scrolling too far
         let maxYOffset = collectionView.contentSize.height - collectionView.frame.height
@@ -559,7 +559,7 @@ class ScheduleViewController: UIViewController {
         
         // Get current day index relative to our 60-day range (-30 to +29)
         let currentDayIndex = numberOfDays / 2 // Middle of our 60-day range (today)
-        let itemWidth: CGFloat = 75
+        let itemWidth: CGFloat = 125
         
         // initial horizontal offset so that the current day is the first day displayed
         let xOffset = CGFloat(currentDayIndex) * itemWidth
@@ -796,7 +796,7 @@ extension ScheduleViewController: UICollectionViewDelegate {
                     }
                     
                     var frame = cell.frame
-                    frame.origin.y = (cell.layer.value(forKey: "normal") as? CGFloat ?? frame.origin.y)
+                    frame.origin.y = (cell.layer.value(forKey: "normal") as? CGFloat ?? frame.origin.y) + 1
                     frame.size.height = (cell.layer.value(forKey: "normalHeight") as? CGFloat ?? itemHeight) + bottomOffset
                     
                     cell.frame = frame
@@ -856,7 +856,7 @@ extension ScheduleViewController: UICollectionViewDelegate {
     }
     
     func snapCellPosition() {
-        let itemWidth: CGFloat = 75
+        let itemWidth: CGFloat = 125
         
         // Get the total offset from the left edge
         let totalOffset = collectionView.contentOffset.x
@@ -873,7 +873,7 @@ extension ScheduleViewController: UICollectionViewDelegate {
         // Maintain the current y offset
         let currentYOffset = collectionView.contentOffset.y
         
-        collectionView.setContentOffset(CGPoint(x: finalXOffset, y: currentYOffset), animated: true)
+        collectionView.setContentOffset(CGPoint(x: finalXOffset+1, y: currentYOffset), animated: true)
     }
 }
 

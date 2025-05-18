@@ -16,5 +16,7 @@ protocol UserServiceProtocol {
     func updateProfileInfo(userId: String, username: String?, profileImage: UIImage?, email: String?) async throws -> Void
     func fetchUserIdByUsername(username: String) async throws -> String
     func fetchUserFriends(userId: String) async throws -> [User]
+    func fetchNumberOfFriends(userId: String) async throws -> Int
+    func isFriend(userId: String, otherUserId: String) async throws -> Bool
     func fetchUserNameById(userId: String) async throws -> String
 }

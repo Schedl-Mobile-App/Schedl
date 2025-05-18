@@ -14,6 +14,7 @@ struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State var selectedType: Int = 0
     var utils = ["Upcoming", "Invited", "Past"]
+    @Environment(\.presentationMode) var presentationMode
     
     lazy var size: CGSize = profileViewModel.currentUser.username.size(withAttributes: [.font: UIFont.systemFont(ofSize: 14)])
     
@@ -25,12 +26,12 @@ struct ProfileView: View {
         ZStack {
             VStack(alignment: .center, spacing: 20) {
                 ZStack {
-                    Text("Profile")
-                        .font(.system(size: 20, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .tracking(0.001)
-                    
                     if profileViewModel.isCurrentUser {
+                        Text("Profile")
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x333333))
+                            .tracking(0.001)
+                        
                         HStack {
                             Button(action: {
                                 if profileViewModel.isEditingProfile {
@@ -53,6 +54,30 @@ struct ProfileView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal)
+                    } else {
+                        HStack {
+                            Button(action: {
+                                presentationMode.wrappedValue.dismiss()
+                            }) {
+                                Image(systemName: "chevron.left")
+                                        .font(.system(size: 24, weight: .medium))
+                                        .labelStyle(.iconOnly)
+                                        .foregroundStyle(Color.primary)
+                                        .accessibilityLabel("Go Back")
+                            }
+                            Spacer()
+                            Button(action: {
+                                presentationMode.wrappedValue.dismiss()
+                            }) {
+                                Image(systemName: "person.badge.plus")
+                                    .font(.system(size: 24, weight: .medium))
+                                    .labelStyle(.iconOnly)
+                                    .foregroundStyle(Color.primary)
+                                    .accessibilityLabel("Send Friend Request")
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal)
                     }
                 }
                 
@@ -65,62 +90,68 @@ struct ProfileView: View {
                 
                 UserViewOptions()
                 
-                switch profileViewModel.selectedTab {
-                case .schedules:
-                    ScrollView(.vertical, showsIndicators: false) {
-                        LazyVStack(spacing: 10) {
-                            ForEach(Array(profileViewModel.partitionedEvents.keys), id: \.self) { key in
-                                ScheduleEventCards(key: key)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                case .events:
-                    VStack(spacing: 10) {
-                        HStack {
-                            ForEach(utils.indices, id: \.self) { index in
-                                Text("\(utils[index])")
-                                    .font(.system(size: 14, weight: .heavy, design: .monospaced))
-                                    .foregroundStyle(Color(hex: 0x666666))
-                                    .tracking(0.001)
-                                    .fixedSize()
-                                    .frame(maxWidth: .infinity)
-                                    .onTapGesture {
-                                        selectedType = index
-                                    }
-                            }
-                        }
-                        .padding(.horizontal, 25)
-                        
-                        GeometryReader { proxy in
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(hex: 0x6d8a96))
-                                .frame(width: proxy.size.width / CGFloat(utils.count), height: 4)
-                                .offset(x: CGFloat(proxy.size.width / CGFloat(utils.count)) * CGFloat(selectedType))
-                                .animation(.bouncy, value: selectedType)
-                        }
-                        .padding(.horizontal, 25)
-                        .padding(.bottom, 10)
-                        
+                if profileViewModel.isCurrentUser || profileViewModel.isViewingFriend {
+                    switch profileViewModel.selectedTab {
+                    case .schedules:
                         ScrollView(.vertical, showsIndicators: false) {
-                                    LazyVStack(spacing: 10) {
-                                        switch selectedType {
-                                        case 0: ForEach(profileViewModel.currentEvents) { EventCard(event: $0) }
-                                        case 1: ForEach(profileViewModel.invitedEvents) { EventCard(event: $0) }
-                                        case 2: ForEach(profileViewModel.pastEvents)    { EventCard(event: $0) }
-                                        default: EmptyView()
+                            LazyVStack(spacing: 10) {
+                                ForEach(Array(profileViewModel.partitionedEvents.keys), id: \.self) { key in
+                                    ScheduleEventCards(key: key)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    case .events:
+                        VStack(spacing: 10) {
+                            HStack {
+                                ForEach(utils.indices, id: \.self) { index in
+                                    Text("\(utils[index])")
+                                        .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                                        .foregroundStyle(Color(hex: 0x666666))
+                                        .tracking(0.001)
+                                        .fixedSize()
+                                        .frame(maxWidth: .infinity)
+                                        .onTapGesture {
+                                            selectedType = index
                                         }
+                                }
+                            }
+                            .padding(.horizontal, 25)
+                            
+                            GeometryReader { proxy in
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color(hex: 0x6d8a96))
+                                    .frame(width: proxy.size.width / CGFloat(utils.count), height: 4)
+                                    .offset(x: CGFloat(proxy.size.width / CGFloat(utils.count)) * CGFloat(selectedType))
+                                    .animation(.bouncy, value: selectedType)
+                            }
+                            .padding(.horizontal, 25)
+                            .padding(.bottom, 10)
+                            
+                            ScrollView(.vertical, showsIndicators: false) {
+                                LazyVStack(spacing: 10) {
+                                    switch selectedType {
+                                    case 0: ForEach(profileViewModel.currentEvents) { EventCard(event: $0) }
+                                    case 1: ForEach(profileViewModel.invitedEvents) { EventCard(event: $0) }
+                                    case 2: ForEach(profileViewModel.pastEvents)    { EventCard(event: $0) }
+                                    default: EmptyView()
                                     }
                                 }
-                                // **Here** we give it a flexible height AND priority:
-                                .frame(minHeight: 0, maxHeight: .infinity)
-                                .layoutPriority(1)
+                            }
+                            // **Here** we give it a flexible height AND priority:
+                            .frame(minHeight: 0, maxHeight: .infinity)
+                            .layoutPriority(1)
+                        }
+                        .frame(maxHeight: .infinity, alignment: .top)
+                    case .activity:
+                        ScrollView(.vertical, showsIndicators: false) {
+                            Text("Activity")
+                        }
                     }
-                    .frame(maxHeight: .infinity, alignment: .top)
-                case .activity:
-                    ScrollView(.vertical, showsIndicators: false) {
-                        Text("Activity")
-                    }
+                } else {
+                    Text("Add \(profileViewModel.profileUser.displayName) as a friend first!")
+                        .font(.system(size: 20, weight: .medium, design: .monospaced))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -173,7 +204,7 @@ struct EventCard: View {
             if event.eventDate == todayStart     { return "Today" }
             if event.eventDate == tomorrowStart  { return "Tomorrow" }
             let wd = Calendar.current.component(.weekday, from: blockDate)
-            return weekdays[wd]
+            return weekdays[wd-1]
         }()
         let monthIdx = Calendar.current.component(.month, from: blockDate) - 1
         let monthName = months[monthIdx]
@@ -253,6 +284,7 @@ struct SaveChangesForm: View {
                             HStack {
                                 Button(action: {
                                     profileViewModel.triggerSaveChanges.toggle()
+                                    profileViewModel.isEditingProfile.toggle()
                                 }) {
                                     Text("Cancel")
                                         .font(.system(size: 16, weight: .medium, design: .monospaced))
@@ -493,7 +525,7 @@ struct UserProfileImage: View {
         ZStack {
             Circle()
                 .strokeBorder(Color(hex: 0x6d8a96), lineWidth: 1.5)
-                .frame(width: 112.5, height: 112.5)
+                .frame(width: 114, height: 114)
                 .overlay {
                     if let selectedImage = profileViewModel.selectedImage {
                         Image(uiImage: selectedImage)
@@ -514,9 +546,15 @@ struct UserProfileImage: View {
                         .frame(width: 112.5, height: 112.5)
                         .clipShape(Circle())
                     } else {
-                        Image(systemName: "person.crop.circle.badge.exclamationmark")
-                                .resizable()
-                                .scaledToFit()
+                        Circle()
+                            .fill(Color(hex: 0xe0dad5))
+                            .frame(width: 112.5, height: 112.5)
+                            .overlay {
+                                Text("\(profileViewModel.profileUser.displayName.first?.uppercased() ?? "J")\(profileViewModel.profileUser.displayName.last?.uppercased() ?? "D")")
+                                    .font(.system(size: 36, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(Color(hex: 0x333333))
+                                    .multilineTextAlignment(.center)
+                            }
                     }
                 }
             if profileViewModel.isEditingProfile {

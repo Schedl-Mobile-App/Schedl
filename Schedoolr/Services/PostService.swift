@@ -200,6 +200,17 @@ class PostService: PostServiceProtocol, ObservableObject {
         }
     }
     
+    func fetchNumOfPosts(userId: String) async throws -> Int {
+        let postsRef = ref.child("userPosts").child(userId)
+        let snapshot = try await postsRef.getData()
+        
+        guard let posts = snapshot.value as? [String: Any] else {
+            throw PostServiceError.failedToReturnNumberOfPosts
+        }
+        
+        return posts.count
+    }
+    
     func removeFeedObserver(handle: DatabaseHandle, userId: String) {
         let feedRef = ref.child("feeds").child(userId)
         feedRef.removeObserver(withHandle: handle)

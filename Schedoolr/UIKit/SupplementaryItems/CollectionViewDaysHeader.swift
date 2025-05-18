@@ -7,6 +7,7 @@
 
 import UIKit
 import Foundation
+import SwiftUICore
 
 class CollectionViewDaysHeader: UIView {
     
@@ -43,7 +44,7 @@ class CollectionViewDaysHeader: UIView {
         stackView.distribution = .fillEqually
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.layer.cornerRadius = 5
-        stackView.backgroundColor = UIColor(named: "DarkBackground")
+        stackView.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
         addSubview(stackView)
         
         NSLayoutConstraint.activate([
@@ -64,15 +65,15 @@ class CollectionViewDaysHeader: UIView {
         
         // Create and add borders to the container (left, right, bottom)
         let leftBorder = UIView()
-        leftBorder.backgroundColor = UIColor.systemGray
+        leftBorder.backgroundColor = UIColor(Color(hex: 0x666666))
         leftBorder.translatesAutoresizingMaskIntoConstraints = false
         
         let rightBorder = UIView()
-        rightBorder.backgroundColor = UIColor.systemGray
+        rightBorder.backgroundColor = UIColor(Color(hex: 0x666666))
         rightBorder.translatesAutoresizingMaskIntoConstraints = false
         
         let bottomBorder = UIView()
-        bottomBorder.backgroundColor = UIColor.systemGray
+        bottomBorder.backgroundColor = UIColor(Color(hex: 0x666666))
         bottomBorder.translatesAutoresizingMaskIntoConstraints = false
         
         containerView.addSubview(leftBorder)

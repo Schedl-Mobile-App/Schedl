@@ -25,6 +25,8 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     @Published var isEditingProfile: Bool = false
     @Published var selectedImage: UIImage? = nil
     var profileUser: User
+    var isViewingFriend: Bool = false
+    @Published var isShowingFriendRequest: Bool = false
     var tabOptions: [Tab] = [.schedules, .events, .activity]
     private var userService: UserServiceProtocol
     private var scheduleService: ScheduleServiceProtocol
@@ -83,11 +85,11 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     }
     
     @MainActor
-    func sendFriendRequest(toUserName: String) async {
+    func sendFriendRequest() async {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            try await notificationService.sendFriendRequest(userId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserName: toUserName)
+            try await notificationService.sendFriendRequest(userId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserName: profileUser.username)
             self.isLoading = false
         } catch {
             print("Friend request was not successfully sent")
@@ -105,10 +107,13 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
             let scheduleId = try await scheduleService.fetchScheduleId(userId: profileUser.id)
             let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
             userEvents = allEvents
+            print(allEvents)
             pastEvents = allEvents.filter { $0.eventDate < currentDay }
+            print(pastEvents)
             invitedEvents = allEvents
             let currentEvents = allEvents.filter { $0.eventDate >= currentDay }
             self.currentEvents = currentEvents
+            print(currentEvents)
             self.partitionedEvents = Dictionary(
                 grouping: currentEvents,
                 by: \.eventDate

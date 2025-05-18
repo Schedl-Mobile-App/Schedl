@@ -21,7 +21,7 @@ class SearchService: SearchServiceProtocol {
         let userRef = ref.child("usernames").queryOrderedByKey()
             .queryStarting(atValue: username)
             .queryEnding(atValue: username + "\u{f8ff}")
-            .queryLimited(toFirst: 6)
+            .queryLimited(toFirst: 10)
         
         // fetches entire usernames node so that we can filter cloest matched results
         let snapshot = try await userRef.getData()
@@ -29,6 +29,7 @@ class SearchService: SearchServiceProtocol {
             throw FirebaseError.failedToFetchUserById
         }
         
+        print(Array(DBUserNames.values))
         return Array(DBUserNames.values)
     }
 }

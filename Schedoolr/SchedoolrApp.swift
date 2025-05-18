@@ -31,6 +31,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct SchedoolrApp: App {
     
+    init() {
+        UserDefaults.standard.reset()
+    }
+    
     // register app delegate for Firebase setup
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     
@@ -40,7 +44,11 @@ struct SchedoolrApp: App {
     var body: some Scene {
         WindowGroup {
             NavigationStack {
-                WelcomeView()
+                if UserDefaults.standard.hasOnboarded {
+                    WelcomeView()
+                } else {
+                    OnboardingViewOne()
+                }
             }
             .environmentObject(authViewModel)
         }

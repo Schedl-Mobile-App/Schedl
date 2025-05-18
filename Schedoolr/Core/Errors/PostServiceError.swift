@@ -8,5 +8,9 @@
 enum PostServiceError: Error {
     case postDataSerializationFailed
     case failedToUpdatePost
+    case failedToFetchPosts
+    case failedToDeletePost
+    case failedToCreatePost
     case invalidPostData
+    case failedToReturnNumberOfPosts
 }

@@ -44,9 +44,9 @@ struct CreateEventView: View {
                     presentationMode.wrappedValue.dismiss()
                 }) {
                     Image(systemName: "chevron.left")
-                            .font(.system(size: 24, weight: .medium))
-                            .labelStyle(.titleAndIcon)
-                            .foregroundStyle(Color.primary)
+                        .font(.system(size: 24, weight: .medium))
+                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(Color.primary)
                 }
                 Text("Create New Event")
                     .foregroundStyle(Color.primary)

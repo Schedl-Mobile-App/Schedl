@@ -18,8 +18,10 @@ class SearchViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var searchResults: [User] = []
+    var userInfo: [String : SearchInfo] = [:]
     private var searchService: SearchServiceProtocol
     private var userService: UserServiceProtocol
+    private var postService: PostServiceProtocol
     
     var searchTask: Task<Void, Never>?
         
@@ -27,9 +29,10 @@ class SearchViewModel: ObservableObject {
     @ObservationIgnored var cancellables: Set<AnyCancellable> = []
     
     @MainActor
-    init(searchService: SearchServiceProtocol = SearchService.shared, userService: UserServiceProtocol = UserService.shared, currentUser: User) {
+    init(searchService: SearchServiceProtocol = SearchService.shared, userService: UserServiceProtocol = UserService.shared, postService: PostServiceProtocol = PostService.shared, currentUser: User) {
         self.searchService = searchService
         self.userService = userService
+        self.postService = postService
         self.currentUser = currentUser
         
         searchTextSubject
@@ -91,13 +94,25 @@ class SearchViewModel: ObservableObject {
     }
     
     @MainActor
-    func fetchSearchResults(userName: String) {
+    func fetchSearchResults(userName: String) async {
         Task {
             self.isLoading = true
             self.errorMessage = nil
             do {
                 let matchedUserIds = try await searchService.fetchUserSearchInfo(username: userName)
-                self.searchResults = try await userService.fetchUsers(userIds: matchedUserIds)
+                let searchResults = try await userService.fetchUsers(userIds: matchedUserIds)
+                for user in searchResults {
+                    print("I am here")
+                    let numOfFriends = try await userService.fetchNumberOfFriends(userId: user.id)
+                    let numOfPosts = try await postService.fetchNumOfPosts(userId: user.id)
+                    let isFriend = try await userService.isFriend(userId: currentUser.id, otherUserId: user.id)
+                    self.userInfo[user.id] = SearchInfo(
+                        numOfFriends: numOfFriends,
+                        numOfPosts: numOfPosts,
+                        isFriend: isFriend
+                    )
+                }
+                self.searchResults = searchResults
                 self.isLoading = false
             } catch {
                 self.errorMessage = error.localizedDescription
