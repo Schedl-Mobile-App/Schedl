@@ -9,7 +9,7 @@ import SwiftUI
 
 struct OnboardingViewThree: View {
     
-    @State var finishOnboarding: Bool = false
+    @EnvironmentObject var authViewModel: AuthViewModel
     
     var body: some View {
         ZStack(alignment: .top) {
@@ -53,7 +53,7 @@ struct OnboardingViewThree: View {
                 
                 Button(action: {
                     UserDefaults.standard.hasOnboarded = true
-                    finishOnboarding.toggle()
+                    authViewModel.hasOnboarded.toggle()
                 }) {
                     Text("Get Started")
                         .font(.system(size: 18, weight: .heavy, design: .rounded))
@@ -67,9 +67,6 @@ struct OnboardingViewThree: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .padding(.horizontal, 30)
         }
-        .navigationDestination(isPresented: $finishOnboarding, destination: {
-            WelcomeView()
-        })
         .navigationBarBackButtonHidden(true)
     }
 }

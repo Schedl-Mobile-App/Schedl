@@ -35,7 +35,7 @@ struct ProfileView: View {
                         HStack {
                             Button(action: {
                                 if profileViewModel.isEditingProfile {
-                                    profileViewModel.triggerSaveChanges.toggle()
+                                    profileViewModel.showSaveChangesModal.toggle()
                                 } else {
                                     profileViewModel.isEditingProfile.toggle()
                                 }
@@ -67,7 +67,9 @@ struct ProfileView: View {
                             }
                             Spacer()
                             Button(action: {
-                                presentationMode.wrappedValue.dismiss()
+                                Task {
+                                    profileViewModel.showAddFriendModal.toggle()
+                                }
                             }) {
                                 Image(systemName: "person.badge.plus")
                                     .font(.system(size: 24, weight: .medium))
@@ -75,6 +77,7 @@ struct ProfileView: View {
                                     .foregroundStyle(Color.primary)
                                     .accessibilityLabel("Send Friend Request")
                             }
+                            .hidden(profileViewModel.isViewingFriend)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal)
@@ -94,8 +97,9 @@ struct ProfileView: View {
                     switch profileViewModel.selectedTab {
                     case .schedules:
                         ScrollView(.vertical, showsIndicators: false) {
-                            LazyVStack(spacing: 10) {
-                                ForEach(Array(profileViewModel.partitionedEvents.keys), id: \.self) { key in
+                            LazyVStack() {
+                                let sortedKeys = Array(profileViewModel.partitionedEvents.keys).sorted(by: <)
+                                ForEach(sortedKeys, id: \.self) { key in
                                     ScheduleEventCards(key: key)
                                 }
                             }
@@ -120,7 +124,7 @@ struct ProfileView: View {
                             
                             GeometryReader { proxy in
                                 RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color(hex: 0x6d8a96))
+                                    .fill(Color(hex: 0x3C859E))
                                     .frame(width: proxy.size.width / CGFloat(utils.count), height: 4)
                                     .offset(x: CGFloat(proxy.size.width / CGFloat(utils.count)) * CGFloat(selectedType))
                                     .animation(.bouncy, value: selectedType)
@@ -138,8 +142,8 @@ struct ProfileView: View {
                                     }
                                 }
                             }
-                            // **Here** we give it a flexible height AND priority:
-                            .frame(minHeight: 0, maxHeight: .infinity)
+                            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                            .padding(.horizontal, 25)
                             .layoutPriority(1)
                         }
                         .frame(maxHeight: .infinity, alignment: .top)
@@ -158,8 +162,22 @@ struct ProfileView: View {
             .ignoresSafeArea()
             .padding(.vertical)
             
-            if profileViewModel.triggerSaveChanges {
-                SaveChangesForm()
+            if profileViewModel.showAddFriendModal {
+                ZStack {
+                    Color(.black.opacity(0.7))
+                        .ignoresSafeArea()
+                    
+                    AddFriendModal()
+                }
+            }
+            
+            if profileViewModel.showSaveChangesModal {
+                ZStack {
+                    Color(.black.opacity(0.7))
+                        .ignoresSafeArea()
+                    
+                    SaveChangesForm()
+                }
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -167,7 +185,7 @@ struct ProfileView: View {
         .environmentObject(profileViewModel)
         .onAppear {
             Task {
-                await profileViewModel.fetchTabInfo()
+                await profileViewModel.loadViewData()
             }
         }
     }
@@ -182,14 +200,14 @@ struct EventCard: View {
     let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     
     func returnTimeFormatted(timeObj: Double) -> String {
-        let hours = timeObj / 3600
-        let minutes = Double(timeObj / 3600.0).truncatingRemainder(dividingBy: hours)
-        if hours <= 11 {
-            return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) AM"
+        let hours = Int(timeObj / 3600)
+        let minutes = (Double(timeObj / 3600.0) - Double(hours)) * 60
+        if hours == 0 {
+            return "12:\(String(format: "%02d", Int(minutes))) AM"
         } else if hours == 12 {
             return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) PM"
-        } else if hours == 24 {
-            return "12:\(String(format: "%02d", Int(minutes))) AM"
+        } else if hours < 11 {
+            return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) AM"
         } else {
             return "\(Int(hours - 12)):\(String(format: "%02d", Int(minutes))) PM"
         }
@@ -210,60 +228,64 @@ struct EventCard: View {
         let monthName = months[monthIdx]
         let dayOfMonth = Calendar.current.component(.day, from: blockDate)
 
-        Rectangle()
-        .fill(.white)
-        .overlay {
-            HStack(alignment: .top, spacing: 20) {
-                Divider()
-                    .frame(width: 6, alignment: .leading)
-                    .background(Color(hex: 0xc0b8b2))
-                    .cornerRadius(15)
-
-                VStack( alignment: .leading, spacing: 8) {
-                    Text("\(event.title)")
-                        .font(.system(size: 17, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    
-                    HStack(spacing: 8) {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        
+        HStack(alignment: .top, spacing: 20) {
+            VStack( alignment: .leading, spacing: 8) {
+                Text("\(event.title)")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .tracking(1.15)
+                    .foregroundStyle(Color(hex: 0x333333))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                
+                HStack(spacing: 8) {
+//                    Image(systemName: "calendar")
+//                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    Text("📆")
+                        .font(.system(size: 14))
+                    HStack(spacing: 0) {
                         let formattedTime = returnTimeFormatted(timeObj: event.startTime)
-                        Text("\(dayText), \(monthName) \(dayOfMonth) - ")
-                            .font(.system(size: 14, weight: .medium, design: .monospaced))
+                        Text("\(dayText), \(monthName) \(String(format: "%02d", dayOfMonth)) - ")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .tracking(1.15)
                             .foregroundStyle(Color(hex: 0x666666))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
 
                         Text("\(formattedTime)")
-                            .font(.system(size: 14, weight: .medium, design: .monospaced))
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .tracking(1.05)
                             .foregroundStyle(Color(hex: 0x666666))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                    
-                    HStack {
-                        Image(systemName: "mappin")
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        
-                        Text("Conference Room B")
-                            .font(.system(size: 14, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x666666))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
                     }
                 }
-                .padding(.top, 6)
+                
+                HStack {
+//                    Image(systemName: "mappin")
+//                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    Text("📍")
+                        .font(.system(size: 14))
+                    
+                    Text("Conference Room B")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .tracking(1.15)
+                        .foregroundStyle(Color(hex: 0x666666))
+                }
                 
                 Spacer()
             }
+            .padding(.top, 8)
+            
+            Spacer()
         }
-        .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
-        .padding(.horizontal, 25)
-        .clipShape(RoundedRectangle(cornerRadius: 15))
-        
+        .padding(.leading, 20)
+        .frame(minHeight: 90)
+        .background(
+            ZStack(alignment: .leading) {
+                Color.white
+                
+                Color(hex: 0x3C859E)
+                    .frame(width: 7)
+                    .frame(maxHeight: .infinity)
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -272,53 +294,51 @@ struct SaveChangesForm: View {
     @EnvironmentObject var profileViewModel: ProfileViewModel
     
     var body: some View {
-        ZStack {
-            VStack {
-                Rectangle()
-                    .fill(Color(hex: 0xe0dad5))
-                    .frame(maxWidth: 150, maxHeight: 150, alignment: .center)
-                    .overlay {
-                        VStack(alignment: .center, spacing: 20) {
-                            Text("Would you like to save these changes?")
-                                .font(.system(size: 16, weight: .medium, design: .monospaced))
-                            HStack {
-                                Button(action: {
-                                    profileViewModel.triggerSaveChanges.toggle()
-                                    profileViewModel.isEditingProfile.toggle()
-                                }) {
-                                    Text("Cancel")
-                                        .font(.system(size: 16, weight: .medium, design: .monospaced))
-                                        .multilineTextAlignment(.center)
-                                        .foregroundStyle(Color(hex: 0x333333))
-                                }
-                                .frame(maxWidth: .infinity, maxHeight: 50)
-                                .cornerRadius(15)
-                                .foregroundStyle(Color(hex: 0xe0dad5))
-                                
-                                Button(action: {
-                                    Task {
-                                        await profileViewModel.updateUserProfile()
-                                        profileViewModel.triggerSaveChanges.toggle()
-                                        profileViewModel.isEditingProfile.toggle()
-                                    }
-                                }) {
-                                    Text("Save")
-                                        .font(.system(size: 16, weight: .medium, design: .monospaced))
-                                        .multilineTextAlignment(.center)
-                                        .foregroundStyle(Color(hex: 0xf7f4f2))
-                                }
-                                .frame(maxWidth: .infinity, maxHeight: 50)
-                                .cornerRadius(15)
-                                .foregroundStyle(Color(hex: 0x6d8a96))
-                            }
-                        }
+        VStack(alignment: .center, spacing: 20) {
+            Text("Would you like to save these changes?")
+                .font(.system(size: 16, weight: .medium, design: .monospaced))
+                .multilineTextAlignment(.center)
+            HStack(alignment: .center, spacing: 15) {
+                Button(action: {
+                    profileViewModel.showSaveChangesModal.toggle()
+                    profileViewModel.isEditingProfile.toggle()
+                }) {
+                    Text("Cancel")
+                        .font(.system(size: 16, weight: .medium, design: .monospaced))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color(hex: 0x333333))
+                }
+                .frame(maxWidth: .infinity, maxHeight: 50)
+                .background {
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color.black.opacity(0.1))
+                }
+                
+                Button(action: {
+                    Task {
+                        await profileViewModel.updateUserProfile()
+                        profileViewModel.showSaveChangesModal.toggle()
+                        profileViewModel.isEditingProfile.toggle()
                     }
+                }) {
+                    Text("Save")
+                        .font(.system(size: 16, weight: .medium, design: .monospaced))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color(hex: 0xf7f4f2))
+                }
+                .frame(maxWidth: .infinity, maxHeight: 50)
+                .background {
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color(hex: 0x6d8a96))
+                }
             }
-            .background(Color.gray.opacity(0.2))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .ignoresSafeArea()
         }
-        .zIndex(999)
+        .padding()
+        .background {
+            RoundedRectangle(cornerRadius: 15)
+                .fill(Color(hex: 0xe0dad5))
+        }
+        .padding(.horizontal, UIScreen.main.bounds.width * 0.075)
     }
 }
 
@@ -400,7 +420,7 @@ struct UserViewOptions: View {
             
             GeometryReader { proxy in
                 RoundedRectangle(cornerRadius: 30)
-                    .fill(Color(hex: 0x6d8a96))
+                    .fill(Color(hex: 0x3C859E))
                     .frame(width: proxy.size.width / CGFloat(profileViewModel.tabOptions.count))
                     .offset(x: CGFloat(proxy.size.width / CGFloat(profileViewModel.tabOptions.count)) * CGFloat(profileViewModel.returnSelectedOptionIndex()))
                     .animation(.bouncy, value: profileViewModel.selectedTab)
@@ -431,88 +451,98 @@ struct ScheduleEventCards: View {
     let key: Double
     let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    let todayStart = Date.convertCurrentDateToTimeInterval(date: Date())
     
     func returnTimeFormatted(timeObj: Double) -> String {
-        let hours = timeObj / 3600
-        let minutes = Double(timeObj / 3600.0).truncatingRemainder(dividingBy: hours)
-        if hours < 11 {
-            return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) AM"
+        let hours = Int(timeObj / 3600)
+        let minutes = (Double(timeObj / 3600.0) - Double(hours)) * 60
+        if hours == 0 {
+            return "12:\(String(format: "%02d", Int(minutes))) AM"
         } else if hours == 12 {
             return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) PM"
-        } else if hours == 24 {
-            return "12:\(String(format: "%02d", Int(minutes))) AM"
+        } else if hours < 11 {
+            return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) AM"
         } else {
             return "\(Int(hours - 12)):\(String(format: "%02d", Int(minutes))) PM"
         }
     }
     
+    func eventHasEnded(startTime: Double, date: Double) -> Bool {
+        let currentTime = Date.computeTimeSinceStartOfDay(date: Date())
+        return startTime < currentTime && date <= todayStart
+    }
+    
     var body: some View {
-            
+        
         let events = profileViewModel.partitionedEvents[key] ?? []
-        let todayStart = Date.convertCurrentDateToTimeInterval(date: Date())
         let tomorrowStart = todayStart + 86400
         let blockDate = Date(timeIntervalSince1970: key)
         let dayText: String = {
         if key == todayStart     { return "Today" }
         if key == tomorrowStart  { return "Tomorrow" }
         let wd = Calendar.current.component(.weekday, from: blockDate)
-        return weekdays[wd]
+        return weekdays[wd-1]
         }()
         let monthIdx = Calendar.current.component(.month, from: blockDate) - 1
         let monthName = months[monthIdx]
         let dayOfMonth = Calendar.current.component(.day, from: blockDate)
 
-        Rectangle()
-        .fill(.white)
-        .overlay {
-            HStack(alignment: .top, spacing: 20) {
-                Divider()
-                    .frame(width: 6, alignment: .leading)
-                  .background(Color(hex: 0xc0b8b2))
-                  .cornerRadius(15)
-
-                VStack( alignment: .leading, spacing: 8) {
+        HStack(alignment: .top, spacing: 20) {
+            LazyVStack( alignment: .leading, spacing: 8) {
+                HStack {
                     Text(dayText)
-                      .font(.system(size: 14, weight: .bold, design: .monospaced))
-                      .foregroundStyle(Color(hex: 0x333333))
-                      .multilineTextAlignment(.leading)
-                    ForEach(events, id: \.id) { event in
-                        HStack(spacing: 8) {
-                            let formattedTime = returnTimeFormatted(timeObj: event.startTime)
-                            Text("\(event.title)")
-                              .font(.system(size: 12, weight: .bold, design: .monospaced))
-                              .foregroundStyle(Color(hex: 0x333333))
-                              .lineLimit(1)
-                              .truncationMode(.tail)
+                        .font(.system(size: 15, weight: .bold, design: .monospaced))
+                        .tracking(0.1)
+                        .foregroundStyle(Color(hex: 0x333333))
+                        .multilineTextAlignment(.leading)
+                    
+                    Spacer()
+                    
+                    Text("\(monthName) \(String(format: "%02d", dayOfMonth))")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color(hex: 0x666666))
+                        .lineLimit(1)
+                }
+                
+                ForEach(events, id: \.id) { event in
+                    HStack(spacing: 12) {
+                        let formattedTime = returnTimeFormatted(timeObj: event.startTime)
+                        Text("\(event.title)")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color(hex: 0x333333))
+                            .tracking(1.15)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .strikethrough(eventHasEnded(startTime: event.startTime, date: event.eventDate), color: Color(.black))
+                        
+                        Spacer(minLength: 6)
 
-                            Spacer(minLength: 4)
-
-                            Text("\(formattedTime)")
-                              .font(.system(size: 12, weight: .medium, design: .monospaced))
-                              .foregroundStyle(Color(hex: 0x666666))
-                              .lineLimit(1)
-                              .truncationMode(.tail)
-                        }
+                        Text("\(formattedTime)")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .strikethrough(eventHasEnded(startTime: event.startTime, date: event.eventDate), color: Color(.black))
                     }
                 }
-                .padding(.top, 12)
-
-                Spacer()
-
-                VStack {
-                    Text("\(monthName) \(dayOfMonth)")
-                      .font(.system(size: 12, weight: .medium, design: .monospaced))
-                      .foregroundStyle(Color(hex: 0x666666))
-                      .lineLimit(1)
-                }
-                .padding(.top, 12)
-                .padding(.trailing, 10)
             }
+            .padding(.vertical, 10)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, minHeight: 100)
+        .padding(.trailing, 10)
+        .padding(.leading, 20)
+        .background(
+            ZStack(alignment: .leading) {
+                Color.white
+                
+                Color(hex: 0x3C859E)
+                    .frame(width: 7)
+                    .frame(maxHeight: .infinity)
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .frame(minHeight: 80)
         .padding(.horizontal, 25)
-        .clipShape(RoundedRectangle(cornerRadius: 15))
-        
     }
 }
 

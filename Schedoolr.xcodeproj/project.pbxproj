@@ -38,6 +38,8 @@
 		CB2E0E102D10F1800069B028 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0E0F2D10F1800069B028 /* FirebaseCrashlytics */; };
 		CB2E0E122D10F1800069B028 /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0E112D10F1800069B028 /* FirebaseDatabase */; };
 		CB3C314D2DD9CE6700124F03 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = CB3C314C2DD9CE6700124F03 /* LaunchScreen.storyboard */; };
+		CB3FC7D92DE27F90004FD066 /* GooglePlaces in Frameworks */ = {isa = PBXBuildFile; productRef = CB3FC7D82DE27F90004FD066 /* GooglePlaces */; };
+		CB3FC7DB2DE27F90004FD066 /* GooglePlacesSwift in Frameworks */ = {isa = PBXBuildFile; productRef = CB3FC7DA2DE27F90004FD066 /* GooglePlacesSwift */; };
 		CB5308152CA0862100A8AA04 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = CB5308142CA0862100A8AA04 /* FirebaseAnalytics */; };
 		CB5308172CA0862100A8AA04 /* FirebaseAnalyticsOnDeviceConversion in Frameworks */ = {isa = PBXBuildFile; productRef = CB5308162CA0862100A8AA04 /* FirebaseAnalyticsOnDeviceConversion */; };
 		CB5308192CA0862100A8AA04 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = CB5308182CA0862100A8AA04 /* FirebaseAnalyticsWithoutAdIdSupport */; };
@@ -78,6 +80,7 @@
 		046B83522C867DE700F97BB4 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugAppCheckProviderFactory.swift; sourceTree = "<group>"; };
 		CB3C314C2DD9CE6700124F03 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = ../LaunchScreen.storyboard; sourceTree = "<group>"; };
+		CB3FC7D02DE246BC004FD066 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CB8D57502C9D465F0051A415 /* Schedoolr.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Schedoolr.xctestplan; sourceTree = SOURCE_ROOT; };
 		CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		CBC9A7642CA22CB50000A18C /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
@@ -103,6 +106,7 @@
 				CB2E0E122D10F1800069B028 /* FirebaseDatabase in Frameworks */,
 				CB2E0DFF2D10EDF20069B028 /* FirebaseDatabase in Frameworks */,
 				CB2E0CF72D10B16F0069B028 /* FirebaseAnalytics in Frameworks */,
+				CB3FC7D92DE27F90004FD066 /* GooglePlaces in Frameworks */,
 				CB2E0CFD2D10B16F0069B028 /* FirebaseAppCheck in Frameworks */,
 				CB53081B2CA0862100A8AA04 /* FirebaseAppCheck in Frameworks */,
 				CB2E0E062D10F1800069B028 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */,
@@ -122,6 +126,7 @@
 				CB2E0CFB2D10B16F0069B028 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */,
 				CB2E0CF92D10B16F0069B028 /* FirebaseAnalyticsOnDeviceConversion in Frameworks */,
 				CB2E0E082D10F1800069B028 /* FirebaseAppCheck in Frameworks */,
+				CB3FC7DB2DE27F90004FD066 /* GooglePlacesSwift in Frameworks */,
 				CBC9A7492CA1CACC0000A18C /* FirebaseDatabase in Frameworks */,
 				CB2E0D052D10B16F0069B028 /* FirebaseDatabase in Frameworks */,
 				CB2E0E0E2D10F1800069B028 /* FirebaseCore in Frameworks */,
@@ -168,6 +173,7 @@
 		046B83492C867DE600F97BB4 /* Schedoolr */ = {
 			isa = PBXGroup;
 			children = (
+				CB3FC7D02DE246BC004FD066 /* Info.plist */,
 				CB3C314C2DD9CE6700124F03 /* LaunchScreen.storyboard */,
 				CB3C31382DD9932000124F03 /* Extensions */,
 				CB377BFB2D67F9F30035E855 /* UIKit */,
@@ -261,6 +267,7 @@
 			mainGroup = 046B833E2C867DE600F97BB4;
 			packageReferences = (
 				CB2E0E002D10F1800069B028 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				CB3FC7D72DE27F90004FD066 /* XCRemoteSwiftPackageReference "ios-places-sdk" */,
 			);
 			productRefGroup = 046B83482C867DE600F97BB4 /* Products */;
 			projectDirPath = "";
@@ -434,8 +441,10 @@
 				DEVELOPMENT_TEAM = WFU7CAH8HU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Schedoolr/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Schedl;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location needed to allow you to add location info for created events";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -476,8 +485,10 @@
 				DEVELOPMENT_TEAM = WFU7CAH8HU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Schedoolr/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Schedl;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location needed to allow you to add location info for created events";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -541,6 +552,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 11.6.0;
+			};
+		};
+		CB3FC7D72DE27F90004FD066 /* XCRemoteSwiftPackageReference "ios-places-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googlemaps/ios-places-sdk";
+			requirement = {
+				kind = exactVersion;
+				version = 9.4.1;
 			};
 		};
 		CB5308132CA0862100A8AA04 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
@@ -683,6 +702,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CB2E0E002D10F1800069B028 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseDatabase;
+		};
+		CB3FC7D82DE27F90004FD066 /* GooglePlaces */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CB3FC7D72DE27F90004FD066 /* XCRemoteSwiftPackageReference "ios-places-sdk" */;
+			productName = GooglePlaces;
+		};
+		CB3FC7DA2DE27F90004FD066 /* GooglePlacesSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CB3FC7D72DE27F90004FD066 /* XCRemoteSwiftPackageReference "ios-places-sdk" */;
+			productName = GooglePlacesSwift;
 		};
 		CB5308142CA0862100A8AA04 /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;

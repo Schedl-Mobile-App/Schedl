@@ -16,14 +16,16 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     @Published var username: String = ""
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
+    @Published var hasOnboarded: Bool
     private var authService: AuthServiceProtocol
     private var userService: UserServiceProtocol
     
     @Published var isLoggedIn = false
     
-    init(authService: AuthServiceProtocol = AuthService.shared, userService: UserServiceProtocol = UserService.shared) {
+    init(authService: AuthServiceProtocol = AuthService.shared, userService: UserServiceProtocol = UserService.shared, hasOnboarded: Bool) {
         self.authService = authService
         self.userService = userService
+        self.hasOnboarded = hasOnboarded
     }
     
     @MainActor

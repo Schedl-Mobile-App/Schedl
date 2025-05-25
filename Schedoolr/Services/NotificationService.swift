@@ -31,13 +31,12 @@ class NotificationService: NotificationServiceProtocol {
             let status = requestData["status"] as? String,
             let timestamp = requestData["timestamp"] as? Double,
             let senderName = requestData["senderName"] as? String,
-            let senderProfileImage = requestData["senderProfileImage"] as? String
+            let senderProfileImage = requestData["sendProfileImage"] as? String
         else {
             throw FirebaseError.failedToFetchFriendsPostsIds
         }
-        
-        return await MainActor.run {
-            FriendRequest(
+            
+        let request = FriendRequest(
                 id: requestId,
                 fromUserId: fromUserId,
                 toUserId: toUserId,
@@ -46,12 +45,13 @@ class NotificationService: NotificationServiceProtocol {
                 senderName: senderName,
                 sendProfileImage: senderProfileImage
             )
-        }
+        
+        return request
     }
     
     func fetchFriendRequests(userId: String) async throws -> [FriendRequest] {
         
-        let userRef = ref.child("users").child("requestIds")
+        let userRef = ref.child("users").child(userId).child("incomingRequests")
         let snapshot = try await userRef.getData()
         
         guard let requestNode = snapshot.value as? [String : Any] else {
@@ -59,6 +59,7 @@ class NotificationService: NotificationServiceProtocol {
         }
         
         let requestIds = Array(requestNode.keys)
+        print(requestIds)
         
         var requests: [FriendRequest] = []
         
@@ -83,7 +84,7 @@ class NotificationService: NotificationServiceProtocol {
     
     func sendFriendRequest(userId: String, username: String, profileImage: String, toUserName: String) async throws -> Void {
         
-        let usernameRef = ref.child("usernames").child(username)
+        let usernameRef = ref.child("usernames").child(toUserName)
         let snapshot = try await usernameRef.getData()
         
         guard let toUserId = snapshot.value as? String else {

@@ -15,7 +15,7 @@ struct FeedView: View {
             
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .center) {
-                    Text("Schedulr")
+                    Text("Schedl")
                         .foregroundStyle(Color.primary)
                         .font(.system(size: 25, weight: .bold, design: .monospaced))
                     
@@ -42,9 +42,9 @@ struct FeedView: View {
                                 Text("\(error)")
                             }
                             .frame(maxWidth: .infinity, minHeight: 575, alignment: .center)
-                        } else if let posts = feedViewModel.posts {
-                            ForEach(posts) { post in
-                                PostView(post: post)
+                        } else if true {
+                            ForEach(1..<3) {_ in
+                                PostView()
                             }
                         } else {
                             VStack(alignment: .center) {

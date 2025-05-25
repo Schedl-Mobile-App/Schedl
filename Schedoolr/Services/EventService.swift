@@ -29,6 +29,12 @@ class EventService: EventServiceProtocol {
             throw FirebaseError.failedToFetchEvent
         }
         
+        let locationName = eventData["locationName"] as? String ?? ""
+        let locationAddress = eventData["locationAddress"] as? String ?? ""
+        let latitude = eventData["latitude"] as? Double ?? 0.0
+        let longitude = eventData["longitude"] as? Double ?? 0.0
+        let taggedUsers = eventData["taggedUsers"] as? [String] ?? []
+        
         // only create a user object if we receive all parameters from the DB
         if
             let id = eventData["id"] as? String,
@@ -39,7 +45,7 @@ class EventService: EventServiceProtocol {
             let endTime = eventData["endTime"] as? Double,
             let createdAt = eventData["creationDate"] as? Double {
             
-            let event = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt)
+            let event = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: locationName, locationAddress: locationAddress, latitude: latitude, longitude: longitude, taggedUsers: taggedUsers)
             return event
             
         } else {
@@ -77,12 +83,8 @@ class EventService: EventServiceProtocol {
         guard let data = snapshot.value as? [String: Any] else {
             throw EventServiceError.invalidEventData
         }
-        
-        print(data)
-        
+
         let eventIds = Array(data.keys)
-        
-        print(eventIds)
         
         return try await fetchEvents(eventIds: eventIds)
     }
@@ -114,12 +116,14 @@ class EventService: EventServiceProtocol {
         }
     }
     
-    func createEvent(scheduleId: String, userId: String, title: String, eventDate: Double, startTime: Double, endTime: Double) async throws -> Event {
+    func createEvent(scheduleId: String, userId: String, title: String, eventDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, taggedUsers: [String]) async throws -> Event {
         
         let id = ref.child("events").childByAutoId().key ?? UUID().uuidString
         let createdAt = Date().timeIntervalSince1970
 
-        let eventObj = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt)
+        let eventObj = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: location.name, locationAddress: location.address, latitude: location.latitude, longitude: location.longitude, taggedUsers: taggedUsers)
+        
+        print("Here in the event service class: \(eventObj)")
         
         let encoder = JSONEncoder()
         do {
@@ -128,6 +132,7 @@ class EventService: EventServiceProtocol {
             
             // Convert JSON data to a dictionary
             guard let jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
+                print("Error serialzing event object")
                 throw EventServiceError.eventDataSerializationFailed
             }
             let updates: [String: Any] = [

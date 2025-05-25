@@ -17,73 +17,129 @@ struct LoginView: View {
             Color(hex: 0xf7f4f2)
                 .ignoresSafeArea()
             ScrollView {
-                VStack(spacing: 20) {
-                    Spacer(minLength: 200)
+                VStack(spacing: 15) {
                     VStack(alignment: .center, spacing: 10) {
                         Text("Schedl")
-                            .font(.system(size: 36, weight: .heavy, design: .monospaced))
+                            .font(.system(size: 36, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x333333))
                         
-                        Text("Sign in to continue")
-                            .font(.system(size: 20, weight: .medium, design: .monospaced))
+                        Text("Sign in to Continue")
+                            .font(.system(size: 18, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .tracking(0.1)
                     }
                         
-                        Group {
+                    VStack(spacing: 20) {
+                        ZStack(alignment: .topLeading) {
                             RoundedRectangle(cornerRadius: 10)
-                                .frame(maxWidth: .infinity, minHeight: 40)
+                                .frame(maxWidth: .infinity, minHeight: 50)
                                 .foregroundStyle(.clear)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.gray, lineWidth: 1)
-                                )
                                 .overlay {
                                     TextField("Email", text: $authViewModel.email)
-                                        .padding(.horizontal)
+                                        .padding(.horizontal, 20)
                                         .textFieldStyle(.plain)
-                                        .font(.system(size: 15, weight: .regular, design: .monospaced))
+                                        .font(.system(size: 15, weight: .medium, design: .monospaced))
+                                        .foregroundStyle(Color(hex: 0x333333))
+                                        .tracking(0.1)
                                         .focused($isFocused, equals: .email)
+                                        .autocorrectionDisabled(true)
                                 }
-                            
-                            RoundedRectangle(cornerRadius: 10)
-                                .frame(maxWidth: .infinity, minHeight: 40)
-                                .foregroundStyle(.clear)
-                                .overlay(
+                                .background {
                                     RoundedRectangle(cornerRadius: 10)
                                         .stroke(Color.gray, lineWidth: 1)
-                                )
-                                .overlay {
-                                    TextField("Password", text: $authViewModel.password)
-                                        .padding(.horizontal)
-                                        .textFieldStyle(.plain)
-                                        .font(.system(size: 15, weight: .regular, design: .monospaced))
-                                        .focused($isFocused, equals: .password)
                                 }
-                        }
-                        
-                        if let error = authViewModel.errorMessage {
-                            Text(error)
-                                .foregroundColor(.red)
-                                .font(.caption)
-                                .padding(.top, 4)
-                        }
-                        
-                        Button(action: {
-                            Task {
-                                try await authViewModel.login()
+                            
+                            HStack {
+                                Spacer(minLength: 8)
+                                Text("Email")
+                                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                Spacer(minLength: 8)
                             }
-                        }) {
-                            Text("Login")
-                                .foregroundColor(Color(hex: 0xf7f4f2))
-                                .font(.system(size: 18, weight: .medium, design: .monospaced))
-                                .tracking(1.5)
+                            .background(
+                                Rectangle()
+                                    .fill(Color(hex: 0xf7f4f2))
+                                    .frame(height: 12)
+                            )
+                            .fixedSize()
+                            .offset(x: 12, y: -7)
+                            .opacity(isFocused == .email || !authViewModel.email.isEmpty ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.2), value: isFocused)
                         }
-                        .frame(maxWidth: .infinity, minHeight: 50)
-                        .background(Color(hex: 0x47a2be))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    Spacer(minLength: 40)
+                        
+                        ZStack(alignment: .topLeading) {
+                            RoundedRectangle(cornerRadius: 10)
+                                .frame(maxWidth: .infinity, minHeight: 50)
+                                .foregroundStyle(.clear)
+                                .overlay {
+                                    SecureField("Password", text: $authViewModel.password)
+                                        .padding(.horizontal, 20)
+                                        .textFieldStyle(.plain)
+                                        .font(.system(size: 15, weight: .medium, design: .monospaced))
+                                        .foregroundStyle(Color(hex: 0x333333))
+                                        .tracking(0.1)
+                                        .focused($isFocused, equals: .password)
+                                        .autocorrectionDisabled(true)
+                                }
+                                .background {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(Color.gray, lineWidth: 1)
+                                }
+                            
+                            HStack {
+                                Spacer(minLength: 8)
+                                Text("Password")
+                                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                Spacer(minLength: 8)
+                            }
+                            .background(
+                                Rectangle()
+                                    .fill(Color(hex: 0xf7f4f2))
+                                    .frame(height: 12)
+                            )
+                            .fixedSize()
+                            .offset(x: 12, y: -7)
+                            .opacity(isFocused == .password || !authViewModel.password.isEmpty ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.2), value: isFocused)
+                        }
+                    }
+                    
+                    if let error = authViewModel.errorMessage {
+                        Text(error)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                            .padding(.top, 4)
+                    }
+                    
+                    Button(action: {
+                        Task {
+                            try await authViewModel.login()
+                        }
+                    }) {
+                        Text("Login")
+                            .foregroundColor(Color(hex: 0xf7f4f2))
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(Color(hex: 0x47a2be))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    
+                    HStack {
+                        Text("Don't have an account?")
+                            .font(.system(size: 17, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .tracking(0.1)
+                        NavigationLink(destination: WelcomeView()) {
+                            Text("Sign Up")
+                                .font(.system(size: 17, weight: .medium, design: .monospaced))
+                                .tracking(0.1)
+                                .underline()
+                                .foregroundStyle(Color(hex: 0x47a2be))
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .padding(.horizontal, 25)
             }
+            .defaultScrollAnchor(.center)
             .scrollDismissesKeyboard(.immediately)
             .onTapGesture {
                 isFocused = nil
@@ -92,10 +148,6 @@ struct LoginView: View {
                 authViewModel.errorMessage = nil
             })
         }
-        .navigationDestination(isPresented: $authViewModel.isLoggedIn) {
-            MainTabBarView()
-                .environmentObject(authViewModel)
-        }
         .navigationBarBackButtonHidden(true)
 
     }
@@ -103,5 +155,5 @@ struct LoginView: View {
 
 #Preview {
     LoginView()
-        .environmentObject(AuthViewModel())
+        .environmentObject(AuthViewModel(hasOnboarded: true))
 }

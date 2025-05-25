@@ -68,6 +68,7 @@ struct RequestCell: View {
 
 struct NotificationsView: View {
     @StateObject var notificationViewModel: NotificationViewModel
+    @State var showTabbar: Bool = false
     @Environment(\.presentationMode) var presentationMode
     
     init(currentUser: User) {
@@ -75,40 +76,46 @@ struct NotificationsView: View {
     }
     
     var body: some View {
-        VStack(spacing: 20) {
-            HStack(spacing: 12) {
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 24, weight: .medium))
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(Color.primary)
-                }
-                Text("Notifications")
-                    .foregroundStyle(Color.primary)
-                    .font(.system(size: 25, weight: .bold))
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemBackground))
+        ZStack {
+            Color(hex: 0xf7f4f2)
+                .ignoresSafeArea()
             
-            // Friend Request List
-            ScrollView {
-                LazyVStack(spacing: 16) {
-                    ForEach(notificationViewModel.friendRequests) { request in
-                        RequestCell(request: request)
+            VStack(spacing: 20) {
+                HStack(spacing: 12) {
+                    Button(action: {
+                        showTabbar.toggle()
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 24, weight: .medium))
+                            .labelStyle(.titleAndIcon)
+                            .foregroundStyle(Color.primary)
                     }
-                    .padding()
+                    Text("Notifications")
+                        .foregroundStyle(Color.primary)
+                        .font(.system(size: 25, weight: .bold))
                 }
-                .onAppear{
-                    Task {
-                        await notificationViewModel.fetchFriendRequests()
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                // Friend Request List
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(notificationViewModel.friendRequests) { request in
+                            RequestCell(request: request)
+                        }
+                        .padding()
                     }
                 }
             }
-            .environmentObject(notificationViewModel)
-            .navigationBarBackButtonHidden(true)
+        }
+        .environmentObject(notificationViewModel)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(showTabbar ? .visible : .hidden, for: .tabBar)
+        .onAppear{
+            Task {
+                await notificationViewModel.fetchFriendRequests()
+            }
         }
     }
 }
