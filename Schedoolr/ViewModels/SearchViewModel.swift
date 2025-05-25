@@ -18,7 +18,7 @@ class SearchViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var searchResults: [User] = []
-    var userInfo: [String : SearchInfo] = [:]
+    @Published var userInfo: [String : SearchInfo] = [:]
     private var searchService: SearchServiceProtocol
     private var userService: UserServiceProtocol
     private var postService: PostServiceProtocol
@@ -77,6 +77,7 @@ class SearchViewModel: ObservableObject {
             do {
                 let matchedUserIds = try await searchService.fetchUserSearchInfo(username: text)
                 let searchData = try await self.userService.fetchUsers(userIds: matchedUserIds)
+                await fetchSearchResults(searchData: searchData)
                 try Task.checkCancellation()
                 self.searchResults = searchData
                 self.isLoading = false
@@ -94,30 +95,35 @@ class SearchViewModel: ObservableObject {
     }
     
     @MainActor
-    func fetchSearchResults(userName: String) async {
-        Task {
-            self.isLoading = true
-            self.errorMessage = nil
-            do {
-                let matchedUserIds = try await searchService.fetchUserSearchInfo(username: userName)
-                let searchResults = try await userService.fetchUsers(userIds: matchedUserIds)
-                for user in searchResults {
-                    print("I am here")
-                    let numOfFriends = try await userService.fetchNumberOfFriends(userId: user.id)
-                    let numOfPosts = try await postService.fetchNumOfPosts(userId: user.id)
-                    let isFriend = try await userService.isFriend(userId: currentUser.id, otherUserId: user.id)
-                    self.userInfo[user.id] = SearchInfo(
-                        numOfFriends: numOfFriends,
-                        numOfPosts: numOfPosts,
-                        isFriend: isFriend
-                    )
+    func fetchSearchResults(searchData: [User]) async {
+        self.isLoading = true
+        self.errorMessage = nil
+        do {
+            for user in searchData {
+                print("I am here")
+                let numOfFriends: Int
+                let numOfPosts: Int
+                do {
+                    numOfFriends = try await userService.fetchNumberOfFriends(userId: user.id)
+                } catch UserServiceError.failedToFetchFriends {
+                    numOfFriends = 0
                 }
-                self.searchResults = searchResults
-                self.isLoading = false
-            } catch {
-                self.errorMessage = error.localizedDescription
-                print("Failed to find any matching users: \(error.localizedDescription)")
+                do {
+                    numOfPosts = try await postService.fetchNumOfPosts(userId: user.id)
+                } catch PostServiceError.failedToReturnNumberOfPosts {
+                    numOfPosts = 0
+                }
+                let isFriend = try await userService.isFriend(userId: currentUser.id, otherUserId: user.id)
+                self.userInfo[user.id] = SearchInfo(
+                    numOfFriends: numOfFriends,
+                    numOfPosts: numOfPosts,
+                    isFriend: isFriend
+                )
             }
+            self.isLoading = false
+        } catch {
+            self.errorMessage = error.localizedDescription
+            print("Failed to find any matching users: \(error.localizedDescription)")
         }
     }
 }

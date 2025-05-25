@@ -9,6 +9,7 @@ import SwiftUI
 
 struct OnboardingViewOne: View {
     
+    @EnvironmentObject var authViewModel: AuthViewModel
     @State var continueOnboarding: Bool = false
     
     var body: some View {
@@ -54,6 +55,7 @@ struct OnboardingViewOne: View {
                 HStack(alignment: .center, spacing: 20) {
                     Button(action: {
                         UserDefaults.standard.hasOnboarded = true
+                        authViewModel.hasOnboarded.toggle()
                     }) {
                         Text("Skip")
                             .font(.system(size: 18, weight: .heavy, design: .rounded))

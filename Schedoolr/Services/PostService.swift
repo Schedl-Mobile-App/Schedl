@@ -9,6 +9,7 @@ import FirebaseDatabase
 import FirebaseStorage
 
 class PostService: PostServiceProtocol, ObservableObject {
+    
     static let shared = PostService()
     let ref: DatabaseReference
     let storage: Storage
@@ -90,44 +91,27 @@ class PostService: PostServiceProtocol, ObservableObject {
     }
     
     func fetchPostsByUserId(userId: String) async throws -> [Post] {
-        let postsRef = ref.child("posts").child(userId)
-        let snapshot = try await postsRef.getData()
-        
-        guard let userPostsDict = snapshot.value as? [String: Any] else {
-            throw FirebaseError.failedToFetchPost
-        }
         
         var posts: [Post] = []
         
-        for (_, postValue) in userPostsDict {
-            guard let postData = postValue as? [String: Any],
-                let id = postData["id"] as? String,
-                let title = postData["title"] as? String,
-                let description = postData["description"] as? String,
-                let likes = postData["likes"] as? Int,
-                let eventLocation = postData["eventLocation"] as? String,
-                let creationDate = postData["creationDate"] as? Double
-            else {
-                throw PostServiceError.invalidPostData
+        let postsRef = ref.child("userPosts").child(userId)
+        let snapshot = try await postsRef.getData()
+        
+        guard let userPostsNode = snapshot.value as? [String: Any] else {
+            throw PostServiceError.failedToFetchPosts
+        }
+        
+        let postIds = Array(userPostsNode.keys)
+        try await withThrowingTaskGroup(of: Post.self) { group in
+            for id in postIds {
+                group.addTask {
+                    try await self.fetchPost(postId: id)
+                }
             }
             
-            let eventPhotos = postData["eventPhotos"] as? [String] ?? []
-            let taggedUsers = postData["taggedUsers"] as? [String] ?? []
-            let comments = postData["comments"] as? [String] ?? []
-
-            let post = Post(
-                id: id,
-                title: title,
-                description: description,
-                eventPhotos: eventPhotos,
-                comments: comments,
-                likes: Double(likes),  // Convert Int to Double since your Post model uses Double
-                taggedUsers: taggedUsers,
-                eventLocation: eventLocation,
-                creationDate: creationDate
-            )
-            
-            posts.append(post)
+            for try await post in group {
+                posts.append(post)
+            }
         }
         
         return posts
@@ -154,11 +138,11 @@ class PostService: PostServiceProtocol, ObservableObject {
                 group.addTask {
                     try await self.fetchPost(postId: id)
                 }
-                
-                // Collect results in batches
-                for try await post in group {
-                    posts.append(post)
-                }
+            }
+            
+            // Collect results in batches
+            for try await post in group {
+                posts.append(post)
             }
         }
         
@@ -201,14 +185,15 @@ class PostService: PostServiceProtocol, ObservableObject {
     }
     
     func fetchNumOfPosts(userId: String) async throws -> Int {
+        
         let postsRef = ref.child("userPosts").child(userId)
         let snapshot = try await postsRef.getData()
         
-        guard let posts = snapshot.value as? [String: Any] else {
+        guard let postsDict = snapshot.value as? [String: Any] else {
             throw PostServiceError.failedToReturnNumberOfPosts
         }
         
-        return posts.count
+        return postsDict.keys.count
     }
     
     func removeFeedObserver(handle: DatabaseHandle, userId: String) {

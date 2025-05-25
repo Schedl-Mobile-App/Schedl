@@ -11,9 +11,9 @@ protocol PostServiceProtocol {
     
     func createPost(postData: Post, userId: String, friendIds: [String]) async throws
     func fetchPost(postId: String) async throws -> Post
-    func fetchNumOfPosts(userId: String) async throws -> Int
     func fetchPostsByUserId(userId: String) async throws -> [Post]
     func fetchFriendsPosts(userId: String) async throws -> [Post]
+    func fetchNumOfPosts(userId: String) async throws -> Int
     func observeFeedChanges(userId: String, completion: @escaping ([Post]?) -> Void) -> DatabaseHandle
     func removeFeedObserver(handle: DatabaseHandle, userId: String)
 }

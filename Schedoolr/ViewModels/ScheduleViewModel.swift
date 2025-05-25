@@ -12,7 +12,7 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         
     var currentUser: User
     @Published var userSchedule: Schedule?
-    var friendsSchedules: [Schedule] = []
+    var friends: [User] = []
     var selectedEvent: Event?
     @Published var scheduleEvents: [Event] = []
     @Published var showCreateEvent = false
@@ -23,11 +23,13 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     @Published var partionedEvents: [Double : [Event]]?
     var scheduleService: ScheduleServiceProtocol
     var eventService: EventServiceProtocol
+    var userService: UserServiceProtocol
     
-    init(currentUser: User, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared) {
+    init(currentUser: User, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, userService: UserServiceProtocol = UserService.shared) {
         self.scheduleService = scheduleService
         self.currentUser = currentUser
         self.eventService = eventService
+        self.userService = userService
     }
     
     func shouldShowCreateEvent() {
@@ -103,12 +105,12 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     }
     
     @MainActor
-    func createEvent(title: String, eventDate: Double, startTime: Double, endTime: Double) async {
+    func createEvent(title: String, eventDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, taggedUsers: [String]) async {
         self.isLoading = true
         self.errorMessage = nil
         do {
             guard let scheduleId = userSchedule?.id as? String else { return }
-            let newEvent = try await eventService.createEvent(scheduleId: scheduleId, userId: currentUser.id, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime)
+            let newEvent = try await eventService.createEvent(scheduleId: scheduleId, userId: currentUser.id, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, location: location, taggedUsers: taggedUsers)
             self.scheduleEvents.append(newEvent)
             self.isLoading = false
         } catch {
@@ -136,25 +138,25 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         }
     }
     
-    @MainActor
-    func updateEvent(title: String, eventDate: Double, startTime: Double, endTime: Double) async {
-        self.isLoading = true
-        self.errorMessage = nil
-        do {
-            guard let event = selectedEvent else { return }
-            try await eventService.updateEvent(eventId: event.id, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime)
-            
-            let newEvent = Event(id: event.id, scheduleId: event.scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: event.creationDate)
-            if let index = scheduleEvents.firstIndex(where: { $0.id == newEvent.id }) {
-              scheduleEvents[index] = newEvent
-            }
-            
-            self.isLoading = false
-        } catch {
-            self.errorMessage = "Failed to update event: \(error.localizedDescription)"
-            self.isLoading = false
-        }
-    }
+//    @MainActor
+//    func updateEvent(title: String, eventDate: Double, startTime: Double, endTime: Double) async {
+//        self.isLoading = true
+//        self.errorMessage = nil
+//        do {
+//            guard let event = selectedEvent else { return }
+//            try await eventService.updateEvent(eventId: event.id, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime)
+//            
+//            let newEvent = Event(id: event.id, scheduleId: event.scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: event.creationDate)
+//            if let index = scheduleEvents.firstIndex(where: { $0.id == newEvent.id }) {
+//              scheduleEvents[index] = newEvent
+//            }
+//            
+//            self.isLoading = false
+//        } catch {
+//            self.errorMessage = "Failed to update event: \(error.localizedDescription)"
+//            self.isLoading = false
+//        }
+//    }
     
     @MainActor
     func deleteEvent() async {
@@ -168,6 +170,19 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to delete event: \(error.localizedDescription)"
+            self.isLoading = false
+        }
+    }
+    
+    @MainActor
+    func fetchFriends() async {
+        self.isLoading = true
+        self.errorMessage = nil
+        do {
+            self.friends = try await userService.fetchUserFriends(userId: currentUser.id)
+            self.isLoading = false
+        } catch {
+            self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
             self.isLoading = false
         }
     }

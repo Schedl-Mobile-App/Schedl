@@ -196,8 +196,16 @@ class UserService: UserServiceProtocol {
         guard let friends = snapshot.value as? [String: Any] else {
             throw UserServiceError.failedToFetchFriends
         }
+        
+        print(friends.keys)
+        
+        if friends.keys.contains(otherUserId) {
+            print("Found a friend id")
+        } else {
+            print("No luck sherlock")
+        }
                 
-        return friends.keys.contains(otherUserId) ? true : false
+        return friends.keys.contains(otherUserId)
     }
     
     func fetchUserNameById(userId: String) async throws -> String {
@@ -212,5 +220,18 @@ class UserService: UserServiceProtocol {
         let username = userData["username"] as? String ?? ""
         
         return username
+    }
+    
+    func fetchFriendIds(userId: String) async throws -> [String] {
+        let userRef = ref.child("users").child(userId).child("friends")
+        let snapshot = try await userRef.getData()
+        
+        guard let friendsDict = snapshot.value as? [String: Any] else {
+            throw UserServiceError.failedToFetchFriends
+        }
+        
+        let friendsArray = Array(friendsDict.keys)
+        
+        return friendsArray
     }
 }

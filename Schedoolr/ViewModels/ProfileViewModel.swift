@@ -20,10 +20,14 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     @Published var invitedEvents: [Event] = []
     @Published var currentEvents: [Event] = []
     @Published var partitionedEvents: [Double : [Event]] = [:]
+    @Published var friendsInfoDict: [String : SearchInfo] = [:]
     @Published var selectedTab: Tab = .schedules
-    @Published var triggerSaveChanges = false
+    @Published var showSaveChangesModal = false
+    @Published var showAddFriendModal = false
     @Published var isEditingProfile: Bool = false
     @Published var selectedImage: UIImage? = nil
+    @Published var numberOfFriends: Int = 0
+    private var currentDay = Date.convertCurrentDateToTimeInterval(date: Date())
     var profileUser: User
     var isViewingFriend: Bool = false
     @Published var isShowingFriendRequest: Bool = false
@@ -55,6 +59,16 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
             return index
         }
         return 0
+    }
+    
+    @MainActor
+    func loadViewData() async {
+        self.isLoading = true
+        self.errorMessage = nil
+        await fetchTabInfo()
+        await fetchEvents()
+        await fetchFriends()
+        self.isLoading = false
     }
     
     @MainActor
@@ -102,22 +116,20 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     func fetchEvents() async {
         self.isLoading = true
         self.errorMessage = nil
-        let currentDay = Date.convertCurrentDateToTimeInterval(date: Date())
         do {
             let scheduleId = try await scheduleService.fetchScheduleId(userId: profileUser.id)
             let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
-            userEvents = allEvents
-            print(allEvents)
-            pastEvents = allEvents.filter { $0.eventDate < currentDay }
-            print(pastEvents)
-            invitedEvents = allEvents
-            let currentEvents = allEvents.filter { $0.eventDate >= currentDay }
-            self.currentEvents = currentEvents
-            print(currentEvents)
-            self.partitionedEvents = Dictionary(
+            self.userEvents = allEvents.sorted { $0.eventDate > $1.eventDate }
+            self.pastEvents = allEvents.filter { $0.eventDate < currentDay }.sorted { $0.eventDate > $1.eventDate }
+            self.invitedEvents = allEvents
+            self.currentEvents = allEvents.filter{ $0.eventDate >= currentDay }.sorted { $0.eventDate < $1.eventDate }
+            let rawGroups = Dictionary(
                 grouping: currentEvents,
-                by: \.eventDate
+                by: \.eventDate,
             )
+            self.partitionedEvents = rawGroups.mapValues { eventsInDay in
+                eventsInDay.sorted { $0.startTime < $1.startTime }
+            }
             self.isLoading = false
         } catch {
             print("Could not partion events by day successfully")
@@ -141,24 +153,85 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     }
     
     @MainActor
-    func fetchFriends() async {
-        Task {
-            self.isLoading = true
-            self.errorMessage = nil
-            do {
-                let friends = try await userService.fetchUserFriends(userId: profileUser.id)
-                self.friends = friends
-                self.isLoading = false
-            } catch {
-                self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
-                self.isLoading = false
-            }
+    func fetchNumberOfFriends() async {
+        self.isLoading = true
+        self.errorMessage = nil
+        do {
+            self.numberOfFriends = try await userService.fetchNumberOfFriends(userId: profileUser.id)
+            self.isLoading = false
+        } catch {
+            self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
+            self.isLoading = false
         }
     }
     
     @MainActor
-    func fetchUserPosts() {
-        
+    func fetchFriends() async {
+        self.isLoading = true
+        self.errorMessage = nil
+        do {
+            let friends = try await userService.fetchUserFriends(userId: profileUser.id)
+            self.friends = friends
+            self.isLoading = false
+        } catch {
+            self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
+            self.isLoading = false
+        }
+    }
+    
+    @MainActor
+    func checkFriendStatus() async {
+        self.isLoading = true
+        self.errorMessage = nil
+        do {
+            self.isViewingFriend = try await userService.isFriend(userId: currentUser.id, otherUserId: profileUser.id)
+            self.isLoading = false
+        } catch {
+            self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
+            self.isLoading = false
+        }
+    }
+    
+    @MainActor
+    func fetchUserPosts() async {
+        self.isLoading = true
+        self.errorMessage = nil
+        do {
+            self.userPosts = try await postService.fetchPostsByUserId(userId: profileUser.id)
+            self.isLoading = false
+        } catch {
+            self.errorMessage = "Failed to fetch posts"
+            self.isLoading = false
+        }
+    }
+    
+    @MainActor
+    func fetchFriendsInfo(userId: String) async {
+        self.isLoading = true
+        self.errorMessage = nil
+        do {
+            let friendsIds = try await userService.fetchFriendIds(userId: userId)
+            let friendsData = try await userService.fetchUsers(userIds: friendsIds)
+            for user in friendsData {
+                let numOfFriends = try await userService.fetchNumberOfFriends(userId: user.id)
+                let numOfPosts: Int
+                do {
+                    numOfPosts = try await postService.fetchNumOfPosts(userId: user.id)
+                } catch PostServiceError.failedToReturnNumberOfPosts {
+                    numOfPosts = 0
+                }
+                self.friendsInfoDict[user.id] = SearchInfo(
+                    numOfFriends: numOfFriends,
+                    numOfPosts: numOfPosts,
+                    isFriend: true
+                )
+            }
+            self.isLoading = false
+        } catch {
+            self.errorMessage = error.localizedDescription
+            print("Failed to find any matching users: \(error.localizedDescription)")
+            self.isLoading = false
+        }
     }
     
 }
