@@ -11,7 +11,7 @@ import SwiftUICore
 // custom UILabel class that allows for deeper level of padding for text of a UILabel
 class InsetLabel: UILabel {
 
-    var contentInsets = UIEdgeInsets(top: 0, left: 0, bottom: -63, right: 0)
+    var contentInsets = UIEdgeInsets(top: 0, left: 0, bottom: -87, right: 0)
 
     override func drawText(in rect: CGRect) {
         let insetRect = rect.inset(by: contentInsets)

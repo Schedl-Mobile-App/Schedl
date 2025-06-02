@@ -9,11 +9,11 @@ import SwiftUI
 import Firebase
 
 class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
-        
+    
     var currentUser: User
     @Published var userSchedule: Schedule?
+    var invitedUsersForEvent: [User] = []
     var friends: [User] = []
-    var selectedEvent: Event?
     @Published var scheduleEvents: [Event] = []
     @Published var showCreateEvent = false
     @Published var isLoading: Bool = false      // Indicates loading state
@@ -105,21 +105,6 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     }
     
     @MainActor
-    func createEvent(title: String, eventDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, taggedUsers: [String]) async {
-        self.isLoading = true
-        self.errorMessage = nil
-        do {
-            guard let scheduleId = userSchedule?.id as? String else { return }
-            let newEvent = try await eventService.createEvent(scheduleId: scheduleId, userId: currentUser.id, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, location: location, taggedUsers: taggedUsers)
-            self.scheduleEvents.append(newEvent)
-            self.isLoading = false
-        } catch {
-            self.errorMessage = "Failed to create event: \(error.localizedDescription)"
-            self.isLoading = false
-        }
-    }
-    
-    @MainActor
     func fetchEvents() async {
         self.isLoading = true
         self.errorMessage = nil
@@ -138,38 +123,16 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         }
     }
     
-//    @MainActor
-//    func updateEvent(title: String, eventDate: Double, startTime: Double, endTime: Double) async {
-//        self.isLoading = true
-//        self.errorMessage = nil
-//        do {
-//            guard let event = selectedEvent else { return }
-//            try await eventService.updateEvent(eventId: event.id, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime)
-//            
-//            let newEvent = Event(id: event.id, scheduleId: event.scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: event.creationDate)
-//            if let index = scheduleEvents.firstIndex(where: { $0.id == newEvent.id }) {
-//              scheduleEvents[index] = newEvent
-//            }
-//            
-//            self.isLoading = false
-//        } catch {
-//            self.errorMessage = "Failed to update event: \(error.localizedDescription)"
-//            self.isLoading = false
-//        }
-//    }
-    
     @MainActor
-    func deleteEvent() async {
+    func createEvent(title: String, eventDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, taggedUsers: [String], color: String) async {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            guard let eventId = selectedEvent?.id as? String else { return }
-            guard let scheduleId = userSchedule?.id as? String else { return }
-            try await eventService.deleteEvent(eventId: eventId, scheduleId: scheduleId)
-            
+            guard let scheduleId = userSchedule?.id else { return }
+            try await eventService.createEvent(scheduleId: scheduleId, userId: currentUser.id, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, location: location, taggedUsers: taggedUsers, color: color)
             self.isLoading = false
         } catch {
-            self.errorMessage = "Failed to delete event: \(error.localizedDescription)"
+            self.errorMessage = "Failed to create event: \(error.localizedDescription)"
             self.isLoading = false
         }
     }

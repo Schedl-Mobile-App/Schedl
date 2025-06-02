@@ -20,10 +20,11 @@ struct CreateEventView: View {
     @State var eventEndTime: Date?
     @State var taggedUsers: [String] = []
     @State var selectedPlacemark: MTPlacemark?
+    @State var eventColor: Color?
     @State var dayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    @EnvironmentObject var scheduleViewModel: ScheduleViewModel
     @Environment(\.presentationMode) var presentationMode
     @FocusState var isFocused: EventInfoFields?
+    @EnvironmentObject var scheduleViewModel: ScheduleViewModel
     
     private var eventDateText: String {
         if let date = selectedDate {
@@ -51,6 +52,14 @@ struct CreateEventView: View {
             return location
         }
         return MTPlacemark(name: "", address: "", latitude: 0, longitude: 0)
+    }
+    
+    private var selectedColor: String {
+        if let color = eventColor {
+            return color.toHex()!
+        }
+        // default blue color of the app
+        return "3C859E"
     }
     
     var body: some View {
@@ -550,10 +559,22 @@ struct CreateEventView: View {
                             .animation(.easeInOut(duration: 0.2), value: isFocused)
                         }
                         
+                        HStack {
+                            ColorPicker(
+                                "Choose a color",
+                                selection: Binding(
+                                    get: { eventColor ?? Color(hex: 0x3C859E) },
+                                    set: { chosenColor in
+                                        eventColor = chosenColor
+                                    }
+                                )
+                            )
+                        }
+                        
                         Button(action: {
                             Task {
                                 if (selectedDate != nil && selectedPlacemark != nil) {
-                                    await scheduleViewModel.createEvent(title: title, eventDate: Date.convertCurrentDateToTimeInterval(date: selectedDate ?? Date()), startTime: Date.computeTimeSinceStartOfDay(date: eventStartTime ?? Date()), endTime: Date.computeTimeSinceStartOfDay(date: eventEndTime ?? Date()), location: selectedLocationItem, taggedUsers: taggedUsers)
+                                    await scheduleViewModel.createEvent(title: title, eventDate: Date.convertCurrentDateToTimeInterval(date: selectedDate ?? Date()), startTime: Date.computeTimeSinceStartOfDay(date: eventStartTime ?? Date()), endTime: Date.computeTimeSinceStartOfDay(date: eventEndTime ?? Date()), location: selectedLocationItem, taggedUsers: taggedUsers, color: selectedColor)
                                     presentationMode.wrappedValue.dismiss()
                                 }
                             }

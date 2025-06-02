@@ -40,8 +40,8 @@ class ScheduleViewController: UIViewController {
     
     lazy var numberOfTimeIntervals: Int = 24
     lazy var numberOfDays: Int = 61
-    lazy var itemWidth: CGFloat = 125
-    lazy var itemHeight: CGFloat = 75
+    lazy var itemWidth: CGFloat = 60
+    lazy var itemHeight: CGFloat = 100
     lazy var singleDayGroupWidth: CGFloat = itemWidth
     lazy var singleDayGroupHeight: CGFloat = Double(itemHeight) * Double(numberOfTimeIntervals)
     lazy var horizontalGroupWidth: CGFloat = singleDayGroupWidth * Double(numberOfDays)
@@ -136,7 +136,6 @@ class ScheduleViewController: UIViewController {
         createScheduleButton?.removeFromSuperview()
         
         // 3️⃣ Un-hide your calendar UI (you added these in viewDidLoad)
-        displayedDateContainerView.isHidden    = false
         dayHeaderScrollView.isHidden           = false
         timeColumnScrollView.isHidden          = false
         collectionView.isHidden                = false
@@ -177,7 +176,6 @@ class ScheduleViewController: UIViewController {
         hideLoading()
         
         // hide calendar views
-        displayedDateContainerView.isHidden    = true
         dayHeaderScrollView.isHidden           = true
         timeColumnScrollView.isHidden          = true
         collectionView.isHidden                = true
@@ -223,6 +221,8 @@ class ScheduleViewController: UIViewController {
     }
     
     let eventContainer = EventCellsContainer()
+    
+    let headerView = UIView()
         
     let overlayView = UIView()
     
@@ -231,7 +231,6 @@ class ScheduleViewController: UIViewController {
     let displayedMonthLabel = UILabel()
     let displayedYearLabel = UILabel()
     let searchButton = UIButton()
-    let displayedDateContainerView = UIView()
     
     let exampleEvent = UIView()
     
@@ -245,7 +244,7 @@ class ScheduleViewController: UIViewController {
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.isScrollEnabled = false // We'll control this programmatically
         scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.contentSize = CGSize(width: CGFloat(125*60), height: 60)
+        scrollView.contentSize = CGSize(width: CGFloat(60*61), height: 60)
         return scrollView
     }()
 
@@ -254,7 +253,7 @@ class ScheduleViewController: UIViewController {
         scrollView.showsVerticalScrollIndicator = false
         scrollView.isScrollEnabled = false // We'll control this programmatically
         scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.contentSize = CGSize(width: 44, height: CGFloat(75*24))
+        scrollView.contentSize = CGSize(width: 44, height: CGFloat(100*24))
         return scrollView
     }()
     
@@ -266,10 +265,10 @@ class ScheduleViewController: UIViewController {
         view.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
         edgesForExtendedLayout = .all
         
-        view.addSubview(displayedDateContainerView)
+        view.addSubview(headerView)
         
-        displayedDateContainerView.addSubview(displayedMonthLabel)
-        displayedDateContainerView.addSubview(displayedYearLabel)
+        view.addSubview(displayedMonthLabel)
+        view.addSubview(displayedYearLabel)
         
         collectionView.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
         
@@ -296,16 +295,13 @@ class ScheduleViewController: UIViewController {
         view.addSubview(filterButton)
         view.addSubview(searchButton)
                 
-        displayedDateContainerView.translatesAutoresizingMaskIntoConstraints = false
+        headerView.translatesAutoresizingMaskIntoConstraints = false
         
         displayedMonthLabel.text = displayedMonth
         displayedMonthLabel.font = .systemFont(ofSize: 30, weight: .bold)
         displayedMonthLabel.translatesAutoresizingMaskIntoConstraints = false
         displayedMonthLabel.textAlignment = .right
         displayedMonthLabel.textColor = UIColor(named: "PrimaryTextColor")
-        
-        displayedDateContainerView.addSubview(displayedMonthLabel)
-        displayedDateContainerView.addSubview(displayedYearLabel)
         
         displayedYearLabel.text = "\(displayedYear)"
         displayedYearLabel.font = .systemFont(ofSize: 30, weight: .medium)
@@ -339,24 +335,24 @@ class ScheduleViewController: UIViewController {
         
         // constraints for our collection view
         NSLayoutConstraint.activate([
-            filterButton.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            filterButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 5),
             
-            displayedDateContainerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 5),
-            displayedDateContainerView.leadingAnchor.constraint(equalTo: filterButton.trailingAnchor, constant: 5),
+            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 5),
+            headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             
-            displayedMonthLabel.topAnchor.constraint(equalTo: displayedDateContainerView.topAnchor),
-            displayedMonthLabel.leadingAnchor.constraint(equalTo: displayedDateContainerView.leadingAnchor),
-            displayedMonthLabel.bottomAnchor.constraint(equalTo: displayedDateContainerView.bottomAnchor),
+            filterButton.leadingAnchor.constraint(equalTo: headerView.leadingAnchor),
+            filterButton.topAnchor.constraint(equalTo: headerView.topAnchor),
             
-            displayedYearLabel.topAnchor.constraint(equalTo: displayedDateContainerView.topAnchor),
+            searchButton.trailingAnchor.constraint(equalTo: headerView.trailingAnchor),
+            searchButton.topAnchor.constraint(equalTo: headerView.topAnchor),
+            
+            displayedMonthLabel.topAnchor.constraint(equalTo: filterButton.bottomAnchor, constant: 5),
+            displayedMonthLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            
+            displayedYearLabel.topAnchor.constraint(equalTo: filterButton.bottomAnchor, constant: 5),
             displayedYearLabel.leadingAnchor.constraint(equalTo: displayedMonthLabel.trailingAnchor, constant: 5),
-            displayedYearLabel.bottomAnchor.constraint(equalTo: displayedDateContainerView.bottomAnchor),
             
-            searchButton.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            searchButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 5),
-            
-            dayHeaderScrollView.topAnchor.constraint(equalTo: displayedDateContainerView.bottomAnchor, constant: 10),
+            dayHeaderScrollView.topAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor, constant: 7),
             dayHeaderScrollView.leadingAnchor.constraint(equalTo: overlayView.trailingAnchor),
             dayHeaderScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             dayHeaderScrollView.heightAnchor.constraint(equalToConstant: 60),
@@ -393,7 +389,7 @@ class ScheduleViewController: UIViewController {
             eventContainer.widthAnchor.constraint(equalToConstant: horizontalGroupWidth),
             eventContainer.heightAnchor.constraint(equalToConstant: horizontalGroupHeight),
             
-            overlayView.topAnchor.constraint(equalTo: displayedDateContainerView.bottomAnchor, constant: 10),
+            overlayView.topAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor, constant: 7),
             overlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             overlayView.widthAnchor.constraint(equalToConstant: 48),
             overlayView.heightAnchor.constraint(equalToConstant: 60),
@@ -539,8 +535,8 @@ class ScheduleViewController: UIViewController {
         let hour = calendar.component(.hour, from: Date())
         
         // Calculate vertical position based on current time
-        let itemHeight: CGFloat = 75
-        let desiredYOffset = max(0, CGFloat(hour) * itemHeight - 75)
+        let itemHeight: CGFloat = 100
+        let desiredYOffset = max(0, CGFloat(hour) * itemHeight - 100)
         
         // Calculate the maximum possible y-offset to prevent scrolling too far
         let maxYOffset = collectionView.contentSize.height - collectionView.frame.height
@@ -550,7 +546,7 @@ class ScheduleViewController: UIViewController {
         
         // Get current day index relative to our 60-day range (-30 to +29)
         let currentDayIndex = numberOfDays / 2 // Middle of our 60-day range (today)
-        let itemWidth: CGFloat = 125
+        let itemWidth: CGFloat = 60
         
         // initial horizontal offset so that the current day is the first day displayed
         let xOffset = CGFloat(currentDayIndex) * itemWidth
@@ -847,7 +843,7 @@ extension ScheduleViewController: UICollectionViewDelegate {
     }
     
     func snapCellPosition() {
-        let itemWidth: CGFloat = 125
+        let itemWidth: CGFloat = 60
         
         // Get the total offset from the left edge
         let totalOffset = collectionView.contentOffset.x

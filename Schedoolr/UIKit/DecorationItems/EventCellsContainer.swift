@@ -75,11 +75,11 @@ class EventCellsContainer: SecondPassthroughView {
 //        let adjustedXPosition: Double = (125 - paddedEventWidth) / 2
         
         for event in events {
-            let xPosition = (getDayIndex(eventDate: Date.convertTimeSince1970ToDate(time: event.eventDate), centerDate: centerDate, calendarInterval: calendarInterval) ?? 0) * 125
-            let yStartPosition = event.startTime / 3600 * 75
-            let yOffset = (event.endTime - event.startTime) / 3600 * 75
+            let xPosition = (getDayIndex(eventDate: Date.convertTimeSince1970ToDate(time: event.eventDate), centerDate: centerDate, calendarInterval: calendarInterval) ?? 0) * 60
+            let yStartPosition = event.startTime / 3600 * 100
+            let yOffset = (event.endTime - event.startTime) / 3600 * 100
             
-            let eventCell = EventCell(frame: CGRect(x: Double(xPosition), y: yStartPosition, width: 125, height: yOffset))
+            let eventCell = EventCell(frame: CGRect(x: Double(xPosition), y: yStartPosition, width: 60, height: yOffset))
             eventCell.configureUI(viewModel: scheduleViewModel, event: event, rootVC: rootVC)
             eventCell.isUserInteractionEnabled = true
             containerView.addSubview(eventCell)
@@ -93,7 +93,7 @@ class EventCellsContainer: SecondPassthroughView {
         guard let dayDifference = components.day else { return nil }
 
         // Add 30 to adjust for the -30 to +30 range in dayList
-        let dayIndex = dayDifference + 31
+        let dayIndex = dayDifference + 30
 
         // Ensure the index is within the valid range of dayList (0 to 59)
         guard dayIndex >= 0 && dayIndex < calendarInterval else { return nil }

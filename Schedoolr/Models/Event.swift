@@ -20,8 +20,9 @@ struct Event: Codable, Identifiable {
     var latitude: Double
     var longitude: Double
     var taggedUsers: [String]
+    var color: String
     
-    init(id: String, scheduleId: String, title: String, eventDate: TimeInterval, startTime: TimeInterval, endTime: TimeInterval, creationDate: Double, locationName: String, locationAddress: String, latitude: Double, longitude: Double, taggedUsers: [String]) {
+    init(id: String, scheduleId: String, title: String, eventDate: TimeInterval, startTime: TimeInterval, endTime: TimeInterval, creationDate: Double, locationName: String, locationAddress: String, latitude: Double, longitude: Double, taggedUsers: [String], color: String) {
         self.id = id
         self.scheduleId = scheduleId
         self.title = title
@@ -34,6 +35,7 @@ struct Event: Codable, Identifiable {
         self.latitude = latitude
         self.longitude = longitude
         self.taggedUsers = taggedUsers
+        self.color = color
     }
     
     

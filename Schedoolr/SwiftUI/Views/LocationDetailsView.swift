@@ -25,48 +25,76 @@ struct LocationDetailView: View {
     
     var body: some View {
         VStack {
-            HStack {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading) {
-                    TextField("Name", text: $name)
-                        .font(.title)
+                    Text(selectedPlacemark?.name ?? "")
+                        .font(.title2)
+                        .fontWeight(.semibold)
                         .fontDesign(.rounded)
-                    TextField("Address", text: $address, axis: .vertical)
+                    Text(selectedPlacemark?.address ?? "")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    
                 }
+                
+                Spacer()
+                
+                Button(action: {
+                    if let onCancel {
+                        onCancel()
+                        dismiss()
+                    } else {
+                        dismiss()
+
+                    }
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .imageScale(.large)
+                        .foregroundStyle(.gray)
+                }
+                .padding(.top, 5)
             }
+            .padding(.vertical)
             
             if let scene = lookaroundScene {
                 LookAroundPreview(initialScene: scene)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 275)
+                    .frame(height: 250)
                     .clipShape(RoundedRectangle(cornerRadius: 15))
             } else {
                 ContentUnavailableView("No preview available", systemImage: "eye.slash")
             }
             
-            HStack(alignment: .center, spacing: 20) {
-                Button(action: {
-                    onCancel?()
-                    dismiss()
-                }) {
-                    Text("Cancel")
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
-                        .foregroundColor(.black)
+            if let onConfirm {
+                HStack(alignment: .center, spacing: 20) {
+                    Button(action: {
+                        onConfirm()
+                        dismiss()
+                    }) {
+                        Text("Select")
+                            .font(.headline)
+                            .fontWeight(.heavy)
+                            .fontDesign(.rounded)
+                            .foregroundColor(Color(hex: 0x333333))
+                            .padding()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .background(Color.black.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 15))
                 }
-                .frame(maxWidth: .infinity, minHeight: 60)
-                .background(Color.black.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 15))
-                
-                Button(action: {
-                    onConfirm?()
-                    dismiss()
-                }) {
-                    Text("Select")
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
-                        .foregroundColor(Color(hex: 0xf7f4f2))
+            } else {
+                Button("Open in maps", systemImage: "map") {
+                    if let selectedPlacemark {
+                        let placemark = MKPlacemark(coordinate: selectedPlacemark.coordinate)
+                        let mapItem = MKMapItem(placemark: placemark)
+                        mapItem.name = selectedPlacemark.name
+                        mapItem.openInMaps()
+                    }
                 }
-                .frame(maxWidth: .infinity, minHeight: 60)
-                .background(Color(hex: 0x47a2be))
-                .clipShape(RoundedRectangle(cornerRadius: 15))
+                .fixedSize(horizontal: true, vertical: false)
+                .buttonStyle(.bordered)
             }
         }
         .padding()
