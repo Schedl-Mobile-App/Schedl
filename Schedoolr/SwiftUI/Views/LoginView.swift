@@ -11,20 +11,26 @@ struct LoginView: View {
     
     @EnvironmentObject var authViewModel: AuthViewModel
     @FocusState var isFocused: AccountInfoFields?
+    @State var keyboardHeight: CGFloat = 0
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .center) {
             Color(hex: 0xf7f4f2)
                 .ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 15) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .center, spacing: 15) {
+                    Spacer()
                     VStack(alignment: .center, spacing: 10) {
                         Text("Schedl")
-                            .font(.system(size: 36, weight: .bold, design: .monospaced))
+                            .font(.largeTitle)
+                            .fontWeight(.heavy)
+                            .fontDesign(.monospaced)
                             .foregroundStyle(Color(hex: 0x333333))
                         
                         Text("Sign in to Continue")
-                            .font(.system(size: 18, weight: .medium, design: .monospaced))
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .fontDesign(.monospaced)
                             .foregroundStyle(Color(hex: 0x666666))
                             .tracking(0.1)
                     }
@@ -32,13 +38,15 @@ struct LoginView: View {
                     VStack(spacing: 20) {
                         ZStack(alignment: .topLeading) {
                             RoundedRectangle(cornerRadius: 10)
-                                .frame(maxWidth: .infinity, minHeight: 50)
+                                .frame(maxWidth: .infinity, maxHeight: 50)
                                 .foregroundStyle(.clear)
                                 .overlay {
                                     TextField("Email", text: $authViewModel.email)
                                         .padding(.horizontal, 20)
                                         .textFieldStyle(.plain)
-                                        .font(.system(size: 15, weight: .medium, design: .monospaced))
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .fontDesign(.monospaced)
                                         .foregroundStyle(Color(hex: 0x333333))
                                         .tracking(0.1)
                                         .focused($isFocused, equals: .email)
@@ -52,7 +60,9 @@ struct LoginView: View {
                             HStack {
                                 Spacer(minLength: 8)
                                 Text("Email")
-                                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .fontDesign(.monospaced)
                                 Spacer(minLength: 8)
                             }
                             .background(
@@ -68,13 +78,15 @@ struct LoginView: View {
                         
                         ZStack(alignment: .topLeading) {
                             RoundedRectangle(cornerRadius: 10)
-                                .frame(maxWidth: .infinity, minHeight: 50)
+                                .frame(maxWidth: .infinity, maxHeight: 50)
                                 .foregroundStyle(.clear)
                                 .overlay {
                                     SecureField("Password", text: $authViewModel.password)
                                         .padding(.horizontal, 20)
                                         .textFieldStyle(.plain)
-                                        .font(.system(size: 15, weight: .medium, design: .monospaced))
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .fontDesign(.monospaced)
                                         .foregroundStyle(Color(hex: 0x333333))
                                         .tracking(0.1)
                                         .focused($isFocused, equals: .password)
@@ -88,7 +100,9 @@ struct LoginView: View {
                             HStack {
                                 Spacer(minLength: 8)
                                 Text("Password")
-                                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .fontDesign(.monospaced)
                                 Spacer(minLength: 8)
                             }
                             .background(
@@ -117,29 +131,39 @@ struct LoginView: View {
                     }) {
                         Text("Login")
                             .foregroundColor(Color(hex: 0xf7f4f2))
-                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .frame(maxWidth: .infinity, maxHeight: 50)
                     .background(Color(hex: 0x47a2be))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     
                     HStack {
                         Text("Don't have an account?")
-                            .font(.system(size: 17, weight: .medium, design: .monospaced))
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .fontDesign(.monospaced)
                             .foregroundStyle(Color(hex: 0x666666))
                             .tracking(0.1)
                         NavigationLink(destination: WelcomeView()) {
                             Text("Sign Up")
-                                .font(.system(size: 17, weight: .medium, design: .monospaced))
+                                .font(.headline)
+                                .fontWeight(.medium)
+                                .fontDesign(.monospaced)
                                 .tracking(0.1)
                                 .underline()
                                 .foregroundStyle(Color(hex: 0x47a2be))
                         }
                     }
+                    Spacer()
                 }
+                .frame(height: UIScreen.main.bounds.height, alignment: .center)
                 .padding(.horizontal, 25)
+                .keyboardHeight($keyboardHeight)
+                .animation(.easeIn(duration: 0.16), value: keyboardHeight)
+                .offset(y: -keyboardHeight / 2)
             }
-            .defaultScrollAnchor(.center)
             .scrollDismissesKeyboard(.immediately)
             .onTapGesture {
                 isFocused = nil

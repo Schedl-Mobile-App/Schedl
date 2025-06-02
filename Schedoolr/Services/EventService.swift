@@ -43,9 +43,10 @@ class EventService: EventServiceProtocol {
             let eventDate = eventData["eventDate"] as? Double,
             let startTime = eventData["startTime"] as? Double,
             let endTime = eventData["endTime"] as? Double,
-            let createdAt = eventData["creationDate"] as? Double {
+            let createdAt = eventData["creationDate"] as? Double,
+            let eventColor = eventData["color"] as? String {
             
-            let event = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: locationName, locationAddress: locationAddress, latitude: latitude, longitude: longitude, taggedUsers: taggedUsers)
+            let event = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: locationName, locationAddress: locationAddress, latitude: latitude, longitude: longitude, taggedUsers: taggedUsers, color: eventColor)
             return event
             
         } else {
@@ -116,15 +117,13 @@ class EventService: EventServiceProtocol {
         }
     }
     
-    func createEvent(scheduleId: String, userId: String, title: String, eventDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, taggedUsers: [String]) async throws -> Event {
+    func createEvent(scheduleId: String, userId: String, title: String, eventDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, taggedUsers: [String], color: String) async throws -> Void {
         
         let id = ref.child("events").childByAutoId().key ?? UUID().uuidString
         let createdAt = Date().timeIntervalSince1970
 
-        let eventObj = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: location.name, locationAddress: location.address, latitude: location.latitude, longitude: location.longitude, taggedUsers: taggedUsers)
-        
-        print("Here in the event service class: \(eventObj)")
-        
+        let eventObj = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: location.name, locationAddress: location.address, latitude: location.latitude, longitude: location.longitude, taggedUsers: taggedUsers, color: color)
+                
         let encoder = JSONEncoder()
         do {
             // Encode the Schedule object into JSON data
@@ -135,15 +134,23 @@ class EventService: EventServiceProtocol {
                 print("Error serialzing event object")
                 throw EventServiceError.eventDataSerializationFailed
             }
+            
+//            try await withThrowingTaskGroup { group in
+//                for userId in taggedUsers {
+//                    group.addTask {
+//                        try await
+//                    }
+//                }
+//            }
+            
             let updates: [String: Any] = [
                 "/events/\(id)": jsonDictionary,
                 "/schedules/\(scheduleId)/eventIds/\(id)" : true,
-                "/scheduleEvents/\(scheduleId)/\(id)" : true
+                "/scheduleEvents/\(scheduleId)/\(id)" : true,
             ]
             
             // Perform atomic update
             try await ref.updateChildValues(updates)
-            return eventObj
             
         } catch {
             throw FirebaseError.failedToCreateEvent

@@ -97,7 +97,7 @@ struct ProfileView: View {
                     switch profileViewModel.selectedTab {
                     case .schedules:
                         ScrollView(.vertical, showsIndicators: false) {
-                            LazyVStack() {
+                            LazyVStack(spacing: 10) {
                                 let sortedKeys = Array(profileViewModel.partitionedEvents.keys).sorted(by: <)
                                 ForEach(sortedKeys, id: \.self) { key in
                                     ScheduleEventCards(key: key)
@@ -228,64 +228,66 @@ struct EventCard: View {
         let monthName = months[monthIdx]
         let dayOfMonth = Calendar.current.component(.day, from: blockDate)
 
-        HStack(alignment: .top, spacing: 20) {
-            VStack( alignment: .leading, spacing: 8) {
-                Text("\(event.title)")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .tracking(1.15)
-                    .foregroundStyle(Color(hex: 0x333333))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                
-                HStack(spacing: 8) {
-//                    Image(systemName: "calendar")
-//                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    Text("📆")
-                        .font(.system(size: 14))
-                    HStack(spacing: 0) {
-                        let formattedTime = returnTimeFormatted(timeObj: event.startTime)
-                        Text("\(dayText), \(monthName) \(String(format: "%02d", dayOfMonth)) - ")
+        NavigationLink(destination: EventDetailsView(event: event, currentUser: profileViewModel.currentUser)) {
+            HStack(alignment: .top, spacing: 20) {
+                VStack( alignment: .leading, spacing: 8) {
+                    Text("\(event.title)")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .tracking(1.15)
+                        .foregroundStyle(Color(hex: 0x333333))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    
+                    HStack(spacing: 8) {
+                        //                    Image(systemName: "calendar")
+                        //                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        Text("📆")
+                            .font(.system(size: 14))
+                        HStack(spacing: 0) {
+                            let formattedTime = returnTimeFormatted(timeObj: event.startTime)
+                            Text("\(dayText), \(monthName) \(String(format: "%02d", dayOfMonth)) - ")
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .tracking(1.15)
+                                .foregroundStyle(Color(hex: 0x666666))
+                            
+                            Text("\(formattedTime)")
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .tracking(1.05)
+                                .foregroundStyle(Color(hex: 0x666666))
+                        }
+                    }
+                    
+                    HStack {
+                        //                    Image(systemName: "mappin")
+                        //                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        Text("📍")
+                            .font(.system(size: 14))
+                        
+                        Text("Conference Room B")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .tracking(1.15)
                             .foregroundStyle(Color(hex: 0x666666))
-
-                        Text("\(formattedTime)")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .tracking(1.05)
-                            .foregroundStyle(Color(hex: 0x666666))
                     }
-                }
-                
-                HStack {
-//                    Image(systemName: "mappin")
-//                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    Text("📍")
-                        .font(.system(size: 14))
                     
-                    Text("Conference Room B")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .tracking(1.15)
-                        .foregroundStyle(Color(hex: 0x666666))
+                    Spacer()
                 }
+                .padding(.top, 8)
                 
                 Spacer()
             }
-            .padding(.top, 8)
-            
-            Spacer()
+            .padding(.leading, 20)
+            .frame(minHeight: 90)
+            .background(
+                ZStack(alignment: .leading) {
+                    Color.white
+                    
+                    Color(hex: Int(event.color, radix: 16)!)
+                        .frame(width: 7)
+                        .frame(maxHeight: .infinity)
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
-        .padding(.leading, 20)
-        .frame(minHeight: 90)
-        .background(
-            ZStack(alignment: .leading) {
-                Color.white
-                
-                Color(hex: 0x3C859E)
-                    .frame(width: 7)
-                    .frame(maxHeight: .infinity)
-            }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -518,7 +520,8 @@ struct ScheduleEventCards: View {
                         Spacer(minLength: 6)
 
                         Text("\(formattedTime)")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .font(.system(size: 13, weight: .medium))
+                            .monospacedDigit()
                             .foregroundStyle(Color(hex: 0x666666))
                             .lineLimit(1)
                             .truncationMode(.tail)
@@ -527,7 +530,6 @@ struct ScheduleEventCards: View {
                 }
             }
             .padding(.vertical, 10)
-            .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.trailing, 10)
         .padding(.leading, 20)
@@ -541,7 +543,6 @@ struct ScheduleEventCards: View {
             }
         )
         .clipShape(RoundedRectangle(cornerRadius: 10))
-        .frame(minHeight: 80)
         .padding(.horizontal, 25)
     }
 }

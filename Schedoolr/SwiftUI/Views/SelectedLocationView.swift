@@ -1,32 +1,47 @@
 //
-//  LocationView.swift
+//  SelectedLocationView.swift
 //  Schedoolr
 //
-//  Created by David Medina on 5/24/25.
+//  Created by David Medina on 5/26/25.
 //
 
 import SwiftUI
 import MapKit
 
-struct LocationView: View {
+struct SelectedLocationView: View {
     
-    @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
-    @State private var visibleRegion: MKCoordinateRegion?
+    @State private var cameraPosition: MapCameraPosition
+    @State private var visibleRegion: MKCoordinateRegion
     @State private var searchText: String = ""
-    @State var listPlacemarks: [MTPlacemark] = []
-    @Binding var selectedPlacemark: MTPlacemark?
-    @State private var detailPlacemark: MTPlacemark?
+    @State private var selectedPlacemark: MTPlacemark?
+    @State private var listPlacemarks: [MTPlacemark] = [] // Added missing property
+    @State private var detailPlacemark: MTPlacemark? // Added missing property
+    @State private var showLocationDetail = false // Add this for automatic sheet presentation
     let manager = LocationManager()
+    
+    init(desiredPlacemark: MTPlacemark) {
+        let userCenter = CLLocationCoordinate2D(
+            latitude: desiredPlacemark.latitude,
+            longitude: desiredPlacemark.longitude
+        )
+        let userSpan = MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+        let userRegion = MKCoordinateRegion(center: userCenter, span: userSpan)
+        
+        // Initialize @State properties correctly
+        self._selectedPlacemark = State(initialValue: desiredPlacemark)
+        self._visibleRegion = State(initialValue: userRegion)
+        self._cameraPosition = State(initialValue: .region(userRegion))
+        self._showLocationDetail = State(initialValue: true) // Auto-show the sheet
+    }
     
     var body: some View {
         if manager.isAuthorized {
-            Map(position: $cameraPosition, selection: $selectedPlacemark) {
-                UserAnnotation()
-                ForEach(listPlacemarks, id: \.self) { placemark in
+            Map(position: $cameraPosition) {
+                if let placemark = selectedPlacemark {
                     Annotation(placemark.name, coordinate: placemark.coordinate) {
-                        Button(action: {
-                            detailPlacemark = placemark
-                        }) {
+                        Button {
+                            showLocationDetail.toggle()
+                        } label: {
                             Image(systemName: "mappin.circle.fill")
                                 .foregroundColor(.red)
                                 .font(.title2)
@@ -42,32 +57,25 @@ struct LocationView: View {
                 visibleRegion = context.region
             }
             .onAppear {
-                // define user location -> center
-                let userCenter = CLLocationCoordinate2D(latitude: 26.162073, longitude: -98.007771)
-                // define the span using delta of 0.15 -> span
-                let locationSpan = MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                // define a region using our center and region
-                let userRegion = MKCoordinateRegion(center: userCenter, span: locationSpan)
-                visibleRegion = userRegion
+                // This will automatically trigger the sheet since selectedPlacemark is set
+                // and showLocationDetail is true
             }
-            .sheet(item: $detailPlacemark) { placemark in
-                LocationDetailView(
-                    selectedPlacemark: placemark,
-                    onConfirm: {
-                        selectedPlacemark = placemark
-                        detailPlacemark = nil
-                    },
-                    onCancel: {
-                        detailPlacemark = nil
-                    }
-                )
-                .presentationDetents([.medium])
+            .sheet(isPresented: $showLocationDetail) {
+                if let placemark = selectedPlacemark {
+                    LocationDetailView(
+                        selectedPlacemark: placemark,
+                    )
+                    .presentationDetents([.medium])
+                }
             }
             .safeAreaInset(edge: .bottom) {
                 HStack(alignment: .center, spacing: 10) {
                     Button(action: {
                         Task {
-                            listPlacemarks = await MapManager.searchPlaces(searchText: searchText, visibleRegion: visibleRegion)
+                            listPlacemarks = await MapManager.searchPlaces(
+                                searchText: searchText,
+                                visibleRegion: visibleRegion
+                            )
                             cameraPosition = .automatic
                         }
                     }) {
@@ -82,10 +90,13 @@ struct LocationView: View {
                         .textInputAutocapitalization(.never)
                         .font(.system(size: 15, weight: .regular, design: .monospaced))
                         .onSubmit {
-//                            Task {
-//                                listPlacemarks = await MapManager.searchPlaces(searchText: searchText, visibleRegion: visibleRegion)
-//                                cameraPosition = .automatic
-//                            }
+                            Task {
+                                listPlacemarks = await MapManager.searchPlaces(
+                                    searchText: searchText,
+                                    visibleRegion: visibleRegion
+                                )
+                                cameraPosition = .automatic
+                            }
                         }
                     
                     Spacer()
@@ -113,4 +124,3 @@ struct LocationView: View {
         }
     }
 }
-

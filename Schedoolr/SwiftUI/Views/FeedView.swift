@@ -3,6 +3,7 @@ import SwiftUI
 struct FeedView: View {
     
     @StateObject private var feedViewModel: FeedViewModel
+    @State var keyboardHeight: CGFloat = 0
     
     init(currentUser: User) {
         _feedViewModel = StateObject(wrappedValue: FeedViewModel(currentUser: currentUser))
@@ -43,7 +44,7 @@ struct FeedView: View {
                             }
                             .frame(maxWidth: .infinity, minHeight: 575, alignment: .center)
                         } else if true {
-                            ForEach(1..<3) {_ in
+                            ForEach(1..<10) {_ in
                                 PostView()
                             }
                         } else {
@@ -59,7 +60,12 @@ struct FeedView: View {
                         }
                     }
                     .padding(.horizontal)
+                    .keyboardHeight($keyboardHeight)
+                    .animation(.easeIn(duration: 0.16), value: keyboardHeight)
+                    .offset(y: -keyboardHeight / 2)
                 }
+                .scrollDismissesKeyboard(.immediately)
+                .defaultScrollAnchor(.center, for: .sizeChanges)
             }
         }
     }

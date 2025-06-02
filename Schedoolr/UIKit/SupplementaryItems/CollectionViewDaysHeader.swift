@@ -83,12 +83,12 @@ class CollectionViewDaysHeader: UIView {
         let dayLabel = UILabel()
         dayLabel.text = "\(dayComponent.day ?? 0)"
         dayLabel.translatesAutoresizingMaskIntoConstraints = false
-        dayLabel.font = UIFont.monospacedSystemFont(ofSize: 16, weight: .regular)
+        dayLabel.font = UIFont.monospacedSystemFont(ofSize: 16, weight: .bold)
         
         let dateLabel = UILabel()
         dateLabel.text = "\(weekList[actualDateComponent.weekday ?? 0] ?? "")"
         dateLabel.translatesAutoresizingMaskIntoConstraints = false
-        dateLabel.font = UIFont.monospacedSystemFont(ofSize: 16, weight: .bold)
+        dateLabel.font = UIFont.monospacedSystemFont(ofSize: 13, weight: .medium)
         
         let dateContainer = UIStackView()
         dateContainer.axis = .vertical
