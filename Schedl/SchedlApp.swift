@@ -10,7 +10,6 @@ import FirebaseAppCheck
 import FirebaseAuth
 import FirebaseCore
 import Firebase
-import GooglePlaces
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
@@ -28,7 +27,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 }
 
 @main
-struct SchedoolrApp: App {
+struct SchedlApp: App {
     
     // register app delegate for Firebase setup
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
