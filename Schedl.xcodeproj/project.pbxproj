@@ -73,7 +73,7 @@
 /* End PBXBuildRule section */
 
 /* Begin PBXFileReference section */
-		046B83472C867DE600F97BB4 /* Schedoolr.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Schedoolr.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		046B83472C867DE600F97BB4 /* Schedl.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Schedl.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		046B834A2C867DE600F97BB4 /* SchedoolrApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedoolrApp.swift; sourceTree = "<group>"; };
 		046B834E2C867DE700F97BB4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		046B83502C867DE700F97BB4 /* Schedoolr.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Schedoolr.entitlements; sourceTree = "<group>"; };
@@ -81,7 +81,7 @@
 		CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugAppCheckProviderFactory.swift; sourceTree = "<group>"; };
 		CB3C314C2DD9CE6700124F03 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = ../LaunchScreen.storyboard; sourceTree = "<group>"; };
 		CB3FC7D02DE246BC004FD066 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		CB8D57502C9D465F0051A415 /* Schedoolr.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Schedoolr.xctestplan; sourceTree = SOURCE_ROOT; };
+		CB8D57502C9D465F0051A415 /* Schedl.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Schedl.xctestplan; sourceTree = SOURCE_ROOT; };
 		CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		CBC9A7642CA22CB50000A18C /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -155,7 +155,7 @@
 			isa = PBXGroup;
 			children = (
 				CBC9A7642CA22CB50000A18C /* .gitignore */,
-				046B83492C867DE600F97BB4 /* Schedoolr */,
+				046B83492C867DE600F97BB4 /* Schedl */,
 				CBC9A7472CA1CACC0000A18C /* Frameworks */,
 				046B83482C867DE600F97BB4 /* Products */,
 				CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */,
@@ -165,12 +165,12 @@
 		046B83482C867DE600F97BB4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				046B83472C867DE600F97BB4 /* Schedoolr.app */,
+				046B83472C867DE600F97BB4 /* Schedl.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		046B83492C867DE600F97BB4 /* Schedoolr */ = {
+		046B83492C867DE600F97BB4 /* Schedl */ = {
 			isa = PBXGroup;
 			children = (
 				CB3FC7D02DE246BC004FD066 /* Info.plist */,
@@ -186,12 +186,12 @@
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,
 				CB53080D2CA0824600A8AA04 /* Services */,
 				046B834A2C867DE600F97BB4 /* SchedoolrApp.swift */,
-				CB8D57502C9D465F0051A415 /* Schedoolr.xctestplan */,
+				CB8D57502C9D465F0051A415 /* Schedl.xctestplan */,
 				046B834E2C867DE700F97BB4 /* Assets.xcassets */,
 				046B83502C867DE700F97BB4 /* Schedoolr.entitlements */,
 				046B83512C867DE700F97BB4 /* Preview Content */,
 			);
-			path = Schedoolr;
+			path = Schedl;
 			sourceTree = "<group>";
 		};
 		046B83512C867DE700F97BB4 /* Preview Content */ = {
@@ -212,9 +212,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		046B83462C867DE600F97BB4 /* Schedoolr */ = {
+		046B83462C867DE600F97BB4 /* Schedl */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 046B83562C867DE700F97BB4 /* Build configuration list for PBXNativeTarget "Schedoolr" */;
+			buildConfigurationList = 046B83562C867DE700F97BB4 /* Build configuration list for PBXNativeTarget "Schedl" */;
 			buildPhases = (
 				046B83432C867DE600F97BB4 /* Sources */,
 				046B83442C867DE600F97BB4 /* Frameworks */,
@@ -236,9 +236,9 @@
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,
 				CBFD83D52CF51C240034BE9F /* Core */,
 			);
-			name = Schedoolr;
+			name = Schedl;
 			productName = calendarTest;
-			productReference = 046B83472C867DE600F97BB4 /* Schedoolr.app */;
+			productReference = 046B83472C867DE600F97BB4 /* Schedl.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -256,7 +256,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 046B83422C867DE600F97BB4 /* Build configuration list for PBXProject "Schedoolr" */;
+			buildConfigurationList = 046B83422C867DE600F97BB4 /* Build configuration list for PBXProject "Schedl" */;
 			compatibilityVersion = "Xcode 15.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -273,7 +273,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				046B83462C867DE600F97BB4 /* Schedoolr */,
+				046B83462C867DE600F97BB4 /* Schedl */,
 			);
 		};
 /* End PBXProject section */
@@ -434,7 +434,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = Schedoolr/Schedoolr.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Schedl/Schedl.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
@@ -461,7 +461,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.schedulrApp;
-				PRODUCT_NAME = Schedoolr;
+				PRODUCT_NAME = Schedl;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -476,7 +476,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = Schedoolr/Schedoolr.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Schedl/Schedl.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -505,7 +505,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.schedulrApp;
-				PRODUCT_NAME = Schedoolr;
+				PRODUCT_NAME = Schedl;
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -517,7 +517,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		046B83422C867DE600F97BB4 /* Build configuration list for PBXProject "Schedoolr" */ = {
+		046B83422C867DE600F97BB4 /* Build configuration list for PBXProject "Schedl" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				046B83542C867DE700F97BB4 /* Debug */,
@@ -526,7 +526,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		046B83562C867DE700F97BB4 /* Build configuration list for PBXNativeTarget "Schedoolr" */ = {
+		046B83562C867DE700F97BB4 /* Build configuration list for PBXNativeTarget "Schedl" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				046B83572C867DE700F97BB4 /* Debug */,

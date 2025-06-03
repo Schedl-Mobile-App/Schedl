@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "046B83462C867DE600F97BB4"
-               BuildableName = "Schedoolr.app"
-               BlueprintName = "Schedoolr"
-               ReferencedContainer = "container:Schedoolr.xcodeproj">
+               BuildableName = "Schedl.app"
+               BlueprintName = "Schedl"
+               ReferencedContainer = "container:Schedl.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "046B83462C867DE600F97BB4"
-            BuildableName = "Schedoolr.app"
-            BlueprintName = "Schedoolr"
-            ReferencedContainer = "container:Schedoolr.xcodeproj">
+            BuildableName = "Schedl.app"
+            BlueprintName = "Schedl"
+            ReferencedContainer = "container:Schedl.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "046B83462C867DE600F97BB4"
-            BuildableName = "Schedoolr.app"
-            BlueprintName = "Schedoolr"
-            ReferencedContainer = "container:Schedoolr.xcodeproj">
+            BuildableName = "Schedl.app"
+            BlueprintName = "Schedl"
+            ReferencedContainer = "container:Schedl.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
