@@ -263,8 +263,9 @@ struct EventCard: View {
                         Text("📍")
                             .font(.system(size: 14))
                         
-                        Text("Conference Room B")
+                        Text(event.locationAddress)
                             .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .lineLimit(1)
                             .tracking(1.15)
                             .foregroundStyle(Color(hex: 0x666666))
                     }
