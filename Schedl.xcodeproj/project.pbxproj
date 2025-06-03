@@ -267,7 +267,6 @@
 			mainGroup = 046B833E2C867DE600F97BB4;
 			packageReferences = (
 				CB2E0E002D10F1800069B028 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
-				CB3FC7D72DE27F90004FD066 /* XCRemoteSwiftPackageReference "ios-places-sdk" */,
 			);
 			productRefGroup = 046B83482C867DE600F97BB4 /* Products */;
 			projectDirPath = "";
@@ -441,7 +440,7 @@
 				DEVELOPMENT_TEAM = WFU7CAH8HU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Schedoolr/Info.plist;
+				INFOPLIST_FILE = Schedl/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Schedl;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location needed to allow you to add location info for created events";
@@ -485,7 +484,7 @@
 				DEVELOPMENT_TEAM = WFU7CAH8HU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Schedoolr/Info.plist;
+				INFOPLIST_FILE = Schedl/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Schedl;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location needed to allow you to add location info for created events";
