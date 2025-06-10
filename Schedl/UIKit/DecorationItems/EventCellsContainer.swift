@@ -7,25 +7,32 @@
 
 import UIKit
 
+class TapOnlyGestureRecognizer: UITapGestureRecognizer {
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesBegan(touches, with: event)
+        // Allow simultaneous recognition with other gestures
+        self.delaysTouchesBegan = false
+        self.delaysTouchesEnded = false
+    }
+    
+    override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool {
+        // Don't prevent other gesture recognizers
+        return false
+    }
+    
+    override func canBePrevented(by preventingGestureRecognizer: UIGestureRecognizer) -> Bool {
+        // Allow pan gestures to prevent this tap recognizer
+        if preventingGestureRecognizer is UIPanGestureRecognizer {
+            return true
+        }
+        return false
+    }
+}
+
 class SecondPassthroughView: UIView {
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        // 1️⃣ If the collection is currently dragging or decelerating, let the touch pass through
-        if let cv = findCollectionView(), (cv.isDragging || cv.isDecelerating) {
-            print("Exiting out of hitTest")
-            return nil
-        }
-        // 2️⃣ Otherwise, do your normal hitTest→passthrough logic
         let tapped = super.hitTest(point, with: event)
         return tapped == self ? nil : tapped
-    }
-
-    private func findCollectionView() -> UICollectionView? {
-        var v = superview
-        while let view = v {
-          if let cv = view as? UICollectionView { return cv }
-          v = view.superview
-        }
-        return nil
     }
 }
 
@@ -48,6 +55,10 @@ class EventCellsContainer: SecondPassthroughView {
     }
     
     func configureUI() {
+        let panGesture = TapOnlyGestureRecognizer(target: containerView, action: nil)
+//        panGesture.cancelsTouchesInView = true
+        containerView.addGestureRecognizer(panGesture)
+        
         containerView.translatesAutoresizingMaskIntoConstraints = false
         
         addSubview(containerView)
@@ -99,5 +110,10 @@ class EventCellsContainer: SecondPassthroughView {
         guard dayIndex >= 0 && dayIndex < calendarInterval else { return nil }
         
         return dayIndex
+    }
+    
+    @objc
+    func didPan(_ gesture: UIPanGestureRecognizer) {
+        guard gesture.state == .ended else { return }
     }
 }

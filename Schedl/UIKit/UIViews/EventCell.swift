@@ -14,7 +14,7 @@ class EventCell: UIView {
 //    private var bottomShadowLayer: CAShapeLayer!
 //    private var topShadowLayer: CAShapeLayer!
     private var shadowLayer: CAShapeLayer!
-    private var cornerRadius: CGFloat = 10.0
+    private var cornerRadius: CGFloat = 5.0
     private var shadowBackgroundColor: UIColor!
     
     weak var viewModel: ScheduleViewModel?
@@ -40,9 +40,22 @@ class EventCell: UIView {
         
         shadowBackgroundColor = UIColor(Color(hex: Int(event.color, radix: 16)!))
         
-        eventCell.configuration = .filled()
-        eventCell.configuration?.baseBackgroundColor = shadowBackgroundColor
+//        eventCell.configuration = .filled()
+//        eventCell.configuration?.baseBackgroundColor = shadowBackgroundColor
         eventCell.translatesAutoresizingMaskIntoConstraints = false
+        eventCell.configuration = .filled()
+        eventCell.configuration?.baseBackgroundColor = .clear
+        
+        self.backgroundColor = .clear
+        
+        let gradient = CAGradientLayer()
+        gradient.frame = self.bounds
+        gradient.colors = [shadowBackgroundColor.withAlphaComponent(0.8).cgColor, shadowBackgroundColor.withAlphaComponent(1).cgColor]
+        gradient.startPoint = CGPoint.zero
+        gradient.endPoint = CGPoint(x: 1, y: 1)
+
+        self.layer.insertSublayer(gradient, at: 0)
+        
         
         eventCell.addTarget(self, action: #selector(showEventDetails), for: .touchUpInside)
         
@@ -51,6 +64,7 @@ class EventCell: UIView {
         titleLabel.text = event.title
         titleLabel.textAlignment = .center
         titleLabel.textColor = .white
+        titleLabel.backgroundColor = .clear
         titleLabel.numberOfLines = 0 // Allow unlimited lines initially for calculation
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -116,7 +130,8 @@ class EventCell: UIView {
             shadowLayer = CAShapeLayer()
             
             shadowLayer.path = UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).cgPath
-            shadowLayer.backgroundColor = shadowBackgroundColor.cgColor
+//            shadowLayer.backgroundColor = shadowBackgroundColor.cgColor
+            shadowLayer.backgroundColor = UIColor.clear.cgColor
             
             shadowLayer.shadowPath   = shadowLayer.path
             shadowLayer.shadowColor  = UIColor.black.cgColor
@@ -194,7 +209,7 @@ class EventCell: UIView {
     }
 
     private func calculateMaxLines(for height: CGFloat, fontSize: CGFloat) -> Int {
-        let lineHeight = UIFont.systemFont(ofSize: fontSize, weight: .bold).lineHeight
+        let lineHeight = UIFont.systemFont(ofSize: fontSize, weight: .heavy).lineHeight
         let availableHeight = height - 8 // Account for padding
         return max(1, Int(availableHeight / lineHeight))
     }

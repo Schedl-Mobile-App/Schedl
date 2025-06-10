@@ -12,7 +12,7 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     
     var currentUser: User
     @Published var userSchedule: Schedule?
-    var invitedUsersForEvent: [User] = []
+    @Published var invitedUsersForEvent: [User] = []
     var friends: [User] = []
     @Published var scheduleEvents: [Event] = []
     @Published var showCreateEvent = false
@@ -124,11 +124,12 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     }
     
     @MainActor
-    func createEvent(title: String, eventDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, taggedUsers: [String], color: String) async {
+    func createEvent(title: String, eventDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String) async {
         self.isLoading = true
         self.errorMessage = nil
         do {
             guard let scheduleId = userSchedule?.id else { return }
+            let taggedUsers = self.invitedUsersForEvent.compactMap { $0.id }
             try await eventService.createEvent(scheduleId: scheduleId, userId: currentUser.id, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, location: location, taggedUsers: taggedUsers, color: color)
             self.isLoading = false
         } catch {
