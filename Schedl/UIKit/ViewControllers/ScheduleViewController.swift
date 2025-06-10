@@ -14,6 +14,13 @@ class PassthroughView: UIScrollView {
         let view = super.hitTest(point, with: event)
         return view == self ? nil : view
     }
+
+    override func touchesShouldCancel(in view: UIView) -> Bool {
+        if view is UIControl {
+    return true
+        }
+        return super.touchesShouldCancel(in: view)
+    }
 }
 
 

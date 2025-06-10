@@ -5,14 +5,6 @@
 //  Created by David Medina on 12/16/24.
 //
 
-
-//
-//  AppCheckProviderFactory.swift
-//  calendarTest
-//
-//  Created by David Medina on 12/14/24.
-//
-
 import FirebaseCore
 import FirebaseAppCheck
 

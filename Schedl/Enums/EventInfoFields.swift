@@ -12,4 +12,5 @@ enum EventInfoFields {
     case endTime
     case location
     case invitedUsers
+    case description
 }
