@@ -6,8 +6,11 @@
 //
 
 enum NotificationServiceError: Error {
+    case dbFailedToGenerateId
     case failedToFetchUserId
     case failedToFetchUserRequests
     case failedToSerializeFriendRequest
     case failedToSendFriendRequest
+    case failedToSendEventInvites
+    case failedToDecodeNotification
 }

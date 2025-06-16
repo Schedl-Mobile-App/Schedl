@@ -43,9 +43,9 @@ class CollectionViewCell: UICollectionViewCell {
         let leftBorderView = UIView()
         let topBorderView = UIView()
         
-        rightBorderView.backgroundColor = UIColor(Color(hex: 666666))
-        leftBorderView.backgroundColor = UIColor(Color(hex: 666666))
-        topBorderView.backgroundColor = UIColor(Color(hex: 666666))
+        rightBorderView.backgroundColor = UIColor(Color.black.opacity(0.30))
+        leftBorderView.backgroundColor = UIColor(Color.black.opacity(0.30))
+        topBorderView.backgroundColor = UIColor(Color.black.opacity(0.30))
         
         rightBorderView.translatesAutoresizingMaskIntoConstraints = false
         leftBorderView.translatesAutoresizingMaskIntoConstraints = false

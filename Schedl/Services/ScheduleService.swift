@@ -28,7 +28,7 @@ class ScheduleService: ScheduleServiceProtocol {
         
         // Store a reference to the child node of the schedules node in the Firebase DB
         let scheduleRef = ref.child("schedules").child(scheduleId)
-            
+        
         // getData is a Firebase function that returns a DataSnapshot object
         let scheduleSnapshot = try await scheduleRef.getData()
         
@@ -61,6 +61,25 @@ class ScheduleService: ScheduleServiceProtocol {
         }
         
         return scheduleId
+    }
+    
+    func fetchScheduleIds(userIds: [String]) async throws -> [String] {
+        
+        var scheduleIds: [String] = []
+        
+        try await withThrowingTaskGroup(of: String.self) { group in
+            for id in userIds {
+                group.addTask {
+                    try await self.fetchScheduleId(userId: id)
+                }
+            }
+            
+            for try await scheduleId in group {
+                scheduleIds.append(scheduleId)
+            }
+        }
+        
+        return scheduleIds
     }
     
     func createSchedule(userId: String, title: String) async throws -> Schedule {
@@ -114,27 +133,22 @@ class ScheduleService: ScheduleServiceProtocol {
         }
     }
     
-    func observeScheduleChanges(scheduleId: String, completion: @escaping ([String]) -> Void) -> DatabaseHandle {
+    func observeAddedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
         let eventsRef = ref.child("scheduleEvents").child(scheduleId)
-        return eventsRef.observe(.value, with: { snapshot in
-            Task {
-                do {
-                    let snapshot = try await eventsRef.getData()
-                    
-                    print(snapshot.value ?? "snapshot value is nil")
-                    
-                    guard let scheduleEventsNode = snapshot.value as? [String : Any] else {
-                        throw ScheduleServiceError.failedToFetchScheduleEvents
-                    }
-                    
-                    let eventIds = Array(scheduleEventsNode.keys)
-                    
-                    completion(eventIds)
-                } catch {
-                    return
-                }
-            }
-        })
+        
+        return eventsRef.observe(.childAdded) { snapshot in
+            let eventId = snapshot.key
+            completion(eventId)
+        }
+    }
+    
+    func observeRemovedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
+        let eventsRef = ref.child("scheduleEvents").child(scheduleId)
+        
+        return eventsRef.observe(.childRemoved) { snapshot in
+            let eventId = snapshot.key
+            completion(eventId)
+        }
     }
     
     func removeScheduleObserver(handle: DatabaseHandle, scheduleId: String) {

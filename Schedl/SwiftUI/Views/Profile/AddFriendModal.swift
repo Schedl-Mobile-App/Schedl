@@ -9,7 +9,7 @@ import SwiftUI
 
 struct AddFriendModal: View {
     
-    @EnvironmentObject var profileViewModel: ProfileViewModel
+    @ObservedObject var profileViewModel: ProfileViewModel
     
     var body: some View {
         VStack(alignment: .center, spacing: 20) {

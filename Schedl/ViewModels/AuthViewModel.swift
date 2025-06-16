@@ -10,8 +10,8 @@ import SwiftUI
 class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     
     @Published var currentUser: User?
-    @Published var email: String = ""
-    @Published var password: String = ""
+    @Published var email: String = "djay0628@gmail.com"
+    @Published var password: String = "123456"
     @Published var displayName: String = ""
     @Published var username: String = ""
     @Published var isLoading: Bool = false

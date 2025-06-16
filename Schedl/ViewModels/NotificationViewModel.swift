@@ -11,49 +11,93 @@ import Firebase
 class NotificationViewModel: NotificationViewModelProtocol, ObservableObject {
     
     var currentUser: User
+    @Published var notifications: [Notification] = []
     @Published var friendRequests: [FriendRequest] = []
     @Published var showPopUp = false
-    @Published var isLoading: Bool = false      // indicates loading state
-    @Published var errorMessage: String?        // holds error messages if any
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
     private var userService: UserServiceProtocol
     private var notificationService: NotificationServiceProtocol
+    private var scheduleService: ScheduleServiceProtocol
+    private var notificationObserver: DatabaseHandle?
     
-    init(userService: UserServiceProtocol = UserService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared, currentUser: User) {
+    init(userService: UserServiceProtocol = UserService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, currentUser: User) {
         self.userService = userService
         self.notificationService = notificationService
+        self.scheduleService = scheduleService
         self.currentUser = currentUser
     }
     
     @MainActor
-    func handleFriendRequestResponse(requestId: String, accepted: Bool) async {
+    func handleNotificationResponse(id: String, responseStatus: Bool) async {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            try await notificationService.handleFriendRequestResponse(requestId: requestId, accepted: accepted)
+            guard let index = notifications.firstIndex(where: { $0.id == id }) else { return }
+            let notificationObj = notifications[index]
             
-            if let index = self.friendRequests.firstIndex(where: { $0.id == requestId }) {
-                friendRequests.remove(at: index)
+            switch notificationObj.notificationPayload {
+            case .friendRequest(let friendRequest):
+                try await notificationService.handleFriendRequestResponse(notificationId: id, senderId: friendRequest.fromUserId, toUserId: currentUser.id, responseStatus: responseStatus)
+            case .eventInvite(let eventInvite):
+                let senderScheduleId = try await scheduleService.fetchScheduleId(userId: eventInvite.fromUserId)
+                let toScheduleId = try await scheduleService.fetchScheduleId(userId: eventInvite.toUserId)
+                
+                try await notificationService.handleEventInviteResponse(notificationId: id, senderScheduleId: senderScheduleId, eventId: eventInvite.invitedEventId, senderId: eventInvite.fromUserId, toUserId: eventInvite.toUserId, userScheduleId: toScheduleId, responseStatus: responseStatus)
+            }
+            
+            if let index = self.notifications.firstIndex(where: { $0.id == id }) {
+                notifications.remove(at: index)
             }
             
             self.isLoading = false
         } catch {
-            self.errorMessage = "Failed to handle friend request response: \(error.localizedDescription)"
+            self.errorMessage = "Failed to handle notification: \(error.localizedDescription)"
             self.isLoading = false
         }
     }
     
     @MainActor
-    func fetchFriendRequests() async {
+    func fetchNotifications() async {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            let requests = try await notificationService.fetchFriendRequests(userId: currentUser.id)
-            self.friendRequests = requests
-            
+            let notificationData = try await notificationService.fetchAllNotifications(userId: currentUser.id)
+            self.notifications = notificationData
             self.isLoading = false
         } catch {
-            self.errorMessage = "Failed to fetch incoming friend requests: \(error.localizedDescription)"
+            self.errorMessage = "Failed to fetch user notifications. Received Server Error: \(error.localizedDescription)"
             self.isLoading = false
         }
+    }
+    
+    @MainActor
+    func setupNotificationObserver() {
+        removeNotificationObserver()
+        notificationObserver = notificationService.observeUserNotifications(userId: currentUser.id) { [weak self] (notificationIds: [String]) in
+            guard let self = self else { return }
+            
+            Task { @MainActor in
+                do {
+                    let newNotifications = try await self.notificationService.fetchNotificationsByIds(notificationIds: notificationIds, userId: self.currentUser.id)
+                                        
+                    self.notifications.append(contentsOf: newNotifications)
+                    
+                    self.isLoading = false
+                } catch {
+                    print("Failed to fetch new user notifications in the observer method")
+                    self.errorMessage = "Failed to fetch user notifications."
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+    
+    @MainActor
+    func removeNotificationObserver() {
+        guard let handle = self.notificationObserver else { return }
+        notificationService.removeUserNotificationObserver(handle: handle, userId: currentUser.id)
+        
+        notificationObserver = nil
     }
 }

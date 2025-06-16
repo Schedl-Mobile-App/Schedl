@@ -21,22 +21,25 @@ struct UserSearchCell: View {
                Circle()
                    .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
                    .background(Color.clear)
-                   .frame(width: 59.75, height: 59.75)
+                   .frame(width: 53.75, height: 53.75)
                    .overlay {
                        AsyncImage(url: URL(string: user.profileImage)) { image in
                            image
                                .resizable()
                                .scaledToFill()
-                               .frame(width: 58, height: 58)
+                               .frame(width: 52, height: 52)
                                .clipShape(Circle())
                        } placeholder: {
                            // Show while loading or if image fails to load
                            Circle()
                                .fill(Color(hex: 0xe0dad5))
-                               .frame(width: 58, height: 58)
+                               .frame(width: 52, height: 52)
                                .overlay {
                                    Text("\(user.displayName.first?.uppercased() ?? "J")\(user.displayName.last?.uppercased() ?? "D")")
-                                       .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                       .font(.title3)
+                                       .fontWeight(.bold)
+                                       .fontDesign(.monospaced)
+                                       .tracking(-0.25)
                                        .foregroundStyle(Color(hex: 0x333333))
                                        .multilineTextAlignment(.center)
                                }
@@ -47,17 +50,32 @@ struct UserSearchCell: View {
                    let numOfPosts = searchViewModel.userInfo[user.id]?.numOfPosts ?? 0
                    let numOfFriends = searchViewModel.userInfo[user.id]?.numOfFriends ?? 0
                    Text("\(user.displayName)")
-                       .font(.system(size: 16, weight: .bold, design: .monospaced))
+                       .font(.subheadline)
+                       .fontWeight(.bold)
+                       .fontDesign(.monospaced)
+                       .tracking(-0.10)
                        .foregroundStyle(Color(hex: 0x333333))
                        .multilineTextAlignment(.leading)
-                   Text("\(user.username)")
-                       .font(.system(size: 14, weight: .medium, design: .monospaced))
-                       .foregroundStyle(Color(hex: 0x333333))
-                       .multilineTextAlignment(.leading)
+                   HStack(spacing: 0) {
+                       Text("@")
+                           .font(.footnote)
+                           .foregroundStyle(Color(.systemGray))
+                           .multilineTextAlignment(.leading)
+                       Text("\(user.username)")
+                           .font(.footnote)
+                           .fontWeight(.medium)
+                           .fontDesign(.monospaced)
+                           .tracking(-0.25)
+                           .foregroundStyle(Color(.systemGray))
+                           .multilineTextAlignment(.leading)
+                   }
                    Text("\(numOfFriends) friends | \(numOfPosts) posts")
-                       .font(.system(size: 12, weight: .medium, design: .monospaced))
+                       .font(.caption)
+                       .fontWeight(.medium)
+                       .fontDesign(.monospaced)
+                       .tracking(-0.25)
                        .fixedSize()
-                       .foregroundStyle(Color(hex: 0x666666))
+                       .foregroundStyle(Color(.systemGray))
                        .multilineTextAlignment(.leading)
                }
                .fixedSize(horizontal: true, vertical: false)
@@ -67,7 +85,10 @@ struct UserSearchCell: View {
                let isFriend = searchViewModel.userInfo[user.id]?.isFriend ?? false
                Button(action: {}) {
                    Text(isFriend ? "Friends" : "Add")
-                       .font(.system(size: 15, weight: .bold, design: .monospaced))
+                       .font(.footnote)
+                       .fontWeight(.bold)
+                       .fontDesign(.monospaced)
+                       .tracking(-0.25)
                        .fixedSize()
                        .foregroundColor(isFriend ? Color(.black) : Color(hex: 0xf7f4f2))
                        .padding(.vertical, 6)
@@ -108,21 +129,30 @@ struct SearchView: View {
                         label : {
                             Image(systemName: "magnifyingglass")
                                 .foregroundStyle(.gray)
-                                .font(.system(size: 16))
+                                .imageScale(.medium)
                         }
                         
                         TextField("Search friends", text: $searchViewModel.searchText)
                             .focused($isFocused, equals: true)
                             .textFieldStyle(.plain)
-                            .font(.system(size: 15, weight: .regular, design: .monospaced))
+                            .font(.subheadline)
+                            .fontWeight(.regular)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
+                            .autocorrectionDisabled(true)
                         
                         Spacer()
                         
                         Button("Cancel", action: {
                             searchViewModel.searchText = ""
                         })
-                        .font(.system(size: 16, weight: .bold, design: .monospaced))
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .fontDesign(.monospaced)
+                        .tracking(-0.25)
                         .foregroundStyle(Color(hex: 0x3C859E))
+                        .opacity(!searchViewModel.searchText.isEmpty ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.2), value: searchViewModel.searchText)
                     }
                     .padding()
                     .background(Color.gray.opacity(0.1))

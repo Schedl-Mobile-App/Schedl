@@ -8,7 +8,4 @@
 protocol NotificationViewModelProtocol {
     var currentUser: User { get set }
     var friendRequests: [FriendRequest] { get set }
-    
-    func handleFriendRequestResponse(requestId: String, accepted: Bool) async
-    func fetchFriendRequests() async
 }

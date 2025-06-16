@@ -10,12 +10,15 @@ import SwiftUI
 struct CreateEventView: View {
     @State private var title: String = ""
     @State private var selectedDate: Date?
+    @State private var selectedEndDate: Date?
     @State private var showDatePicker: Bool = false
+    @State private var showEndDatePicker: Bool = false
     @State private var showStartTimePicker: Bool = false
     @State private var showEndTimePicker: Bool = false
     @State private var showInviteUsersSheet: Bool = false
     @State private var showMapSheet: Bool = false
     var components = DateComponents(hour: Calendar.current.component(.hour, from: Date()), minute: Calendar.current.component(.minute, from: Date()))
+    @State var repeatedDays: [String]?
     @State var eventStartTime: Date?
     @State var eventEndTime: Date?
     @State var selectedPlacemark: MTPlacemark?
@@ -24,13 +27,19 @@ struct CreateEventView: View {
     @State var dayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     @Environment(\.presentationMode) var presentationMode
     @FocusState var isFocused: EventInfoFields?
-    @EnvironmentObject var scheduleViewModel: ScheduleViewModel
+    @ObservedObject var scheduleViewModel: ScheduleViewModel
     @State var initialVisibleCount = 2
     @State var isExpanded = false
-    @State var keyboardHeight: CGFloat = 0
     
     private var eventDateText: String {
         if let date = selectedDate {
+            return date.formatted(date: .long, time: .omitted)
+        }
+        return ""
+    }
+    
+    private var eventEndDateText: String {
+        if let date = selectedEndDate {
             return date.formatted(date: .long, time: .omitted)
         }
         return ""
@@ -71,21 +80,28 @@ struct CreateEventView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 15) {
-                HStack(spacing: 12) {
+                ZStack(alignment: .leading) {
                     Button(action: {
                         presentationMode.wrappedValue.dismiss()
                     }) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 22, weight: .medium))
-                            .labelStyle(.titleAndIcon)
+                            .fontWeight(.bold)
+                            .font(.title3)
+                            .labelStyle(.iconOnly)
                             .foregroundStyle(Color.primary)
                     }
-                    Text("Create New Event")
+                    
+                    
+                    Text("Event Details")
                         .foregroundStyle(Color(hex: 0x333333))
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .fontDesign(.monospaced)
+                        .tracking(0.1)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
                 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .center, spacing: 30) {
@@ -151,7 +167,7 @@ struct CreateEventView: View {
                                         Text(eventDateText.isEmpty ? "Event Date" : eventDateText)
                                             .fontWeight(eventDateText.isEmpty ? .regular : .medium)
                                             .font(.system(size: 15, design: .monospaced))
-                                            .foregroundStyle(eventDateText.isEmpty ? .secondary : Color(hex: 0x333333))
+                                            .foregroundStyle(eventDateText.isEmpty ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
                                             .tracking(0.1)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                         
@@ -239,37 +255,95 @@ struct CreateEventView: View {
                         
                         if !eventDateText.isEmpty {
                             ZStack(alignment: .topLeading) {
-                                RoundedRectangle(cornerRadius: 10)
-                                    .frame(maxWidth: .infinity, minHeight: eventDateText.isEmpty ? 0 : 80)
-                                    .foregroundStyle(.clear)
-                                    .overlay {
-                                        HStack(alignment: .center, spacing: 0) {
+                                VStack(spacing: 15) {
+                                    HStack(alignment: .center, spacing: 0) {
+                                        ForEach(0..<dayList.count, id: \.self) { index in
                                             Spacer()
-                                            ForEach(0..<dayList.count, id: \.self) { index in
-                                                Spacer()
-                                                VStack(alignment: .center, spacing: 5) {
-                                                    Text(dayList[index])
-                                                        .fontWeight(.bold)
-                                                        .fontDesign(.monospaced)
-                                                        .font(.footnote)
-                                                        .tracking(0.1)
-                                                        .foregroundStyle(Color(hex: 0x333333))
-                                                        .tracking(0.1)
+                                            VStack(alignment: .center, spacing: 12) {
+                                                Text(dayList[index])
+                                                    .fontWeight(.bold)
+                                                    .fontDesign(.monospaced)
+                                                    .font(.footnote)
+                                                    .tracking(0.1)
+                                                    .foregroundStyle(Color(hex: 0x333333))
+                                                
+                                                Button(action: {
+                                                    if repeatedDays == nil {
+                                                        repeatedDays = []
+                                                    }
+                                                    repeatedDays!.contains(String(index)) ? repeatedDays?.removeAll(where: { $0 == String(index) }) : repeatedDays?.append(String(index))
+                                                }) {
                                                     RoundedRectangle(cornerRadius: 5)
-                                                        .fill(Color.gray.opacity(0.2))
+                                                        .fill((repeatedDays != nil && repeatedDays!.contains(String(index))) ? Color(hex: 0x3C859E) : Color.gray.opacity(0.2))
                                                         .frame(width: 25, height: 25)
                                                 }
-                                                Spacer()
                                             }
                                             Spacer()
                                         }
-                                        .frame(maxWidth: .infinity, alignment: .center)
                                     }
-                                    .background {
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color(hex: 0xf7f4f2))
-                                            .stroke(Color.gray, lineWidth: 1)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    
+                                    HStack {
+                                        Text("Repeating Until")
+                                            .fontWeight(.bold)
+                                            .fontDesign(.monospaced)
+                                            .font(.caption)
+                                            .tracking(0.1)
+                                            .foregroundStyle(Color(hex: 0x333333))
+                                        Spacer()
+                                        Button(action: {
+                                            showEndDatePicker.toggle()
+                                        }) {
+                                            Text("Select Date")
+                                                .fontWeight(.bold)
+                                                .fontDesign(.monospaced)
+                                                .font(.caption)
+                                                .tracking(0.1)
+                                                .foregroundStyle(Color.gray)
+                                            Image(systemName: "calendar")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(Color(hex: 0x333333))
+                                        }
                                     }
+                                    .sheet(isPresented: $showEndDatePicker) {
+                                        NavigationView {
+                                            DatePicker("Select End Date",
+                                                      selection: Binding(
+                                                        get: { selectedEndDate ?? Date() },
+                                                        set: { newDate in
+                                                            selectedEndDate = newDate
+                                                        }
+                                                      ),
+                                                      displayedComponents: [.date])
+                                                .datePickerStyle(.graphical)
+                                                .navigationTitle("Select End Date")
+                                                .navigationBarTitleDisplayMode(.inline)
+                                                .toolbar {
+                                                    if selectedEndDate != nil {
+                                                        ToolbarItem(placement: .navigationBarLeading) {
+                                                            Button("Clear") {
+                                                                selectedEndDate = nil
+                                                                showEndDatePicker = false
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    ToolbarItem(placement: .navigationBarTrailing) {
+                                                        Button("Done") {
+                                                            showEndDatePicker = false
+                                                        }
+                                                    }
+                                                }
+                                        }
+                                        .presentationDetents([.medium])
+                                    }
+                                }
+                                .padding()
+                                .background {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color(hex: 0xf7f4f2))
+                                        .stroke(Color.gray, lineWidth: 1)
+                                }
                                 
                                 HStack {
                                     Spacer(minLength: 8)
@@ -297,7 +371,7 @@ struct CreateEventView: View {
                                         Text(startTimeText.isEmpty ? "Start Time" : startTimeText)
                                             .fontWeight(startTimeText.isEmpty ? .light : .medium)
                                             .font(.system(size: 15, design: .monospaced))
-                                            .foregroundStyle(startTimeText.isEmpty ? .secondary : Color(hex: 0x333333))
+                                            .foregroundStyle(startTimeText.isEmpty ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
                                             .tracking(0.1)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                         
@@ -384,7 +458,7 @@ struct CreateEventView: View {
                                         Text(endTimeText.isEmpty ? "End Time" : endTimeText)
                                             .fontWeight(endTimeText.isEmpty ? .light : .medium)
                                             .font(.system(size: 15, design: .monospaced))
-                                            .foregroundStyle(endTimeText.isEmpty ? .secondary : Color(hex: 0x333333))
+                                            .foregroundStyle(endTimeText.isEmpty ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
                                             .tracking(0.1)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                         
@@ -469,13 +543,13 @@ struct CreateEventView: View {
                                 .overlay {
                                     HStack {
                                         Text(selectedLocationItem.name.isEmpty ? "Add Location" : selectedLocationItem.name)
-                                            .fontWeight(.light)
+                                            .fontWeight(.medium)
                                             .lineLimit(1)
                                             .truncationMode(.tail)
                                             .font(.system(size: 15, design: .monospaced))
-                                            .foregroundStyle(.secondary)
                                             .tracking(0.1)
                                             .frame(maxWidth: .infinity, alignment: .leading)
+                                            .foregroundStyle(selectedLocationItem.name.isEmpty ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
                                         
                                         Spacer()
                                         
@@ -576,8 +650,7 @@ struct CreateEventView: View {
                             .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
                             .sheet(isPresented: $showInviteUsersSheet) {
                                 NavigationView {
-                                    AddInvitedUsers()
-                                        .environmentObject(scheduleViewModel)
+                                    AddInvitedUsers(scheduleViewModel: scheduleViewModel)
                                         .toolbar {
                                             ToolbarItem(placement: .navigationBarTrailing) {
                                                 Button("Done") {
@@ -672,10 +745,12 @@ struct CreateEventView: View {
                                     text: $eventNotes,
                                     axis: .vertical,
                                 )
-                                .fontWeight(.light)
-                                .foregroundStyle(.secondary)
+                                .fontWeight(.medium)
+                                .fontDesign(.monospaced)
+                                .font(.system(size: 15))
                                 .tracking(0.1)
                                 .focused($isFocused, equals: .description)
+                                .foregroundStyle(Color(hex: 0x333333))
                                 
                                 Spacer()
                                 Button(action: {
@@ -707,7 +782,7 @@ struct CreateEventView: View {
                             )
                             .fixedSize()
                             .offset(x: 12, y: -7)
-                            .opacity(isFocused == .description ? 1 : 0)
+                            .opacity(isFocused == .description || !eventNotes.isEmpty ? 1 : 0)
                             .animation(.easeInOut(duration: 0.2), value: isFocused)
                         }
                         
@@ -737,8 +812,11 @@ struct CreateEventView: View {
                         
                         Button(action: {
                             Task {
-                                if (selectedDate != nil && selectedPlacemark != nil) {
-                                    await scheduleViewModel.createEvent(title: title, eventDate: Date.convertCurrentDateToTimeInterval(date: selectedDate ?? Date()), startTime: Date.computeTimeSinceStartOfDay(date: eventStartTime ?? Date()), endTime: Date.computeTimeSinceStartOfDay(date: eventEndTime ?? Date()), location: selectedLocationItem, color: selectedColor)
+                                if (selectedDate != nil && selectedPlacemark != nil && selectedEndDate != nil) {
+                                    await scheduleViewModel.createEvent(title: title, startDate: Date.convertCurrentDateToTimeInterval(date: selectedDate ?? Date()), startTime: Date.computeTimeSinceStartOfDay(date: eventStartTime ?? Date()), endTime: Date.computeTimeSinceStartOfDay(date: eventEndTime ?? Date()), location: selectedLocationItem, color: selectedColor, notes: eventNotes, endDate: Date.convertCurrentDateToTimeInterval(date: selectedEndDate ?? Date()), repeatedDays: repeatedDays)
+                                    presentationMode.wrappedValue.dismiss()
+                                } else {
+                                    await scheduleViewModel.createEvent(title: title, startDate: Date.convertCurrentDateToTimeInterval(date: selectedDate ?? Date()), startTime: Date.computeTimeSinceStartOfDay(date: eventStartTime ?? Date()), endTime: Date.computeTimeSinceStartOfDay(date: eventEndTime ?? Date()), location: selectedLocationItem, color: selectedColor, notes: eventNotes, endDate: nil, repeatedDays: repeatedDays)
                                     presentationMode.wrappedValue.dismiss()
                                 }
                             }
@@ -751,18 +829,15 @@ struct CreateEventView: View {
                                         .tracking(0.1)
                                 }
                         }
-                        .frame(maxWidth: .infinity, minHeight: 45)
+                        .frame(maxWidth: .infinity, minHeight: 50)
                         .foregroundStyle(Color(hex: 0x3C859E))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .animation(.easeInOut(duration: 0.2), value: eventDateText)
-                    .keyboardHeight($keyboardHeight)
-                    .animation(.easeIn(duration: 0.16), value: keyboardHeight)
-                    .offset(y: -keyboardHeight / 2)
                 }
                 .padding(.horizontal, 25)
-                .defaultScrollAnchor(.top)
-                .defaultScrollAnchor(.top, for: .sizeChanges)
+                .defaultScrollAnchor(.top, for: .initialOffset)
+                .defaultScrollAnchor(.bottom, for: .sizeChanges)
                 .scrollDismissesKeyboard(.immediately)
                 .onTapGesture {
                     isFocused = nil
@@ -772,6 +847,7 @@ struct CreateEventView: View {
                 })
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.bottom)
         }
         .navigationBarBackButtonHidden(true)
     }
@@ -780,7 +856,7 @@ struct CreateEventView: View {
 struct AddInvitedUsers: View {
     
     @State var searchText: String = ""
-    @EnvironmentObject var scheduleViewModel: ScheduleViewModel
+    @ObservedObject var scheduleViewModel: ScheduleViewModel
     
     func checkForMatches() {
         print("Do something later")

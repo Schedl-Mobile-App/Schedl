@@ -9,7 +9,7 @@ import Foundation
 
 class EventViewModel: EventViewModelProtocol, ObservableObject {
     var currentUser: User
-    var selectedEvent: Event
+    var selectedEvent: RecurringEvents
     var invitedUsersForEvent: [User] = []
     @Published var isLoading: Bool = false      // Indicates loading state
     @Published var errorMessage: String?        // Holds error messages if any
@@ -18,7 +18,7 @@ class EventViewModel: EventViewModelProtocol, ObservableObject {
     private var scheduleService: ScheduleServiceProtocol
     private var eventService: EventServiceProtocol
     
-    init(currentUser: User, selectedEvent: Event, userService: UserServiceProtocol = UserService.shared, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared) {
+    init(currentUser: User, selectedEvent: RecurringEvents, userService: UserServiceProtocol = UserService.shared, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared) {
         self.currentUser = currentUser
         self.selectedEvent = selectedEvent
         self.userService = userService
@@ -51,7 +51,7 @@ class EventViewModel: EventViewModelProtocol, ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            try await eventService.deleteEvent(eventId: selectedEvent.id, scheduleId: selectedEvent.scheduleId)
+            try await eventService.deleteEvent(eventId: selectedEvent.event.id, scheduleId: selectedEvent.event.scheduleId)
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to delete event: \(error.localizedDescription)"
@@ -64,7 +64,7 @@ class EventViewModel: EventViewModelProtocol, ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            self.invitedUsersForEvent = try await userService.fetchUsers(userIds: selectedEvent.taggedUsers)
+            self.invitedUsersForEvent = try await userService.fetchUsers(userIds: selectedEvent.event.taggedUsers)
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to fetch invited users: \(error.localizedDescription)"

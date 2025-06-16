@@ -18,21 +18,11 @@ struct EventDetailsView: View {
     private let initialVisibleCount = 2
     
     var formattedDate: String {
-        let eventDate = Date(timeIntervalSince1970: eventViewModel.selectedEvent.eventDate)
+        let eventDate = Date(timeIntervalSince1970: eventViewModel.selectedEvent.date)
         return eventDate.formatted(date: .complete, time: .omitted)
     }
     
-    var formattedStartTime: String {
-        let eventDate = Date(timeIntervalSince1970: eventViewModel.selectedEvent.eventDate)
-        return eventDate.formatted(date: .omitted, time: .shortened)
-    }
-    
-    var formattedEndTime: String {
-        let eventDate = Date(timeIntervalSince1970: eventViewModel.selectedEvent.eventDate + eventViewModel.selectedEvent.eventDate)
-        return eventDate.formatted(date: .omitted, time: .shortened)
-    }
-    
-    init(event: Event, currentUser: User) {
+    init(event: RecurringEvents, currentUser: User) {
         _eventViewModel = StateObject(wrappedValue: EventViewModel(currentUser: currentUser, selectedEvent: event))
     }
 
@@ -90,7 +80,7 @@ struct EventDetailsView: View {
                                     .imageScale(.medium)
                                     .fontWeight(.bold)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("\(eventViewModel.selectedEvent.title)")
+                                    Text("\(eventViewModel.selectedEvent.event.title)")
                                         .font(.headline)
                                         .fontWeight(.bold)
                                         .fontDesign(.monospaced)
@@ -126,8 +116,8 @@ struct EventDetailsView: View {
                                     .imageScale(.medium)
                                     .fontWeight(.bold)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    let formattedStartTime = returnTimeFormatted(timeObj: eventViewModel.selectedEvent.startTime)
-                                    let formattedEndTime = returnTimeFormatted(timeObj: eventViewModel.selectedEvent.endTime)
+                                    let formattedStartTime = returnTimeFormatted(timeObj: eventViewModel.selectedEvent.event.startTime)
+                                    let formattedEndTime = returnTimeFormatted(timeObj: eventViewModel.selectedEvent.event.endTime)
                                     Text("\(formattedDate)")
                                         .font(.headline)
                                         .fontWeight(.bold)
@@ -165,13 +155,13 @@ struct EventDetailsView: View {
                                     .imageScale(.medium)
                                     .fontWeight(.bold)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("\(eventViewModel.selectedEvent.locationName)")
+                                    Text("\(eventViewModel.selectedEvent.event.locationName)")
                                         .font(.headline)
                                         .fontWeight(.bold)
                                         .fontDesign(.monospaced)
                                         .tracking(0.1)
                                         .foregroundStyle(Color(hex: 0x333333))
-                                    Text("\(eventViewModel.selectedEvent.locationAddress)")
+                                    Text("\(eventViewModel.selectedEvent.event.locationAddress)")
                                         .font(.footnote)
                                         .fontWeight(.bold)
                                         .fontDesign(.monospaced)
@@ -212,7 +202,7 @@ struct EventDetailsView: View {
                                     .tracking(1.15)
                                     .foregroundStyle(Color(hex: 0x333333))
                                 Spacer()
-                                Text("(\(eventViewModel.selectedEvent.taggedUsers.count))")
+                                Text("(\(eventViewModel.selectedEvent.event.taggedUsers.count))")
                                     .font(.headline)
                                     .fontWeight(.medium)
                                     .fontDesign(.monospaced)
@@ -220,7 +210,7 @@ struct EventDetailsView: View {
                                     .foregroundStyle(Color(hex: 0x333333))
                             }
 
-                            if !eventViewModel.selectedEvent.taggedUsers.isEmpty {
+                            if !eventViewModel.selectedEvent.event.taggedUsers.isEmpty {
                                 VStack(alignment: .leading, spacing: 0) {
                                     ForEach(Array(eventViewModel.invitedUsersForEvent.enumerated()), id: \.element.id) { index, user in
                                         if isExpanded || index < initialVisibleCount {
@@ -234,14 +224,14 @@ struct EventDetailsView: View {
                                     }
                                 }
 
-                                if eventViewModel.selectedEvent.taggedUsers.count > initialVisibleCount {
+                                if eventViewModel.selectedEvent.event.taggedUsers.count > initialVisibleCount {
                                     Button(action: {
                                         withAnimation(.easeInOut(duration: 0.3)) {
                                             isExpanded.toggle()
                                         }
                                     }) {
                                         HStack {
-                                            Text(isExpanded ? "Show Less" : "Show \(eventViewModel.selectedEvent.taggedUsers.count - initialVisibleCount) More")
+                                            Text(isExpanded ? "Show Less" : "Show \(eventViewModel.selectedEvent.event.taggedUsers.count - initialVisibleCount) More")
                                             Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
                                                 .imageScale(.medium)
                                         }
@@ -284,7 +274,7 @@ struct EventDetailsView: View {
         .navigationBarBackButtonHidden(true)
         .fullScreenCover(isPresented: $showMapSheet) {
             NavigationView {
-                SelectedLocationView(desiredPlacemark: MTPlacemark(name: eventViewModel.selectedEvent.locationName, address: eventViewModel.selectedEvent.locationAddress, latitude: eventViewModel.selectedEvent.latitude, longitude: eventViewModel.selectedEvent.longitude))
+                SelectedLocationView(desiredPlacemark: MTPlacemark(name: eventViewModel.selectedEvent.event.locationName, address: eventViewModel.selectedEvent.event.locationAddress, latitude: eventViewModel.selectedEvent.event.latitude, longitude: eventViewModel.selectedEvent.event.longitude))
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             Button("Done") {

@@ -7,64 +7,102 @@
 
 import SwiftUI
 
-struct RequestCell: View {
-    
-    @EnvironmentObject var notificationViewModel: NotificationViewModel
-    let request: FriendRequest
+struct NotificationCell: View {
+    let notificationViewModel: NotificationViewModel
+    let notification: Notification
     
     var body: some View {
         HStack(spacing: 12) {
-            // Profile Image
+            // Avatar or icon
             Circle()
                 .fill(Color.gray.opacity(0.2))
                 .frame(width: 50, height: 50)
                 .overlay(
-                    Image(systemName: "person.fill")
-                        .foregroundStyle(.gray)
+                    Group {
+                        switch notification.notificationPayload {
+                        case .friendRequest(let fr):
+                            // Show sender's profile image if available
+                            if let url = URL(string: fr.senderProfileImage) {
+                                AsyncImage(url: url) { image in
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                } placeholder: {
+                                    Image(systemName: "person.fill")
+                                        .foregroundStyle(.gray)
+                                }
+                            } else {
+                                Image(systemName: "person.fill")
+                                    .foregroundStyle(.gray)
+                            }
+                        case .eventInvite:
+                            // Use a calendar icon for event invites
+                            Image(systemName: "calendar")
+                                .foregroundStyle(.gray)
+                        }
+                    }
                 )
             
-            // Name
-            Text(request.senderName)
-                .font(.headline)
+            // Textual info
+            VStack(alignment: .leading, spacing: 4) {
+                switch notification.notificationPayload {
+                case .friendRequest(let fr):
+                    Text("\(fr.senderName) sent you a friend request")
+                        .font(.headline)
+                case .eventInvite(let ev):
+                    Text("\(ev.senderName) invited you to an event")
+                        .font(.headline)
+                }
+                
+                // Relative time label
+                Text(
+                    Date(timeIntervalSince1970: notification.creationDate),
+                    style: .relative
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
             
             Spacer()
             
-            // Accept/Decline Buttons
+            // Action buttons
             HStack(spacing: 8) {
-                Button(action: {
+                Button("Accept") {
                     Task {
-                        await notificationViewModel.handleFriendRequestResponse(requestId: request.id, accepted: true)
+                        await notificationViewModel.handleNotificationResponse(
+                            id: notification.id,
+                            responseStatus: true
+                        )
                     }
-                }) {
-                    Text("Accept")
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .frame(width: 80)
+                .padding(.vertical, 6)
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 
-                Button(action: {
+                Button("Decline") {
                     Task {
-                        await notificationViewModel.handleFriendRequestResponse(requestId: request.id, accepted: false)
+                        await notificationViewModel.handleNotificationResponse(
+                            id: notification.id,
+                            responseStatus: false
+                        )
                     }
-                }) {
-                    Text("Decline")
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .background(Color.red)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .frame(width: 80)
+                .padding(.vertical, 6)
+                .background(Color.red)
+                .foregroundColor(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
         .padding()
-        .background(Color.black.opacity(0.5))
+        .background(Color(UIColor.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
     }
 }
+
 
 struct NotificationsView: View {
     @StateObject var notificationViewModel: NotificationViewModel
@@ -101,21 +139,30 @@ struct NotificationsView: View {
                 // Friend Request List
                 ScrollView {
                     LazyVStack(spacing: 16) {
-                        ForEach(notificationViewModel.friendRequests) { request in
-                            RequestCell(request: request)
+                        ForEach(notificationViewModel.notifications) { notification in
+                            NotificationCell(notificationViewModel: notificationViewModel, notification: notification)
+                                .padding()
                         }
-                        .padding()
+                    }
+                    .onChange(of: notificationViewModel.notifications) { newArr in
+                      print("LazyVStack now has \(newArr.count) items")
                     }
                 }
             }
-        }
-        .environmentObject(notificationViewModel)
-        .navigationBarBackButtonHidden(true)
-        .toolbar(showTabbar ? .visible : .hidden, for: .tabBar)
-        .onAppear{
-            Task {
-                await notificationViewModel.fetchFriendRequests()
+            .task {
+                await notificationViewModel.fetchNotifications()
+            }
+            .onAppear{
+                notificationViewModel.setupNotificationObserver()
+            }
+            .onDisappear {
+                notificationViewModel.removeNotificationObserver()
+            }
+            .onChange(of: notificationViewModel.notifications) { newValue in
+                print("Capturing the chnages in the view")
             }
         }
+        .navigationBarBackButtonHidden(true)
+        .toolbar(showTabbar ? .visible : .hidden, for: .tabBar)
     }
 }
