@@ -20,9 +20,11 @@ class EventCell: UIView {
     weak var viewModel: ScheduleViewModel?
     weak var rootVC: UIViewController?
     
-    var event: Event?
+    var event: RecurringEvents?
     let eventCell = UIButton()
     let titleLabel = UILabel()
+    let startTimeLabel = UILabel()
+    let endTimeLabel = UILabel()
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -32,51 +34,75 @@ class EventCell: UIView {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func configureUI(viewModel: ScheduleViewModel, event: Event, rootVC: UIViewController) {
+    func configureUI(viewModel: ScheduleViewModel, event: RecurringEvents, rootVC: UIViewController) {
         
         self.viewModel = viewModel
         self.event = event
         self.rootVC = rootVC
         
-        shadowBackgroundColor = UIColor(Color(hex: Int(event.color, radix: 16)!))
-        
+        shadowBackgroundColor = UIColor(Color(hex: Int(event.event.color, radix: 16)!))
+                
 //        eventCell.configuration = .filled()
 //        eventCell.configuration?.baseBackgroundColor = shadowBackgroundColor
         eventCell.translatesAutoresizingMaskIntoConstraints = false
         eventCell.configuration = .filled()
-        eventCell.configuration?.baseBackgroundColor = .clear
-        
-        self.backgroundColor = .clear
-        
-        let gradient = CAGradientLayer()
-        gradient.frame = self.bounds
-        gradient.colors = [shadowBackgroundColor.withAlphaComponent(0.8).cgColor, shadowBackgroundColor.withAlphaComponent(1).cgColor]
-        gradient.startPoint = CGPoint.zero
-        gradient.endPoint = CGPoint(x: 1, y: 1)
-
-        self.layer.insertSublayer(gradient, at: 0)
-        
-        
+        eventCell.configuration?.baseBackgroundColor = shadowBackgroundColor.withAlphaComponent(0.90)
+        eventCell.layer.cornerRadius = cornerRadius
+                
         eventCell.addTarget(self, action: #selector(showEventDetails), for: .touchUpInside)
         
         addSubview(eventCell)
         
-        titleLabel.text = event.title
-        titleLabel.textAlignment = .center
-        titleLabel.textColor = .white
+        titleLabel.text = event.event.title
+        titleLabel.textAlignment = .left
+        titleLabel.textColor = UIColor(Color(hex: 0xf7f4f2))
         titleLabel.backgroundColor = .clear
-        titleLabel.numberOfLines = 0 // Allow unlimited lines initially for calculation
+//        titleLabel.numberOfLines = 0 // Allow unlimited lines initially for calculation
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         // Calculate optimal font size based on content and available space
-        let optimalFont = calculateOptimalFont(for: event.title, in: frame.size)
-        titleLabel.font = optimalFont
+//        let titleOptimalFont = calculateOptimalFont(for: event.event.title, in: frame.size)
+//        titleLabel.font = titleOptimalFont
+        titleLabel.font = UIFont.systemFont(ofSize: 10, weight: .heavy)
         titleLabel.adjustsFontSizeToFitWidth = true
 
         // Set final number of lines based on height
-        titleLabel.numberOfLines = calculateMaxLines(for: frame.height, fontSize: optimalFont.pointSize)
+        titleLabel.numberOfLines = calculateMaxLines(for: frame.height)
         
         eventCell.addSubview(titleLabel)
+                
+        startTimeLabel.text = "\(Date.convertHourAndMinuteToDate(time: event.event.startTime).formatted(date: .omitted, time: .shortened))-"
+        
+        startTimeLabel.textAlignment = .left
+        startTimeLabel.textColor = UIColor(Color(hex: 0xf7f4f2))
+        startTimeLabel.backgroundColor = .clear
+        startTimeLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        // Calculate optimal font size based on content and available space
+//        let timeOptimalFont = calculateOptimalFont(for: timeString, in: frame.size)
+//        timeLabel.font = timeOptimalFont
+        startTimeLabel.font = .systemFont(ofSize: 10, weight: .bold)
+//        timeLabel.adjustsFontSizeToFitWidth = true
+        
+        endTimeLabel.text = "\(Date.convertHourAndMinuteToDate(time: event.event.endTime).formatted(date: .omitted, time: .shortened))"
+        endTimeLabel.textAlignment = .left
+        endTimeLabel.textColor = UIColor(Color(hex: 0xf7f4f2))
+        endTimeLabel.backgroundColor = .clear
+        endTimeLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        // Calculate optimal font size based on content and available space
+//        let timeOptimalFont = calculateOptimalFont(for: timeString, in: frame.size)
+//        timeLabel.font = timeOptimalFont
+        endTimeLabel.font = .systemFont(ofSize: 10, weight: .bold)
+//        timeLabel.adjustsFontSizeToFitWidth = true
+            
+        let hideTimeLabels = frame.size.height > 40
+        startTimeLabel.isHidden = !hideTimeLabels
+        endTimeLabel.isHidden = !hideTimeLabels
+        
+        eventCell.addSubview(startTimeLabel)
+        eventCell.addSubview(endTimeLabel)
+            
         
         NSLayoutConstraint.activate([
             eventCell.topAnchor.constraint(equalTo: topAnchor),
@@ -84,10 +110,17 @@ class EventCell: UIView {
             eventCell.leadingAnchor.constraint(equalTo: leadingAnchor),
             eventCell.trailingAnchor.constraint(equalTo: trailingAnchor),
             
-            titleLabel.centerXAnchor.constraint(equalTo: eventCell.centerXAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: eventCell.centerYAnchor),
-            titleLabel.leadingAnchor.constraint(greaterThanOrEqualTo: eventCell.leadingAnchor, constant: 4),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: eventCell.trailingAnchor, constant: -4)
+            titleLabel.leadingAnchor.constraint(equalTo: eventCell.leadingAnchor, constant: 2),
+            titleLabel.trailingAnchor.constraint(equalTo: eventCell.trailingAnchor, constant: -2),
+            titleLabel.topAnchor.constraint(equalTo: eventCell.topAnchor, constant: 5),
+            
+            startTimeLabel.leadingAnchor.constraint(equalTo: eventCell.leadingAnchor, constant: 2),
+            startTimeLabel.trailingAnchor.constraint(equalTo: eventCell.trailingAnchor, constant: -2),
+            startTimeLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 3),
+            
+            endTimeLabel.leadingAnchor.constraint(equalTo: eventCell.leadingAnchor, constant: 2),
+            endTimeLabel.trailingAnchor.constraint(equalTo: eventCell.trailingAnchor, constant: -2),
+            endTimeLabel.topAnchor.constraint(equalTo: startTimeLabel.bottomAnchor, constant: -2),
         ])
     }
     
@@ -130,8 +163,8 @@ class EventCell: UIView {
             shadowLayer = CAShapeLayer()
             
             shadowLayer.path = UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).cgPath
-//            shadowLayer.backgroundColor = shadowBackgroundColor.cgColor
-            shadowLayer.backgroundColor = UIColor.clear.cgColor
+            shadowLayer.backgroundColor = shadowBackgroundColor.withAlphaComponent(0.95).cgColor
+            shadowLayer.cornerRadius = cornerRadius
             
             shadowLayer.shadowPath   = shadowLayer.path
             shadowLayer.shadowColor  = UIColor.black.cgColor
@@ -173,57 +206,57 @@ class EventCell: UIView {
 //        if let value = hexString
 //    }
     
-    private func calculateOptimalFont(for text: String, in size: CGSize) -> UIFont {
-        let availableHeight = size.height - 8 // Account for padding
-        let availableWidth = size.width - 8
-        
-        // Start with base font size
-        var fontSize = calculateOptimalFontSize(for: size.height)
-        
-        while fontSize > 8 { // Minimum readable size
-            let font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
-            let attributes = [NSAttributedString.Key.font: font]
-            
-            // Calculate text size with current font
-            let textSize = text.boundingRect(
-                with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
-                options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: attributes,
-                context: nil
-            ).size
-            
-            // Calculate number of lines needed
-            let linesNeeded = ceil(textSize.height / font.lineHeight)
-            let totalHeight = linesNeeded * font.lineHeight
-            
-            // If text fits, use this font size
-            if totalHeight <= availableHeight {
-                return font
-            }
-            
-            // Reduce font size and try again
-            fontSize -= 1
-        }
-        
-        return UIFont.systemFont(ofSize: 8, weight: .bold)
-    }
+//    private func calculateOptimalFont(for text: String, in size: CGSize) -> UIFont {
+//        let availableHeight = size.height - 8 // Account for padding
+//        let availableWidth = size.width - 8
+//        
+//        // Start with base font size
+//        var fontSize = calculateOptimalFontSize(for: size.height)
+//        
+//        while fontSize > 8 { // Minimum readable size
+//            let font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
+//            let attributes = [NSAttributedString.Key.font: font]
+//            
+//            // Calculate text size with current font
+//            let textSize = text.boundingRect(
+//                with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
+//                options: [.usesLineFragmentOrigin, .usesFontLeading],
+//                attributes: attributes,
+//                context: nil
+//            ).size
+//            
+//            // Calculate number of lines needed
+//            let linesNeeded = ceil(textSize.height / font.lineHeight)
+//            let totalHeight = linesNeeded * font.lineHeight
+//            
+//            // If text fits, use this font size
+//            if totalHeight <= availableHeight {
+//                return font
+//            }
+//            
+//            // Reduce font size and try again
+//            fontSize -= 1
+//        }
+//        
+//        return UIFont.systemFont(ofSize: 8, weight: .bold)
+//    }
 
-    private func calculateMaxLines(for height: CGFloat, fontSize: CGFloat) -> Int {
+    private func calculateMaxLines(for height: CGFloat, fontSize: CGFloat = 10) -> Int {
         let lineHeight = UIFont.systemFont(ofSize: fontSize, weight: .heavy).lineHeight
         let availableHeight = height - 8 // Account for padding
         return max(1, Int(availableHeight / lineHeight))
     }
 
-    private func calculateOptimalFontSize(for height: CGFloat) -> CGFloat {
-        switch height {
-        case 0..<30:
-            return 10
-        case 30..<50:
-            return 11
-        case 50..<80:
-            return 12
-        default:
-            return 13
-        }
-    }
+//    private func calculateOptimalFontSize(for height: CGFloat) -> CGFloat {
+//        switch height {
+//        case 0..<30:
+//            return 10
+//        case 30..<50:
+//            return 10
+//        case 50..<80:
+//            return 10
+//        default:
+//            return 10
+//        }
+//    }
 }

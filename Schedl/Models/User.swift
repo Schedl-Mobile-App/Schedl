@@ -24,3 +24,5 @@ struct User: Codable, Identifiable, Equatable {
         self.creationDate = creationDate
     }
 }
+
+//let mockUser: User = User(id: "1", username: "djay0628", email: "djay0628@gmail.com", displayName: "David Medina", profileImage: "pic1", creationDate: 123.0)

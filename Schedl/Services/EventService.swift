@@ -34,19 +34,23 @@ class EventService: EventServiceProtocol {
         let latitude = eventData["latitude"] as? Double ?? 0.0
         let longitude = eventData["longitude"] as? Double ?? 0.0
         let taggedUsers = eventData["taggedUsers"] as? [String] ?? []
+        let endDate = eventData["endDate"] as? Double
+        let repeatedDays = eventData["repeatingDays"] as? [String]
+        let notes = eventData["notes"] as? String ?? ""
         
         // only create a user object if we receive all parameters from the DB
         if
             let id = eventData["id"] as? String,
+            let userId = eventData["userId"] as? String,
             let scheduleId = eventData["scheduleId"] as? String,
             let title = eventData["title"] as? String,
-            let eventDate = eventData["eventDate"] as? Double,
+            let startDate = eventData["startDate"] as? Double,
             let startTime = eventData["startTime"] as? Double,
             let endTime = eventData["endTime"] as? Double,
             let createdAt = eventData["creationDate"] as? Double,
             let eventColor = eventData["color"] as? String {
             
-            let event = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: locationName, locationAddress: locationAddress, latitude: latitude, longitude: longitude, taggedUsers: taggedUsers, color: eventColor)
+            let event = Event(id: id, userId: userId, scheduleId: scheduleId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: locationName, locationAddress: locationAddress, latitude: latitude, longitude: longitude, taggedUsers: taggedUsers, color: eventColor, notes: notes, endDate: endDate, repeatingDays: repeatedDays)
             return event
             
         } else {
@@ -117,15 +121,16 @@ class EventService: EventServiceProtocol {
         }
     }
     
-    func createEvent(scheduleId: String, userId: String, title: String, eventDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, taggedUsers: [String], color: String) async throws -> Void {
+    func createEvent(scheduleId: String, userId: String, title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, endDate: Double? = nil, repeatedDays: [String]? = nil) async throws -> String {
         
         let id = ref.child("events").childByAutoId().key ?? UUID().uuidString
         let createdAt = Date().timeIntervalSince1970
-
-        let eventObj = Event(id: id, scheduleId: scheduleId, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: location.name, locationAddress: location.address, latitude: location.latitude, longitude: location.longitude, taggedUsers: taggedUsers, color: color)
+        
+        let eventObj = Event(id: id, userId: userId, scheduleId: scheduleId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: location.name, locationAddress: location.address, latitude: location.latitude, longitude: location.longitude, taggedUsers: [], color: color, notes: notes, endDate: endDate, repeatingDays: repeatedDays)
                 
         let encoder = JSONEncoder()
         do {
+            print("i'm making it here at least")
             // Encode the Schedule object into JSON data
             let jsonData = try encoder.encode(eventObj)
             
@@ -135,14 +140,7 @@ class EventService: EventServiceProtocol {
                 throw EventServiceError.eventDataSerializationFailed
             }
             
-//            try await withThrowingTaskGroup { group in
-//                for userId in taggedUsers {
-//                    group.addTask {
-//                        try await
-//                    }
-//                }
-//            }
-            
+            // this is the update for the user who created the event
             let updates: [String: Any] = [
                 "/events/\(id)": jsonDictionary,
                 "/schedules/\(scheduleId)/eventIds/\(id)" : true,
@@ -152,7 +150,10 @@ class EventService: EventServiceProtocol {
             // Perform atomic update
             try await ref.updateChildValues(updates)
             
+            return id
+            
         } catch {
+            print("Error creating event")
             throw FirebaseError.failedToCreateEvent
         }
     }
@@ -221,6 +222,6 @@ class EventService: EventServiceProtocol {
         
         let events = try await fetchEventsByUserId(userId: userId)
         
-        return events.filter { $0.eventDate >= currentDay }
+        return events.filter { $0.startDate >= currentDay }
     }
 }

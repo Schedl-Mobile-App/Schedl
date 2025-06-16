@@ -6,7 +6,7 @@
 //
 
 protocol EventViewModelProtocol {
-    var selectedEvent: Event { get set }
+    var selectedEvent: RecurringEvents { get set }
     var currentUser: User { get set }
     
     //    func updateEvent(title: String, eventDate: Double, startTime: Double, endTime: Double) async

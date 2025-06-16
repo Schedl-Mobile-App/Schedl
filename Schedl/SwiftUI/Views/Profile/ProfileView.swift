@@ -47,7 +47,7 @@ struct ProfileView: View {
                             }
                             Spacer()
                             NavigationLink(destination: NotificationsView(currentUser: profileViewModel.currentUser)) {
-                                Image(systemName: "bell")
+                                Image(systemName: "gearshape")
                                     .font(.system(size: 26, weight: .medium))
                                     .foregroundStyle(Color(hex: 0x333333))
                             }
@@ -55,6 +55,11 @@ struct ProfileView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal)
                     } else {
+                        Text("Profile")
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(hex: 0x333333))
+                            .tracking(0.001)
+                        
                         HStack {
                             Button(action: {
                                 presentationMode.wrappedValue.dismiss()
@@ -67,9 +72,7 @@ struct ProfileView: View {
                             }
                             Spacer()
                             Button(action: {
-                                Task {
-                                    profileViewModel.showAddFriendModal.toggle()
-                                }
+                                profileViewModel.showAddFriendModal.toggle()
                             }) {
                                 Image(systemName: "person.badge.plus")
                                     .font(.system(size: 24, weight: .medium))
@@ -85,13 +88,14 @@ struct ProfileView: View {
                 }
                 
                 VStack(spacing: 8) {
-                    UserProfileImage()
-                    UserDisplayName()
+                    UserProfileImage(profileViewModel: profileViewModel)
+                    UserDisplayName(profileViewModel: profileViewModel)
                 }
                 
                 ProfileInformatics()
+                    .environmentObject(profileViewModel)
                 
-                UserViewOptions()
+                UserViewOptions(profileViewModel: profileViewModel)
                 
                 if profileViewModel.isCurrentUser || profileViewModel.isViewingFriend {
                     switch profileViewModel.selectedTab {
@@ -100,7 +104,7 @@ struct ProfileView: View {
                             LazyVStack(spacing: 10) {
                                 let sortedKeys = Array(profileViewModel.partitionedEvents.keys).sorted(by: <)
                                 ForEach(sortedKeys, id: \.self) { key in
-                                    ScheduleEventCards(key: key)
+                                    ScheduleEventCards(profileViewModel: profileViewModel, key: key)
                                 }
                             }
                         }
@@ -135,14 +139,24 @@ struct ProfileView: View {
                             ScrollView(.vertical, showsIndicators: false) {
                                 LazyVStack(spacing: 10) {
                                     switch selectedType {
-                                    case 0: ForEach(profileViewModel.currentEvents) { EventCard(event: $0) }
-                                    case 1: ForEach(profileViewModel.invitedEvents) { EventCard(event: $0) }
-                                    case 2: ForEach(profileViewModel.pastEvents)    { EventCard(event: $0) }
+                                    case 0: ForEach(profileViewModel.currentEvents, id: \.self.id) { event in
+                                        if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
+                                            
+                                            EventCard(event: event, profileViewModel: profileViewModel)
+                                        }
+                                    }
+                                    case 1: ForEach(profileViewModel.invitedEvents, id: \.self.id) { event in
+                                        if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
+                                            
+                                            EventCard(event: event, profileViewModel: profileViewModel)
+                                        }
+                                    }
+                                    case 2: ForEach(profileViewModel.pastEvents, id: \.self.id) { EventCard(event: $0, profileViewModel: profileViewModel) }
                                     default: EmptyView()
                                     }
                                 }
+                                .frame(maxHeight: .infinity)
                             }
-                            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                             .padding(.horizontal, 25)
                             .layoutPriority(1)
                         }
@@ -167,7 +181,7 @@ struct ProfileView: View {
                     Color(.black.opacity(0.7))
                         .ignoresSafeArea()
                     
-                    AddFriendModal()
+                    AddFriendModal(profileViewModel: profileViewModel)
                 }
             }
             
@@ -176,26 +190,27 @@ struct ProfileView: View {
                     Color(.black.opacity(0.7))
                         .ignoresSafeArea()
                     
-                    SaveChangesForm()
+                    SaveChangesForm(profileViewModel: profileViewModel)
                 }
             }
         }
         .navigationBarBackButtonHidden(true)
         .background(Color(hex: 0xf7f4f2))
-        .environmentObject(profileViewModel)
-        .onAppear {
-            Task {
-                await profileViewModel.loadViewData()
-            }
+        .task {
+            if profileViewModel.hasLoadedData { return }
+            await profileViewModel.loadViewData()
+        }
+        .onDisappear {
+            profileViewModel.hasLoadedData.toggle()
         }
     }
 }
 
 struct EventCard: View {
     
-    let event: Event
+    let event: RecurringEvents
     
-    @EnvironmentObject var profileViewModel: ProfileViewModel
+    @ObservedObject var profileViewModel: ProfileViewModel
     let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     
@@ -217,10 +232,10 @@ struct EventCard: View {
             
         let todayStart = Date.convertCurrentDateToTimeInterval(date: Date())
         let tomorrowStart = todayStart + 86400
-        let blockDate = Date(timeIntervalSince1970: event.eventDate)
+        let blockDate = Date(timeIntervalSince1970: event.date)
         let dayText: String = {
-            if event.eventDate == todayStart     { return "Today" }
-            if event.eventDate == tomorrowStart  { return "Tomorrow" }
+            if event.date == todayStart     { return "Today" }
+            if event.date == tomorrowStart  { return "Tomorrow" }
             let wd = Calendar.current.component(.weekday, from: blockDate)
             return weekdays[wd-1]
         }()
@@ -231,43 +246,49 @@ struct EventCard: View {
         NavigationLink(destination: EventDetailsView(event: event, currentUser: profileViewModel.currentUser)) {
             HStack(alignment: .top, spacing: 20) {
                 VStack( alignment: .leading, spacing: 8) {
-                    Text("\(event.title)")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .tracking(1.15)
+                    Text("\(event.event.title)")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .fontDesign(.monospaced)
+                        .tracking(-0.25)
                         .foregroundStyle(Color(hex: 0x333333))
                         .lineLimit(1)
                         .truncationMode(.tail)
                     
                     HStack(spacing: 8) {
-                        //                    Image(systemName: "calendar")
-                        //                        .font(.system(size: 14, weight: .bold, design: .monospaced))
                         Text("📆")
-                            .font(.system(size: 14))
+                            .font(.footnote)
                         HStack(spacing: 0) {
-                            let formattedTime = returnTimeFormatted(timeObj: event.startTime)
+                            let formattedTime = returnTimeFormatted(timeObj: event.event.startTime)
                             Text("\(dayText), \(monthName) \(String(format: "%02d", dayOfMonth)) - ")
-                                .font(.system(size: 13, weight: .medium, design: .rounded))
-                                .tracking(1.15)
+                                .font(.footnote)
+                                .fontWeight(.semibold)
+                                .fontDesign(.rounded)
+                                .tracking(0.75)
                                 .foregroundStyle(Color(hex: 0x666666))
+                                .multilineTextAlignment(.leading)
                             
                             Text("\(formattedTime)")
-                                .font(.system(size: 13, weight: .medium, design: .rounded))
-                                .tracking(1.05)
+                                .font(.footnote)
+                                .fontWeight(.semibold)
+                                .fontDesign(.rounded)
+                                .tracking(0.75)
                                 .foregroundStyle(Color(hex: 0x666666))
+                                .multilineTextAlignment(.leading)
                         }
                     }
                     
-                    HStack {
-                        //                    Image(systemName: "mappin")
-                        //                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    HStack(spacing: 8) {
                         Text("📍")
-                            .font(.system(size: 14))
+                            .font(.footnote)
                         
-                        Text(event.locationAddress)
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .lineLimit(1)
-                            .tracking(1.15)
+                        Text(event.event.locationAddress)
+                            .font(.footnote)
+                            .fontWeight(.semibold)
+                            .fontDesign(.rounded)
+                            .tracking(0.75)
                             .foregroundStyle(Color(hex: 0x666666))
+                            .multilineTextAlignment(.leading)
                     }
                     
                     Spacer()
@@ -282,7 +303,7 @@ struct EventCard: View {
                 ZStack(alignment: .leading) {
                     Color.white
                     
-                    Color(hex: Int(event.color, radix: 16)!)
+                    Color(hex: Int(event.event.color, radix: 16)!)
                         .frame(width: 7)
                         .frame(maxHeight: .infinity)
                 }
@@ -294,7 +315,7 @@ struct EventCard: View {
 
 struct SaveChangesForm: View {
     
-    @EnvironmentObject var profileViewModel: ProfileViewModel
+    @ObservedObject var profileViewModel: ProfileViewModel
     
     var body: some View {
         VStack(alignment: .center, spacing: 20) {
@@ -403,9 +424,6 @@ struct ProfileInformatics: View {
                 .padding(.horizontal)
                 
             }
-            .onAppear {
-                
-            }
             .frame(maxWidth: .infinity, maxHeight: 70, alignment: .center)
             .padding(.horizontal, 50)
     }
@@ -413,7 +431,7 @@ struct ProfileInformatics: View {
 
 struct UserViewOptions: View {
     
-    @EnvironmentObject var profileViewModel: ProfileViewModel
+    @ObservedObject var profileViewModel: ProfileViewModel
         
     var body: some View {
         ZStack {
@@ -450,11 +468,11 @@ struct UserViewOptions: View {
 
 struct ScheduleEventCards: View {
     
-    @EnvironmentObject var profileViewModel: ProfileViewModel
+    @ObservedObject var profileViewModel: ProfileViewModel
     let key: Double
     let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-    let todayStart = Date.convertCurrentDateToTimeInterval(date: Date())
+    let todayStart = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
     
     func returnTimeFormatted(timeObj: Double) -> String {
         let hours = Int(timeObj / 3600)
@@ -477,7 +495,7 @@ struct ScheduleEventCards: View {
     
     var body: some View {
         
-        let events = profileViewModel.partitionedEvents[key] ?? []
+        let recurringEvents: [RecurringEvents] = profileViewModel.partitionedEvents[key] ?? []
         let tomorrowStart = todayStart + 86400
         let blockDate = Date(timeIntervalSince1970: key)
         let dayText: String = {
@@ -495,7 +513,7 @@ struct ScheduleEventCards: View {
                 HStack {
                     Text(dayText)
                         .font(.system(size: 15, weight: .bold, design: .monospaced))
-                        .tracking(0.1)
+                        .tracking(-0.25)
                         .foregroundStyle(Color(hex: 0x333333))
                         .multilineTextAlignment(.leading)
                     
@@ -507,16 +525,16 @@ struct ScheduleEventCards: View {
                         .lineLimit(1)
                 }
                 
-                ForEach(events, id: \.id) { event in
+                ForEach(recurringEvents, id: \.self.id) { event in
                     HStack(spacing: 12) {
-                        let formattedTime = returnTimeFormatted(timeObj: event.startTime)
-                        Text("\(event.title)")
+                        let formattedTime = returnTimeFormatted(timeObj: event.event.startTime)
+                        Text("\(event.event.title)")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(Color(hex: 0x333333))
-                            .tracking(1.15)
+                            .tracking(1)
                             .lineLimit(1)
                             .truncationMode(.tail)
-                            .strikethrough(eventHasEnded(startTime: event.startTime, date: event.eventDate), color: Color(.black))
+                            .strikethrough(eventHasEnded(startTime: event.event.startTime, date: event.date), color: Color(.black))
                         
                         Spacer(minLength: 6)
 
@@ -526,7 +544,7 @@ struct ScheduleEventCards: View {
                             .foregroundStyle(Color(hex: 0x666666))
                             .lineLimit(1)
                             .truncationMode(.tail)
-                            .strikethrough(eventHasEnded(startTime: event.startTime, date: event.eventDate), color: Color(.black))
+                            .strikethrough(eventHasEnded(startTime: event.event.startTime, date: event.date), color: Color(.black))
                     }
                 }
             }
@@ -550,7 +568,7 @@ struct ScheduleEventCards: View {
 
 struct UserProfileImage: View {
     
-    @EnvironmentObject var profileViewModel: ProfileViewModel
+    @ObservedObject var profileViewModel: ProfileViewModel
     @State private var pickerItem: PhotosPickerItem?
     
     var body: some View {
@@ -617,7 +635,7 @@ struct UserProfileImage: View {
 
 struct UserDisplayName: View {
     
-    @EnvironmentObject var profileViewModel: ProfileViewModel
+    @ObservedObject var profileViewModel: ProfileViewModel
     @State var isEditingProfile = false
     @State var isEditingUsername = false
     

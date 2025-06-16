@@ -65,15 +65,15 @@ class CollectionViewDaysHeader: UIView {
         
         // Create and add borders to the container (left, right, bottom)
         let leftBorder = UIView()
-        leftBorder.backgroundColor = UIColor(Color(hex: 0x666666))
+        leftBorder.backgroundColor = UIColor(Color.black.opacity(0.30))
         leftBorder.translatesAutoresizingMaskIntoConstraints = false
         
         let rightBorder = UIView()
-        rightBorder.backgroundColor = UIColor(Color(hex: 0x666666))
+        rightBorder.backgroundColor = UIColor(Color.black.opacity(0.30))
         rightBorder.translatesAutoresizingMaskIntoConstraints = false
         
         let bottomBorder = UIView()
-        bottomBorder.backgroundColor = UIColor(Color(hex: 0x666666))
+        bottomBorder.backgroundColor = UIColor(Color.black.opacity(0.30))
         bottomBorder.translatesAutoresizingMaskIntoConstraints = false
         
         containerView.addSubview(leftBorder)
@@ -136,13 +136,6 @@ class CollectionViewDaysHeader: UIView {
     }
     
     func addNextDates(updatedDayList: [Date]) {
-        
-        // since we're adding 29 dates to the front, we need to remove
-        // 30 dates from the back, so I do this extra one here first
-//        if let viewToRemove = stackView.arrangedSubviews.first {
-//            viewToRemove.removeFromSuperview()
-//            stackView.removeArrangedSubview(viewToRemove)
-//        }
         
         for index in updatedDayList.indices {
             if let viewToRemove = stackView.arrangedSubviews.first {

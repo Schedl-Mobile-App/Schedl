@@ -10,7 +10,7 @@ import FirebaseStorage
 import UIKit
 
 class UserService: UserServiceProtocol {
-
+    
     static let shared = UserService()
     let ref: DatabaseReference
     let storage: Storage
@@ -59,7 +59,7 @@ class UserService: UserServiceProtocol {
                     return try await self.fetchUser(userId: id)
                 }
             }
-                        
+            
             for try await user in group {
                 users.append(user)
             }
@@ -156,7 +156,7 @@ class UserService: UserServiceProtocol {
         
         return friends.count
     }
-        
+    
     func fetchUserFriends(userId: String) async throws -> [User] {
         
         let userRef = ref.child("users").child(userId).child("friends")
@@ -193,19 +193,9 @@ class UserService: UserServiceProtocol {
         let userRef = ref.child("users").child(userId).child("friends")
         let snapshot = try await userRef.getData()
         
-        guard let friends = snapshot.value as? [String: Any] else {
-            throw UserServiceError.failedToFetchFriends
-        }
+        let friendsDict = snapshot.value as? [String: Any] ?? [:]
         
-        print(friends.keys)
-        
-        if friends.keys.contains(otherUserId) {
-            print("Found a friend id")
-        } else {
-            print("No luck sherlock")
-        }
-                
-        return friends.keys.contains(otherUserId)
+        return friendsDict.keys.contains(otherUserId)
     }
     
     func fetchUserNameById(userId: String) async throws -> String {

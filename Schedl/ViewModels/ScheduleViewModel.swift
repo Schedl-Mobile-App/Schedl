@@ -19,17 +19,20 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     @Published var isLoading: Bool = false      // Indicates loading state
     @Published var errorMessage: String?        // Holds error messages if any
     @Published var activeSidebar = false
-    @Published var scheduleListener: DatabaseHandle?
     @Published var partionedEvents: [Double : [Event]]?
-    var scheduleService: ScheduleServiceProtocol
-    var eventService: EventServiceProtocol
-    var userService: UserServiceProtocol
+    private var addedEventsHandler: DatabaseHandle?
+    private var removedEventsHandler: DatabaseHandle?
+    private var scheduleService: ScheduleServiceProtocol
+    private var eventService: EventServiceProtocol
+    private var userService: UserServiceProtocol
+    private var notificationService: NotificationServiceProtocol
     
-    init(currentUser: User, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, userService: UserServiceProtocol = UserService.shared) {
+    init(currentUser: User, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, userService: UserServiceProtocol = UserService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared) {
         self.scheduleService = scheduleService
         self.currentUser = currentUser
         self.eventService = eventService
         self.userService = userService
+        self.notificationService = notificationService
     }
     
     func shouldShowCreateEvent() {
@@ -50,7 +53,6 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
             self.userSchedule = fetchedSchedule
             
             let scheduleId = fetchedSchedule.id
-            setupScheduleListener(scheduleId: scheduleId)
             
             let fetchedEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
             self.scheduleEvents = fetchedEvents
@@ -124,15 +126,21 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     }
     
     @MainActor
-    func createEvent(title: String, eventDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String) async {
+    func createEvent(title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, endDate: Double? = nil, repeatedDays: [String]? = nil) async {
         self.isLoading = true
         self.errorMessage = nil
         do {
             guard let scheduleId = userSchedule?.id else { return }
-            let taggedUsers = self.invitedUsersForEvent.compactMap { $0.id }
-            try await eventService.createEvent(scheduleId: scheduleId, userId: currentUser.id, title: title, eventDate: eventDate, startTime: startTime, endTime: endTime, location: location, taggedUsers: taggedUsers, color: color)
+            
+            let taggedUsers: [String] = self.invitedUsersForEvent.compactMap { $0.id }
+            
+            let eventId = try await eventService.createEvent(scheduleId: scheduleId, userId: currentUser.id, title: title, startDate: startDate, startTime: startTime, endTime: endTime, location: location, color: color, notes: notes, endDate: endDate, repeatedDays: repeatedDays)
+            
+            try await notificationService.sendEventInvites(senderId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserIds: taggedUsers, eventId: eventId)
+            
             self.isLoading = false
         } catch {
+            print("Failed to create event: \(error.localizedDescription)")
             self.errorMessage = "Failed to create event: \(error.localizedDescription)"
             self.isLoading = false
         }
@@ -152,26 +160,42 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     }
     
     @MainActor
-    func setupScheduleListener(scheduleId: String) {
-        removeScheduleListener(scheduleId: scheduleId)
-        scheduleListener = scheduleService.observeScheduleChanges(scheduleId: scheduleId) { [weak self] eventIds in
+    func observeScheduleChanges() {
+        guard let scheduleId = userSchedule?.id else { return }
+        
+        removeScheduleObservers(scheduleId: scheduleId)
+        
+        addedEventsHandler = scheduleService.observeAddedEvents(scheduleId: scheduleId) { [weak self] eventId in
+            guard let self = self else { return }
+            
             Task { @MainActor in
                 do {
-                    if let updatedEvents = try await self?.eventService.fetchEvents(eventIds: eventIds) {
-                        self?.scheduleEvents = updatedEvents
-                    }
+                    let newlyAddedEvent = try await self.eventService.fetchEvent(eventId: eventId)
+                    self.scheduleEvents.append(newlyAddedEvent)
                 } catch {
-                    self?.errorMessage = "Failed to fetch events: \(error.localizedDescription)"
+                    self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
                 }
             }
+        }
+        
+        removedEventsHandler = scheduleService.observeRemovedEvents(scheduleId: scheduleId) { [weak self] eventId in
+            guard let self = self else { return }
+            
+            guard let removedEventIndex = self.scheduleEvents.firstIndex(where: { $0.id == eventId }) else { return }
+            self.scheduleEvents.remove(at: removedEventIndex)
         }
     }
     
     @MainActor
-    func removeScheduleListener(scheduleId: String) {
-        if let handle = scheduleListener {
-            scheduleService.removeScheduleObserver(handle: handle, scheduleId: scheduleId)
-            scheduleListener = nil
+    func removeScheduleObservers(scheduleId: String) {
+        if let addHandler = addedEventsHandler {
+            scheduleService.removeScheduleObserver(handle: addHandler, scheduleId: scheduleId)
+            addedEventsHandler = nil
+        }
+        
+        if let removeHandler = removedEventsHandler {
+            scheduleService.removeScheduleObserver(handle: removeHandler, scheduleId: scheduleId)
+            addedEventsHandler = nil
         }
     }
 }

@@ -8,7 +8,7 @@
 import FirebaseDatabase
 
 class NotificationService: NotificationServiceProtocol {
-    
+
     static let shared = NotificationService()
     let ref: DatabaseReference
     
@@ -16,73 +16,167 @@ class NotificationService: NotificationServiceProtocol {
         ref = Database.database().reference()
     }
     
-    func fetchFriendRequest(requestId: String) async throws -> FriendRequest {
-        let requestRef = ref.child("friendRequests").child(requestId)
+    func fetchAllNotifications(userId: String) async throws -> [Notification] {
+        let notificationRef = ref.child("notifications").child(userId)
+        let snapshot = try await notificationRef.getData()
         
-        let snapshot = try await requestRef.getData()
+        var userNotifications: [Notification] = []
+        let data = snapshot.value as? [String: Any] ?? [:]
         
-        guard let requestData = snapshot.value as? [String: Any] else {
-            throw FirebaseError.failedToFetchFriendsPostsIds
-        }
-        
-        guard
-            let fromUserId = requestData["fromUserId"] as? String,
-            let toUserId = requestData["toUserId"] as? String,
-            let status = requestData["status"] as? String,
-            let timestamp = requestData["timestamp"] as? Double,
-            let senderName = requestData["senderName"] as? String,
-            let senderProfileImage = requestData["sendProfileImage"] as? String
-        else {
-            throw FirebaseError.failedToFetchFriendsPostsIds
-        }
+        for (notificationId, notificationData) in data {
+            guard let notificationDict = notificationData as? [String: Any] else { continue }
             
-        let request = FriendRequest(
-                id: requestId,
-                fromUserId: fromUserId,
-                toUserId: toUserId,
-                status: status,
-                timestamp: timestamp,
-                senderName: senderName,
-                sendProfileImage: senderProfileImage
-            )
-        
-        return request
-    }
-    
-    func fetchFriendRequests(userId: String) async throws -> [FriendRequest] {
-        
-        let userRef = ref.child("users").child(userId).child("incomingRequests")
-        let snapshot = try await userRef.getData()
-        
-        guard let requestNode = snapshot.value as? [String : Any] else {
-            throw NotificationServiceError.failedToFetchUserRequests
-        }
-        
-        let requestIds = Array(requestNode.keys)
-        print(requestIds)
-        
-        var requests: [FriendRequest] = []
-        
-        if requestIds.isEmpty {
-            return requests
-        } else {
-            try await withThrowingTaskGroup(of: FriendRequest.self) { group in
-                for id in requestIds {
-                    group.addTask {
-                        try await self.fetchFriendRequest(requestId: id)
-                    }
+            let creationDate = notificationDict["creationDate"] as? Double ?? 0
+            
+            if
+                let payloadDict = notificationDict["notificationPayload"] as? [String: Any],
+                let friendRequestDict = payloadDict["friendRequest"] as? [String: Any],
+                let firstEntry = friendRequestDict.values.first as? [String: Any] {
+                
+                let jsonDecoder = JSONDecoder()
+                jsonDecoder.dateDecodingStrategy = .secondsSince1970
+                
+                let friendRequestJsonData = try JSONSerialization.data(withJSONObject: firstEntry, options: [])
+                
+                do {
+                    let friendRequestObj = try jsonDecoder.decode(FriendRequest.self, from: friendRequestJsonData)
+                    let notif = Notification(id: notificationId, type: .friendRequest, notificationPayload: .friendRequest(friendRequestObj), creationDate: creationDate)
+                    userNotifications.append(notif)
+                } catch {
+                    print("Failed to decode notification")
+                    throw NotificationServiceError.failedToDecodeNotification
                 }
                 
-                for try await request in group {
-                    requests.append(request)
+            } else if
+                let payloadDict = notificationDict["notificationPayload"] as? [String: Any],
+                let eventInviteDict = payloadDict["eventInvite"] as? [String: Any],
+                let firstEntry = eventInviteDict.values.first as? [String: Any] {
+                
+                let jsonDecoder = JSONDecoder()
+                jsonDecoder.dateDecodingStrategy = .secondsSince1970
+                
+                let eventInviteJsonData = try JSONSerialization.data(withJSONObject: firstEntry, options: [])
+                
+                do {
+                    let eventInviteObj = try jsonDecoder.decode(EventInvite.self, from: eventInviteJsonData)
+                    let notif = Notification(id: notificationId, type: .eventInvite, notificationPayload: .eventInvite(eventInviteObj), creationDate: creationDate)
+                    userNotifications.append(notif)
+                } catch {
+                    print("Failed to decode notification")
+                    throw NotificationServiceError.failedToDecodeNotification
+                }
+            }
+        }
+        
+        return userNotifications
+    }
+    
+    func fetchNotificationById(notificationId: String, userId: String) async throws -> Notification? {
+        let notificationRef = ref.child("notifications").child(userId).child(notificationId)
+        let snapshot = try await notificationRef.getData()
+        
+        let notificationDict = snapshot.value as? [String: Any] ?? [:]
+        
+        let creationDate = notificationDict["creationDate"] as? Double ?? 0
+        
+        if
+            let payloadDict = notificationDict["notificationPayload"] as? [String: Any],
+            let friendRequestDict = payloadDict["friendRequest"] as? [String: Any],
+            let firstEntry = friendRequestDict.values.first as? [String: Any] {
+            
+            let jsonDecoder = JSONDecoder()
+            jsonDecoder.dateDecodingStrategy = .secondsSince1970
+            
+            let friendRequestJsonData = try JSONSerialization.data(withJSONObject: firstEntry, options: [])
+            
+            do {
+                let friendRequestObj = try jsonDecoder.decode(FriendRequest.self, from: friendRequestJsonData)
+                let notif = Notification(id: notificationId, type: .friendRequest, notificationPayload: .friendRequest(friendRequestObj), creationDate: creationDate)
+                return notif
+            } catch {
+                print("Failed to decode notification")
+                throw NotificationServiceError.failedToDecodeNotification
+            }
+            
+        } else if
+            let payloadDict = notificationDict["notificationPayload"] as? [String: Any],
+            let eventInviteDict = payloadDict["eventInvite"] as? [String: Any],
+            let firstEntry = eventInviteDict.values.first as? [String: Any] {
+            
+            let jsonDecoder = JSONDecoder()
+            jsonDecoder.dateDecodingStrategy = .secondsSince1970
+            
+            let eventInviteJsonData = try JSONSerialization.data(withJSONObject: firstEntry, options: [])
+            
+            do {
+                let eventInviteObj = try jsonDecoder.decode(EventInvite.self, from: eventInviteJsonData)
+                let notif = Notification(id: notificationId, type: .eventInvite, notificationPayload: .eventInvite(eventInviteObj), creationDate: creationDate)
+                return notif
+            } catch {
+                print("Failed to decode notification")
+                throw NotificationServiceError.failedToDecodeNotification
+            }
+        }
+        
+        return nil
+    }
+    
+    func fetchNotificationsByIds(notificationIds: [String], userId: String) async throws -> [Notification] {
+        
+        let notificationRef = ref.child("notifications").child(userId)
+        var userNotifications: [Notification] = []
+        
+        try await withThrowingTaskGroup(of: Notification?.self) { group in
+            for id in notificationIds {
+                group.addTask {
+                    try await self.fetchNotificationById(notificationId: id, userId: userId)
                 }
             }
             
-            return requests
+            for try await notification in group {
+                guard let notif = notification else { continue }
+                userNotifications.append(notif)
+            }
         }
+        
+        return userNotifications
     }
     
-    func sendFriendRequest(userId: String, username: String, profileImage: String, toUserName: String) async throws -> Void {
+    func sendEventInvites(senderId: String, username: String, profileImage: String, toUserIds: [String], eventId: String) async throws -> Void {
+        
+        var updates: [String: Any] = [:]
+        
+        for id in toUserIds {
+            guard let notificationId = ref.child("notifications").childByAutoId().key else { return }
+            let notificationType: NotificationType = .eventInvite
+            let eventInvite: EventInvite = EventInvite(fromUserId: senderId, toUserId: id, invitedEventId: eventId, senderName: username, senderProfileImage: profileImage)
+            let payload: NotificationPayload = .eventInvite(eventInvite)
+            let creationDate = Date().timeIntervalSince1970
+            
+            let notificationObj = Notification(id: notificationId, type: notificationType, notificationPayload: payload, creationDate: creationDate)
+            
+            let encodedData = try JSONEncoder().encode(notificationObj)
+            
+            guard let jsonDictionary = try JSONSerialization.jsonObject(with: encodedData, options: []) as? [String: Any] else {
+                throw NotificationServiceError.failedToSerializeFriendRequest
+            }
+            
+            updates["/notifications/\(id)/\(notificationId)"] = jsonDictionary
+            updates["eventInvites/\(senderId)/\(id)"] = "pending"
+        }
+        
+        do {
+            try await ref.updateChildValues(updates)
+        } catch {
+            throw NotificationServiceError.failedToSendEventInvites
+        }
+    }
+
+    func sendFriendRequest(userId: String, username: String, profileImage: String, toUsername toUserName: String) async throws -> Void {
+        
+        guard let notificationId = ref.child("notifications").childByAutoId().key else {
+            throw NotificationServiceError.dbFailedToGenerateId
+        }
         
         let usernameRef = ref.child("usernames").child(toUserName)
         let snapshot = try await usernameRef.getData()
@@ -91,21 +185,23 @@ class NotificationService: NotificationServiceProtocol {
             throw NotificationServiceError.failedToFetchUserId
         }
         
-        let requestId = "\(userId)_\(toUserId)"
+        let notificationType: NotificationType = .friendRequest
+        let friendRequest: FriendRequest = FriendRequest(fromUserId: userId, toUserId: toUserId, status: "pending", senderName: username, senderProfileImage: profileImage)
+        let payload: NotificationPayload = .friendRequest(friendRequest)
+        let creationDate = Date().timeIntervalSince1970
         
-        let friendRequest = FriendRequest(id: requestId, fromUserId: userId, toUserId: toUserId, status: "pending", timestamp: Date().timeIntervalSince1970, senderName: toUserName, sendProfileImage: profileImage)
+        let notificationObj = Notification(id: notificationId, type: notificationType, notificationPayload: payload, creationDate: creationDate)
         
         do {
-            let encodedData = try JSONEncoder().encode(friendRequest)
+            let encodedData = try JSONEncoder().encode(notificationObj)
             
             guard let jsonDictionary = try JSONSerialization.jsonObject(with: encodedData, options: []) as? [String: Any] else {
                 throw NotificationServiceError.failedToSerializeFriendRequest
             }
             
             let updates: [String : Any] = [
-                "friendRequests/\(requestId)" : jsonDictionary,
-                "users/\(toUserId)/incomingRequests/\(requestId)" : true,
-                "users/\(userId)/outgoingRequests/\(requestId)" : true
+                "notifications/\(toUserId)/\(notificationId)": jsonDictionary,
+                "friendRequests/\(userId)/\(toUserId)": "pending",
             ]
             
             try await ref.updateChildValues(updates)
@@ -114,45 +210,85 @@ class NotificationService: NotificationServiceProtocol {
         }
     }
     
-    func handleFriendRequestResponse(requestId: String, accepted: Bool) async throws -> Void {
-        let requestInfo = requestId.split(separator: "_")
+    func handleEventInviteResponse(notificationId: String, senderScheduleId: String, eventId: String, senderId: String, toUserId: String, userScheduleId: String, responseStatus: Bool) async throws -> Void {
         
-        if requestInfo.count == 2 {
-            let fromUserId = String(requestInfo[0])
-            let toUserId = String(requestInfo[1])
-                    
-            if accepted {
-                
-                let queryRequest: [String: Any] = [
-                    "/friendRequests/\(requestId)/status": "accepted",
-                    "/users/\(toUserId)/friends/\(fromUserId)": true,
-                    "/users/\(fromUserId)/friends/\(toUserId)": true,
-                    "/users/\(toUserId)/incomingRequests/\(requestId)": NSNull(),
-                    "/users/\(fromUserId)/outgoingRequests/\(requestId)": NSNull()
-                ]
-                
-                do {
-                    try await ref.updateChildValues(queryRequest)
-                } catch {
-                    throw FirebaseError.failedToUpdateFriendRequest
-                }
-            } else {
-                
-                let queryRequest: [String: Any] = [
-                    "/friendRequests/\(requestId)/status": "declined",
-                    "/users/\(toUserId)/incomingRequests/\(requestId)": NSNull(),
-                    "/users/\(fromUserId)/outgoingRequests/\(requestId)": NSNull()
-                ]
-                
-                do {
-                    try await ref.updateChildValues(queryRequest)
-                } catch {
-                    throw FirebaseError.failedToUpdateFriendRequest
-                }
-            }
+        if responseStatus {
             
+            let queryRequest: [String: Any] = [
+                "/eventInvites/\(senderId)/\(toUserId)": NSNull(),
+                "/notifications/\(toUserId)/\(notificationId)": NSNull(),
+                "/schedules/\(userScheduleId)/eventIds/\(eventId)": true,
+                "/scheduleEvents/\(userScheduleId)/\(eventId)": true,
+                "/events/\(eventId)/taggedUsers/\(toUserId)": true,
+            ]
+            
+            do {
+                try await ref.updateChildValues(queryRequest)
+            } catch {
+                throw FirebaseError.failedToUpdateFriendRequest
+            }
         } else {
-            throw FirebaseError.incorrectFriendRequestId
+            
+            let queryRequest: [String: Any] = [
+                "/eventInvites/\(senderId)/\(toUserId)": NSNull(),
+                "/notifications/\(toUserId)/\(notificationId)": NSNull(),
+            ]
+            
+            do {
+                try await ref.updateChildValues(queryRequest)
+            } catch {
+                throw FirebaseError.failedToUpdateFriendRequest
+            }
         }
+    }
+    
+    func handleFriendRequestResponse(notificationId: String, senderId: String, toUserId: String, responseStatus: Bool) async throws -> Void {
+                
+        if responseStatus {
+            
+            let queryRequest: [String: Any] = [
+                "/friendRequests/\(senderId)/\(toUserId)": NSNull(),
+                "/notifications/\(toUserId)/\(notificationId)": NSNull(),
+                "/users/\(toUserId)/friends/\(senderId)": true,
+                "/users/\(senderId)/friends/\(toUserId)": true,
+            ]
+            
+            do {
+                try await ref.updateChildValues(queryRequest)
+            } catch {
+                throw FirebaseError.failedToUpdateFriendRequest
+            }
+        } else {
+            
+            let queryRequest: [String: Any] = [
+                "/friendRequests/\(senderId)/\(toUserId)": NSNull(),
+                "/notifications/\(toUserId)/\(notificationId)": NSNull(),
+            ]
+            
+            do {
+                try await ref.updateChildValues(queryRequest)
+            } catch {
+                throw FirebaseError.failedToUpdateFriendRequest
+            }
+        }
+    }
+    
+    func observeUserNotifications(userId: String, completion: @escaping ([String]) -> Void) -> DatabaseHandle {
+        let notificationRef = ref.child("notifications").child(userId)
+        
+        let handle = notificationRef.observe(.childAdded) { snapshot in
+            let dict = snapshot.value as? [String: Any] ?? [:]
+            
+            print(dict)
+            print(dict.keys)
+            completion(Array(dict.keys))
+        }
+        
+        return handle
+    }
+        
+    func removeUserNotificationObserver(handle: DatabaseHandle, userId: String) {
+        let notificationRef = ref.child("notifications").child(userId)
+        notificationRef.removeObserver(withHandle: handle)
     }
 }

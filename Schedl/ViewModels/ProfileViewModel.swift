@@ -15,11 +15,11 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     @Published var errorMessage: String?
     @Published var friends: [User] = []
     @Published var userPosts: [Post] = []
-    @Published var userEvents: [Event] = []
-    @Published var pastEvents: [Event] = []
-    @Published var invitedEvents: [Event] = []
-    @Published var currentEvents: [Event] = []
-    @Published var partitionedEvents: [Double : [Event]] = [:]
+    @Published var userEvents: [RecurringEvents] = []
+    @Published var pastEvents: [RecurringEvents] = []
+    @Published var invitedEvents: [RecurringEvents] = []
+    @Published var currentEvents: [RecurringEvents] = []
+    @Published var partitionedEvents: [Double : [RecurringEvents]] = [:]
     @Published var friendsInfoDict: [String : SearchInfo] = [:]
     @Published var selectedTab: Tab = .schedules
     @Published var showSaveChangesModal = false
@@ -27,7 +27,6 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     @Published var isEditingProfile: Bool = false
     @Published var selectedImage: UIImage? = nil
     @Published var numberOfFriends: Int = 0
-    private var currentDay = Date.convertCurrentDateToTimeInterval(date: Date())
     var profileUser: User
     var isViewingFriend: Bool = false
     @Published var isShowingFriendRequest: Bool = false
@@ -37,6 +36,7 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     private var eventService: EventServiceProtocol
     private var notificationService: NotificationServiceProtocol
     private var postService: PostServiceProtocol
+    @Published var hasLoadedData: Bool = false
     
     // only needs to be read-only since we will be creating new instances of the view model whether the current user is on their profile
     // or visiting their friends profile
@@ -68,6 +68,9 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         await fetchTabInfo()
         await fetchEvents()
         await fetchFriends()
+        await checkIfFriend()
+        self.hasLoadedData = true
+        
         self.isLoading = false
     }
     
@@ -76,19 +79,34 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         self.isLoading = true
         self.errorMessage = nil
         
+        let scheduleAlreadyFetched: Bool = partitionedEvents.isEmpty == false
+        var eventsAlreadyFetched: Bool {
+            userEvents.isEmpty == false &&
+            pastEvents.isEmpty == false &&
+            invitedEvents.isEmpty == false &&
+            currentEvents.isEmpty == false
+        }
+        let postsAlreadyFetched: Bool = userPosts.isEmpty == false
+        
         do {
             switch self.selectedTab {
             case .schedules:
-                await fetchEvents()
+                if scheduleAlreadyFetched {
+                    await fetchEvents()
+                }
                 self.isLoading = false
                 break
             case .events:
-                await fetchEvents()
+                if eventsAlreadyFetched {
+                    await fetchEvents()
+                }
                 self.isLoading = false
                 break
             case .activity:
-                let fetchedPosts = try await postService.fetchPostsByUserId(userId: profileUser.id)
-                userPosts = fetchedPosts
+                if postsAlreadyFetched {
+                    let fetchedPosts = try await postService.fetchPostsByUserId(userId: profileUser.id)
+                    userPosts = fetchedPosts
+                }
                 self.isLoading = false
                 break
             }
@@ -103,13 +121,42 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            try await notificationService.sendFriendRequest(userId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserName: profileUser.username)
+            try await notificationService.sendFriendRequest(userId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUsername: profileUser.username)
             self.isLoading = false
         } catch {
             print("Friend request was not successfully sent")
             self.errorMessage = "Failed to fetch schedule: \(error.localizedDescription)"
             self.isLoading = false
         }
+    }
+    
+    func parseRecurringEvents(event: Event) -> [RecurringEvents] {
+        
+        let originalEventInstance: RecurringEvents = RecurringEvents(date: event.startDate, event: event)
+        
+        // if there are no repeatedDays or endDate for this event, we simply return the single instance
+        guard let repeatedDays = event.repeatingDays else { return [originalEventInstance] }
+        guard let endDate = event.endDate else { return [originalEventInstance] }
+
+        let iterationStart = Date(timeIntervalSince1970: event.startDate)
+        let iterationEnd = Date(timeIntervalSince1970: endDate)
+
+        var repeatedEvents: [RecurringEvents] = []
+        var cursor = iterationStart
+        
+        while cursor <= iterationEnd {
+            // find the iterator's current weekday index
+            let weekIndex = Calendar.current.component(.weekday, from: cursor) - 1
+            
+            // next, we need to find a way to check whether our event instance includes the same weekday index
+            if repeatedDays.contains(String(weekIndex)) {
+                repeatedEvents.append(RecurringEvents(date: cursor.timeIntervalSince1970, event: event))
+            }
+            guard let next = Calendar.current.date(byAdding: .day, value: 1, to: cursor) else { break }
+                cursor = next
+        }
+
+        return repeatedEvents
     }
     
     @MainActor
@@ -119,16 +166,58 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         do {
             let scheduleId = try await scheduleService.fetchScheduleId(userId: profileUser.id)
             let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
-            self.userEvents = allEvents.sorted { $0.eventDate > $1.eventDate }
-            self.pastEvents = allEvents.filter { $0.eventDate < currentDay }.sorted { $0.eventDate > $1.eventDate }
-            self.invitedEvents = allEvents
-            self.currentEvents = allEvents.filter{ $0.eventDate >= currentDay }.sorted { $0.eventDate < $1.eventDate }
+            
+            // now that we've fetched all events in DB, we need to check if any events are recurring meaning they'll have repeats in the future
+            // note that even singular events will be stored in this array of type RecurringEvents since there isn't a need
+            // to separate these from regular Event objects
+            var formattedEvents: [RecurringEvents] = []
+            for event in allEvents {
+                formattedEvents.append(contentsOf: parseRecurringEvents(event: event))
+            }
+            
+            let currentDay = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+            
+            self.userEvents = formattedEvents.sorted {
+                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+                
+                // if the event start dates are different, then we sort by their date
+                if dayComparison != .orderedSame {
+                    return dayComparison == .orderedAscending
+                }
+                
+                // if they occur on the same day, then we sort by their start time
+                return $0.event.startTime < $1.event.startTime
+            }
+            
+            self.pastEvents = formattedEvents.filter { $0.date < currentDay }.sorted {
+                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+                
+                // if the event start dates are different, then we sort by their date
+                if dayComparison != .orderedSame {
+                    return dayComparison == .orderedDescending
+                }
+                
+                // if they occur on the same day, then we sort by their start time
+                return $0.event.startTime < $1.event.startTime
+            }
+            self.invitedEvents = formattedEvents.filter { $0.event.userId != self.currentUser.id }.sorted {
+                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+                
+                // if the event start dates are different, then we sort by their date
+                if dayComparison != .orderedSame {
+                    return dayComparison == .orderedAscending
+                }
+                
+                // if they occur on the same day, then we sort by their start time
+                return $0.event.startTime < $1.event.startTime
+            }
+            self.currentEvents = formattedEvents.filter{ $0.date >= currentDay }.sorted { $0.date < $1.date }
             let rawGroups = Dictionary(
                 grouping: currentEvents,
-                by: \.eventDate,
+                by: \.date,
             )
-            self.partitionedEvents = rawGroups.mapValues { eventsInDay in
-                eventsInDay.sorted { $0.startTime < $1.startTime }
+            self.partitionedEvents = rawGroups.mapValues { recurringEvent in
+                recurringEvent.sorted { $0.event.startTime < $1.event.startTime }
             }
             self.isLoading = false
         } catch {
@@ -136,7 +225,6 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
             self.errorMessage = "Failed to partion events by day successfully. The following error occured: \(error.localizedDescription)"
             self.isLoading = false
         }
-
     }
     
     @MainActor
@@ -172,19 +260,11 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         do {
             let friends = try await userService.fetchUserFriends(userId: profileUser.id)
             self.friends = friends
-            self.isLoading = false
-        } catch {
-            self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
-            self.isLoading = false
-        }
-    }
-    
-    @MainActor
-    func checkFriendStatus() async {
-        self.isLoading = true
-        self.errorMessage = nil
-        do {
-            self.isViewingFriend = try await userService.isFriend(userId: currentUser.id, otherUserId: profileUser.id)
+            if friends.contains(where: { $0.id == profileUser.id }) {
+                self.isViewingFriend = true
+            } else {
+                self.isViewingFriend = false
+            }
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
@@ -230,6 +310,20 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         } catch {
             self.errorMessage = error.localizedDescription
             print("Failed to find any matching users: \(error.localizedDescription)")
+            self.isLoading = false
+        }
+    }
+    
+    @MainActor
+    func checkIfFriend() async {
+        self.isLoading = true
+        self.errorMessage = nil
+        
+        do {
+            self.isViewingFriend = try await userService.isFriend(userId: currentUser.id, otherUserId: profileUser.id)
+            self.isLoading = false
+        } catch {
+            self.errorMessage = "Failed to check friend status \(error.localizedDescription)"
             self.isLoading = false
         }
     }
