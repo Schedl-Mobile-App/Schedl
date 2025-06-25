@@ -205,7 +205,7 @@ struct WelcomeView: View {
                     
                     Button(action: {
                         Task {
-                            try await authViewModel.signUp()
+                            await authViewModel.signUp()
                         }
                     }) {
                         Text("Sign Up")

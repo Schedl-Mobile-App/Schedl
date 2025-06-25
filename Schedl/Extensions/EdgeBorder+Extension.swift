@@ -5,7 +5,7 @@
 //  Created by David Medina on 5/17/25.
 //
 
-import SwiftUICore
+import SwiftUI
 
 struct EdgeBorder: Shape {
     var width: CGFloat

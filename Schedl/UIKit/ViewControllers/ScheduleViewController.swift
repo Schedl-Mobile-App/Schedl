@@ -27,6 +27,7 @@ class PassthroughView: UIScrollView {
 class ScheduleViewController: UIViewController {
     
     var coordinator: ScheduleView.Coordinator?
+    private var shouldReloadOnAppear = true
     
     private var scrollDebounceTimer: Timer?
     
@@ -119,18 +120,29 @@ class ScheduleViewController: UIViewController {
         return scrollView
     }()
     
-    let spinner = UIActivityIndicatorView(style: .large)
+    private var loadingHostingController: UIHostingController<ScheduleLoadingView>?
+
     func showLoading() {
-        view.addSubview(spinner)
-        spinner.center = view.center
-        spinner.startAnimating()
+        if loadingHostingController == nil {
+            let loadingVC = UIHostingController(rootView: ScheduleLoadingView())
+            loadingVC.view.backgroundColor = .black
+            loadingVC.view.frame = view.bounds
+            loadingVC.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            addChild(loadingVC)
+            view.addSubview(loadingVC.view)
+            view.bringSubviewToFront(loadingVC.view)
+            loadingVC.didMove(toParent: self)
+            loadingHostingController = loadingVC
+        }
     }
-    
+
     func hideLoading() {
-      spinner.stopAnimating()
-        spinner.hidesWhenStopped = true
-      spinner.removeFromSuperview()
-        spinner.isHidden = true
+        if let loadingVC = loadingHostingController {
+            loadingVC.willMove(toParent: nil)
+            loadingVC.view.removeFromSuperview()
+            loadingVC.removeFromParent()
+            loadingHostingController = nil
+        }
     }
     
     private var placeholderLabel: UILabel?
@@ -147,6 +159,10 @@ class ScheduleViewController: UIViewController {
         createScheduleButton?.removeFromSuperview()
         
         // 3️⃣ Un-hide your calendar UI (you added these in viewDidLoad)
+        filterButton.isHidden                  = false
+        searchButton.isHidden                  = false
+        displayedMonthLabel.isHidden           = false
+        displayedYearLabel.isHidden            = false
         dayHeaderScrollView.isHidden           = false
         timeColumnScrollView.isHidden          = false
         collectionView.isHidden                = false
@@ -189,6 +205,10 @@ class ScheduleViewController: UIViewController {
         hideLoading()
         
         // hide calendar views
+        filterButton.isHidden                  = true
+        searchButton.isHidden                  = true
+        displayedMonthLabel.isHidden           = true
+        displayedYearLabel.isHidden            = true
         dayHeaderScrollView.isHidden           = true
         timeColumnScrollView.isHidden          = true
         collectionView.isHidden                = true
@@ -198,25 +218,33 @@ class ScheduleViewController: UIViewController {
         
         // show placeholder
         let label = UILabel()
-        label.text = "You don’t have a schedule yet."
-        label.font = .systemFont(ofSize: 22, weight: .medium)
-        label.textColor = .secondaryLabel
+        label.text = "You don’t have a schedule yet!"
+        label.font = .monospacedSystemFont(ofSize: 16, weight: .medium)
+        label.textColor = UIColor(Color(hex: 0x666666))
         label.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(label)
         
-        let button = UIButton(type: .system)
+        let button = UIButton()
+        button.backgroundColor = UIColor(Color(hex: 0x3C859E))
+        button.layer.borderWidth = 1
+        button.layer.cornerRadius = 10
+        button.layer.masksToBounds = true
+        button.layer.borderColor = UIColor(Color(hex: 0x333333)).cgColor
         button.setTitle("Create Schedule", for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        button.setTitleColor(UIColor(Color(hex: 0xf7f4f2)), for: .normal)
         button.addTarget(self, action: #selector(didTapCreateSchedule), for: .touchUpInside)
+        button.titleLabel?.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .bold)
         button.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(button)
         
         NSLayoutConstraint.activate([
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
+            label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             
             button.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 16),
             button.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            button.widthAnchor.constraint(equalToConstant: 150),
+            button.heightAnchor.constraint(equalToConstant: 40),
         ])
         
         // keep strong refs so we can remove them later
@@ -228,7 +256,8 @@ class ScheduleViewController: UIViewController {
     @objc private func didTapCreateSchedule() {
         if let scheduleViewModel = coordinator?.scheduleViewModel {
             Task {
-                await scheduleViewModel.createSchedule(title: "\(scheduleViewModel.currentUser.displayName)'s Schedule")
+                let firstName = scheduleViewModel.currentUser.displayName.split(separator: " ").first ?? ""
+                await scheduleViewModel.createSchedule(title: "\(firstName)'s Schedule")
             }
         }
     }
@@ -279,8 +308,14 @@ class ScheduleViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        showLoading()
+        
+        if let scheduleViewModel = coordinator?.scheduleViewModel {
+            setupViewModelObservation(viewModel: scheduleViewModel)
+            loadInitialData()
+        }
+        
         view.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
-        edgesForExtendedLayout = .all
         
         view.addSubview(headerView)
         
@@ -309,11 +344,11 @@ class ScheduleViewController: UIViewController {
         filterButton.layer.cornerRadius = 10
         filterButton.configuration?.image = UIImage(systemName: "line.horizontal.3")
         filterButton.translatesAutoresizingMaskIntoConstraints = false
-        filterButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 14, weight: .bold)
+        filterButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .bold)
         filterButton.addTarget(self, action: #selector(toggleSidebar), for: .touchUpInside)
         filterButton.configuration?.baseForegroundColor = UIColor(Color(hex: 0x666666))
         
-        scheduleNameLabel.font = .monospacedSystemFont(ofSize: 17, weight: .semibold)
+        scheduleNameLabel.font = .monospacedSystemFont(ofSize: 17, weight: .bold)
         scheduleNameLabel.translatesAutoresizingMaskIntoConstraints = false
         scheduleNameLabel.textAlignment = .left
         scheduleNameLabel.textColor = UIColor(Color(hex: 0x333333))
@@ -326,6 +361,7 @@ class ScheduleViewController: UIViewController {
         headerView.translatesAutoresizingMaskIntoConstraints = false
         
         displayedMonthLabel.text = displayedMonth
+        
         displayedMonthLabel.font = .systemFont(ofSize: 28, weight: .bold)
         displayedMonthLabel.translatesAutoresizingMaskIntoConstraints = false
         displayedMonthLabel.textAlignment = .right
@@ -341,10 +377,11 @@ class ScheduleViewController: UIViewController {
         
         createEventButton.configuration = .filled()
         createEventButton.configuration?.cornerStyle = .capsule
-        createEventButton.configuration?.baseBackgroundColor = UIColor(Color(hex: 0x3C859E))
+        createEventButton.configuration?.baseBackgroundColor = UIColor(Color(hex: 0xE5E5EA))
+        createEventButton.configuration?.image?.withTintColor(UIColor(Color(hex: 0x6E6E73)))
         createEventButton.configuration?.image = UIImage(systemName: "plus")
         createEventButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 24, weight: .medium)
-        createEventButton.configuration?.baseForegroundColor = UIColor(Color(hex: 0xf7f4f2))
+        createEventButton.configuration?.baseForegroundColor = UIColor(Color(hex: 0x6E6E73))
         createEventButton.translatesAutoresizingMaskIntoConstraints = false
         createEventButton.addTarget(self, action: #selector(showCreateEvent), for: .touchUpInside)
         
@@ -360,6 +397,11 @@ class ScheduleViewController: UIViewController {
         
         eventContainer.translatesAutoresizingMaskIntoConstraints = false
         
+        eventContainer.onTap = { [weak self] event in
+            self?.shouldReloadOnAppear = false
+            self?.showEventDetails(event: event)
+        }
+        
         eventContainerScrollView.addSubview(eventContainer)
         
         view.addSubview(eventContainerScrollView)
@@ -374,19 +416,18 @@ class ScheduleViewController: UIViewController {
         // constraints for our collection view
         NSLayoutConstraint.activate([
             
-            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 5),
+            headerView.topAnchor.constraint(equalTo: view.topAnchor),
             headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 5),
             headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             
             filterButton.leadingAnchor.constraint(equalTo: headerView.layoutMarginsGuide.leadingAnchor),
-            filterButton.topAnchor.constraint(equalTo: headerView.topAnchor),
+            filterButton.topAnchor.constraint(equalTo: headerView.topAnchor, constant: 5),
             filterButton.widthAnchor.constraint(equalToConstant: 30),
             filterButton.heightAnchor.constraint(equalToConstant: 30),
             filterButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
             
             scheduleNameLabel.leadingAnchor.constraint(equalTo: filterButton.trailingAnchor, constant: 10),
-            scheduleNameLabel.topAnchor.constraint(equalTo: headerView.topAnchor),
-            scheduleNameLabel.bottomAnchor.constraint(equalTo: headerView.bottomAnchor),
+            scheduleNameLabel.centerYAnchor.constraint(equalTo: filterButton.centerYAnchor),
             
             searchButton.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             searchButton.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 15),
@@ -395,7 +436,7 @@ class ScheduleViewController: UIViewController {
             displayedMonthLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             
             displayedYearLabel.topAnchor.constraint(equalTo: filterButton.bottomAnchor, constant: 15),
-            displayedYearLabel.leadingAnchor.constraint(equalTo: displayedMonthLabel.trailingAnchor, constant: 5),
+            displayedYearLabel.leadingAnchor.constraint(equalTo: displayedMonthLabel.trailingAnchor, constant: 3),
             
             dayHeaderScrollView.topAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor, constant: 5),
             dayHeaderScrollView.leadingAnchor.constraint(equalTo: overlayView.trailingAnchor),
@@ -406,7 +447,7 @@ class ScheduleViewController: UIViewController {
             timeColumnScrollView.topAnchor.constraint(equalTo: overlayView.bottomAnchor),
             timeColumnScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             timeColumnScrollView.widthAnchor.constraint(equalToConstant: 48),
-            timeColumnScrollView.bottomAnchor.constraint(equalTo: view.layoutMarginsGuide.bottomAnchor),
+            timeColumnScrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             
             // Headers inside scroll views (position at 0,0)
             dayHeader.topAnchor.constraint(equalTo: dayHeaderScrollView.contentLayoutGuide.topAnchor),
@@ -422,12 +463,12 @@ class ScheduleViewController: UIViewController {
             collectionView.topAnchor.constraint(equalTo: dayHeaderScrollView.bottomAnchor),
             collectionView.leadingAnchor.constraint(equalTo: timeColumnScrollView.trailingAnchor),
             collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.layoutMarginsGuide.bottomAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             
             eventContainerScrollView.topAnchor.constraint(equalTo: dayHeaderScrollView.bottomAnchor),
             eventContainerScrollView.leadingAnchor.constraint(equalTo: timeColumnScrollView.trailingAnchor),
             eventContainerScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            eventContainerScrollView.bottomAnchor.constraint(equalTo: view.layoutMarginsGuide.bottomAnchor),
+            eventContainerScrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
 
             eventContainer.topAnchor.constraint(equalTo: eventContainerScrollView.bottomAnchor),
             eventContainer.leadingAnchor.constraint(equalTo: eventContainerScrollView.trailingAnchor),
@@ -440,7 +481,7 @@ class ScheduleViewController: UIViewController {
             overlayView.heightAnchor.constraint(equalToConstant: 60),
             
             createEventButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
-            createEventButton.bottomAnchor.constraint(equalTo: view.layoutMarginsGuide.bottomAnchor, constant: -15),
+            createEventButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -15),
             createEventButton.widthAnchor.constraint(equalToConstant: 60),
             createEventButton.heightAnchor.constraint(equalToConstant: 60),
             
@@ -452,17 +493,18 @@ class ScheduleViewController: UIViewController {
         
         setDisplayedDates(centerDate: currentDate)
         dayHeader.setDates(dayList: dayList)
-        
-        // Access the view model through the coordinator
-        if let scheduleViewModel = coordinator?.scheduleViewModel {
-            Task {
-                setupViewModelObservation(viewModel: scheduleViewModel)
-                await scheduleViewModel.fetchSchedule()
-                await scheduleViewModel.fetchEvents()
-                scheduleViewModel.observeScheduleChanges()
-            }
-        }
     }
+        
+//    override func viewWillAppear(_ animated: Bool) {
+//        super.viewWillAppear(animated)
+//        
+//        guard let scheduleViewModel = coordinator?.scheduleViewModel else { return }
+//        
+//        if scheduleViewModel.shouldReloadData {
+//            showLoading()
+//            loadInitialData()
+//        }
+//    }
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
@@ -473,6 +515,16 @@ class ScheduleViewController: UIViewController {
             scrollToCurrentPosition()
             updateEventsOverlay()
         }
+    }
+    
+    func loadInitialData() {
+        guard let scheduleViewModel = coordinator?.scheduleViewModel else { return }
+                
+        Task {
+            await scheduleViewModel.fetchSchedule()
+        }
+        
+        scheduleViewModel.observeScheduleChanges()
     }
     
     private func updateEventsOverlay() {
@@ -525,14 +577,13 @@ class ScheduleViewController: UIViewController {
         
         viewModel.$userSchedule
             .receive(on: DispatchQueue.main)
-          .sink { [weak self] maybeSchedule in
-            if let schedule = maybeSchedule {
-              self?.showSchedule(schedule)
-            } else {
-                self?.hideLoading()
-                self?.blankSchedule()
+            .sink { [weak self] maybeSchedule in
+                if let schedule = maybeSchedule {
+                    self?.showSchedule(schedule)
+                } else if maybeSchedule == nil && !viewModel.isLoading {
+                    self?.blankSchedule()
+                }
             }
-          }
           .store(in: &cancellables)
         
         //        viewModel.$isLoading
@@ -558,15 +609,6 @@ class ScheduleViewController: UIViewController {
     }
     
     @objc func toggleSidebar() {
-//        if let scheduleViewModel = coordinator?.scheduleViewModel {
-//            let hostingController = UIHostingController(
-//                rootView: SidebarView()
-//                    .environmentObject(scheduleViewModel)
-//            )
-//            
-//            hostingController.modalPresentationStyle = .overFullScreen
-//            present(hostingController, animated: true)
-//        }
         spinButtonCABasic(filterButton)
         showScheduleOptions.toggle()
         
@@ -599,19 +641,46 @@ class ScheduleViewController: UIViewController {
         }
     }
     
-    @objc func showCreateEvent() {
+    @objc
+    func showCreateEvent() {
+        
         if let scheduleViewModel = coordinator?.scheduleViewModel {
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(
                 rootView: CreateEventView(scheduleViewModel: scheduleViewModel)
+                    .ignoresSafeArea(.all)
             )
             
-            hostingController.modalPresentationStyle = .fullScreen
+            hostingController.navigationItem.setHidesBackButton(true, animated: true)
             
-            // will present it as a full screen page rather than trying to implement some voodoo method
-            // to push our view onto the navigation stack defined in our root view from this VC (possibly hard)
-            present(hostingController, animated: true)
+            navigationController?.pushViewController(hostingController, animated: true)
+        }
+    }
+    
+    func showEventDetails(event: RecurringEvents) {
+        if let scheduleViewModel = coordinator?.scheduleViewModel {
+            
+            // since event details view expects a Binding type, and we can't explicity
+            // use the $ binding syntax within a view controller, we can create a
+            // binding type manually
+            let shouldReloadDataBinding = Binding<Bool>(
+                get: { scheduleViewModel.shouldReloadData },
+                set: { newValue in
+                    scheduleViewModel.shouldReloadData = newValue
+                }
+            )
+            
+            // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
+            // inject our viewModel explicitly as an environment object
+            let hostingController = UIHostingController(
+                rootView: EventDetailsView(event: event, currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding)
+                    .ignoresSafeArea(.all)
+            )
+            
+            hostingController.navigationItem.setHidesBackButton(true, animated: true)
+            
+            navigationController?.pushViewController(hostingController, animated: true)
         }
     }
     
@@ -923,7 +992,7 @@ extension ScheduleViewController: UICollectionViewDelegate {
         let itemWidth: CGFloat = 60
         let proposedX   = targetContentOffset.pointee.x
         let page        = round(proposedX / itemWidth)
-        targetContentOffset.pointee.x = page * itemWidth + 1
+        targetContentOffset.pointee.x = page * itemWidth + 0.50
     }
     
 //    func snapCellPosition() {

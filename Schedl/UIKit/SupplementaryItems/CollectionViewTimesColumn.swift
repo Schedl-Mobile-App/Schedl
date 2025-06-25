@@ -6,7 +6,7 @@
 //
 
 import UIKit
-import SwiftUICore
+import SwiftUI
 
 // custom UILabel class that allows for deeper level of padding for text of a UILabel
 class InsetLabel: UILabel {
@@ -39,7 +39,7 @@ class TimeLabel: UIView {
         let label = InsetLabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textAlignment = .center
-        label.font = UIFont.monospacedSystemFont(ofSize: 12, weight: .medium)
+        label.font = UIFont.monospacedSystemFont(ofSize: 12, weight: .semibold)
         return label
     }()
     
@@ -53,6 +53,9 @@ class TimeLabel: UIView {
     }
     
     private func setupView() {
+        
+        label.textColor = UIColor(Color(hex: 0x666666))
+        
         addSubview(label)
         NSLayoutConstraint.activate([
             label.leadingAnchor.constraint(equalTo: leadingAnchor),

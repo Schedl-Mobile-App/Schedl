@@ -1,3 +1,4 @@
+
 import SwiftUI
 
 struct MainTabBarView: View {
@@ -6,41 +7,44 @@ struct MainTabBarView: View {
     
     var body: some View {
         if let user = authViewModel.currentUser {
-            Group {
+             Group {
                 TabView {
                     NavigationStack {
                         FeedView(currentUser: user)
                     }
                     .tabItem {
-                        Image(systemName: "house.fill")
+                        Label("Feed", systemImage: "house.fill")
                     }
                     
-                    NavigationStack {
+                    ZStack {
+                        Color(hex: 0xf7f4f2)
+                            .ignoresSafeArea()
+                            .allowsHitTesting(false)
                         ScheduleView(currentUser: user)
-                            .ignoresSafeArea(.all)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .tabItem {
-                        Image(systemName: "calendar")
+                        Label("Schedule", systemImage: "calendar")
                     }
                     
                     NavigationStack {
                         SearchView(currentUser: user)
                     }
                     .tabItem {
-                        Image(systemName: "magnifyingglass")
+                        Label("Search", systemImage: "magnifyingglass")
                     }
                     
                     NavigationStack {
                         ProfileView(currentUser: user, profileUser: user)
+                            .environmentObject(authViewModel)
                     }
                     .tabItem {
-                        Image(systemName: "person")
+                        Label("Profile", systemImage: "person")
                     }
                 }
-                .background(Color(hex: 0xf7f4f2))
-                .accentColor(Color.primary)
-                .navigationBarBackButtonHidden(true)
             }
+            .navigationBarBackButtonHidden(true)
+            
         } else {
             LoginView()
         }

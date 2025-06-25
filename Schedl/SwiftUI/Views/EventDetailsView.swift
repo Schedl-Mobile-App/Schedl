@@ -11,6 +11,8 @@ struct EventDetailsView: View {
     @StateObject private var eventViewModel: EventViewModel
     @Environment(\.presentationMode) var presentationMode
     @State var showMapSheet: Bool = false
+    @State var showTabBar = false
+    @Binding var shouldReloadData: Bool
     
     // State for expanding/collapsing the list
     @State private var isExpanded = false
@@ -22,35 +24,34 @@ struct EventDetailsView: View {
         return eventDate.formatted(date: .complete, time: .omitted)
     }
     
-    init(event: RecurringEvents, currentUser: User) {
+    init(event: RecurringEvents, currentUser: User, shouldReloadData: Binding<Bool>) {
         _eventViewModel = StateObject(wrappedValue: EventViewModel(currentUser: currentUser, selectedEvent: event))
+        _shouldReloadData = Binding(projectedValue: shouldReloadData)
     }
-
+    
     var body: some View {
         ZStack {
             Color(hex: 0xf7f4f2)
                 .ignoresSafeArea()
             
             VStack(spacing: 30) {
-                HStack(spacing: 0) {
+                ZStack(alignment: .leading) {
                     Button(action: {
                         presentationMode.wrappedValue.dismiss()
                     }) {
                         Image(systemName: "chevron.left")
                             .fontWeight(.bold)
-                            .font(.title3)
+                            .imageScale(.large)
                             .labelStyle(.iconOnly)
                             .foregroundStyle(Color.primary)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     Text("Event Details")
                         .foregroundStyle(Color(hex: 0x333333))
                         .font(.title3)
                         .fontWeight(.bold)
                         .fontDesign(.monospaced)
-                        .tracking(0.1)
-                        .fixedSize()
-                        .frame(maxWidth: .infinity)
+                        .tracking(-0.25)
+                        .frame(maxWidth: .infinity, alignment: .center)
                     Button(action: {
                         print("Now Editing")
                     }) {
@@ -256,14 +257,41 @@ struct EventDetailsView: View {
                                 .shadow(color: Color.black.opacity(0.12), radius: 7, x: 0, y: 4)
                         }
                         .animation(.easeInOut(duration: 0.3), value: isExpanded)
-                        .onAppear {
-                            Task {
-                                await eventViewModel.fetchInvitedUsers()
+                        .padding(.horizontal)
+                        
+                        // area for any event notes
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Notes")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .fontDesign(.monospaced)
+                                .tracking(0.1)
+                                .foregroundStyle(Color(hex: 0x333333))
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "pencil")
+                                    .imageScale(.medium)
+                                    .fontWeight(.bold)
+                                Text("\(eventViewModel.selectedEvent.event.notes)")
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .fontDesign(.monospaced)
+                                    .tracking(0.1)
+                                    .foregroundStyle(Color(hex: 0x333333))
                             }
                         }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.white)
+                                .shadow(color: Color.black.opacity(0.12), radius: 7, x: 0, y: 4)
+                        }
                         .padding(.horizontal)
+                        .hidden(eventViewModel.selectedEvent.event.notes.isEmpty)
+                        
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.bottom)
                 }
                 .defaultScrollAnchor(isExpanded ? .bottom : .top, for: .sizeChanges)
                 .padding(.horizontal)
@@ -284,20 +312,22 @@ struct EventDetailsView: View {
                     }
             }
         }
+        .task {
+            await eventViewModel.fetchInvitedUsers()
+        }
+        .onAppear {
+            shouldReloadData = false
+        }
+        .onDisappear {
+            shouldReloadData = true
+        }
+        .toolbar(showTabBar ? .visible : .hidden, for: .tabBar)
     }
     
     func returnTimeFormatted(timeObj: Double) -> String {
-        let hours = Int(timeObj / 3600)
-        let minutes = (Double(timeObj / 3600.0) - Double(hours)) * 60
-        if hours == 0 {
-            return "12:\(String(format: "%02d", Int(minutes))) AM"
-        } else if hours == 12 {
-            return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) PM"
-        } else if hours < 11 {
-            return "\(Int(hours)):\(String(format: "%02d", Int(minutes))) AM"
-        } else {
-            return "\(Int(hours - 12)):\(String(format: "%02d", Int(minutes))) PM"
-        }
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+        let date = startOfDay.addingTimeInterval(timeObj)
+        return date.formatted(date: .omitted, time: .shortened)
     }
 }
 
@@ -357,3 +387,43 @@ struct InvitedUserRow: View {
         .padding(.vertical, 6)
     }
 }
+
+// MARK: - Mock Data for Preview
+
+private let mockUser = User(
+    id: "user1",
+    username: "janedoe",
+    email: "jane@example.com",
+    displayName: "Jane Doe",
+    profileImage: "",
+    creationDate: 0
+)
+
+private let mockTaggedUsers = [
+    User(id: "user2", username: "alices", email: "alice@example.com", displayName: "Alice Smith", profileImage: "", creationDate: 0),
+    User(id: "user3", username: "bobj", email: "bob@example.com", displayName: "Bob Jones", profileImage: "", creationDate: 0),
+    User(id: "user4", username: "charlieb", email: "charlie@example.com", displayName: "Charlie Brown", profileImage: "", creationDate: 0)
+]
+
+private let mockEvent = RecurringEvents(
+    date: Date().timeIntervalSince1970,
+    event: Event(
+        id: "event1",
+        userId: mockUser.id,
+        scheduleId: "schedule1",
+        title: "Team Standup Meeting",
+        startDate: Date().timeIntervalSince1970,
+        startTime: 9 * 3600.0, // 9:00 AM
+        endTime: 10 * 3600.0,  // 10:00 AM
+        creationDate: Date().timeIntervalSince1970,
+        locationName: "Conference Room A",
+        locationAddress: "123 Apple Blvd, Cupertino, CA",
+        latitude: 37.3318,
+        longitude: -122.0312,
+        taggedUsers: mockTaggedUsers.map { $0.id },
+        color: "3C859E",
+        notes: "Discuss weekly progress and blockers.",
+        endDate: nil,
+        repeatingDays: nil
+    )
+)

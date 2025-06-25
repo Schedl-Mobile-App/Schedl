@@ -77,6 +77,8 @@ class NotificationService: NotificationServiceProtocol {
         
         let notificationDict = snapshot.value as? [String: Any] ?? [:]
         
+        print(notificationDict)
+        
         let creationDate = notificationDict["creationDate"] as? Double ?? 0
         
         if
@@ -123,7 +125,6 @@ class NotificationService: NotificationServiceProtocol {
     
     func fetchNotificationsByIds(notificationIds: [String], userId: String) async throws -> [Notification] {
         
-        let notificationRef = ref.child("notifications").child(userId)
         var userNotifications: [Notification] = []
         
         try await withThrowingTaskGroup(of: Notification?.self) { group in
@@ -273,15 +274,17 @@ class NotificationService: NotificationServiceProtocol {
         }
     }
     
-    func observeUserNotifications(userId: String, completion: @escaping ([String]) -> Void) -> DatabaseHandle {
+    func observeUserNotifications(userId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
         let notificationRef = ref.child("notifications").child(userId)
         
         let handle = notificationRef.observe(.childAdded) { snapshot in
             let dict = snapshot.value as? [String: Any] ?? [:]
             
-            print(dict)
-            print(dict.keys)
-            completion(Array(dict.keys))
+            guard let notificationId = dict["id"] as? String else { return }
+            
+            print(notificationId)
+            
+            completion(notificationId)
         }
         
         return handle

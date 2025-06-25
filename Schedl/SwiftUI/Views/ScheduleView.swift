@@ -26,7 +26,7 @@ struct ScheduleView: UIViewControllerRepresentable {
         Coordinator(scheduleViewModel: scheduleViewModel, authViewModel: authViewModel)
     }
     
-    func makeUIViewController(context: Context) -> ScheduleViewController {
+    func makeUIViewController(context: Context) -> UINavigationController {
         let scheduleView = ScheduleViewController()
 //        scheduleView.edgesForExtendedLayout = .all
 //        
@@ -38,7 +38,9 @@ struct ScheduleView: UIViewControllerRepresentable {
         // this action to our coordinator here
         scheduleView.coordinator = context.coordinator
         
-        return scheduleView
+        let navController = UINavigationController(rootViewController: scheduleView)
+        
+        return navController
     }
     
     func updateUIViewController(_ uiViewController: UIViewControllerType, context: Context) {

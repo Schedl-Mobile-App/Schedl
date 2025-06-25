@@ -126,7 +126,7 @@ struct LoginView: View {
                     
                     Button(action: {
                         Task {
-                            try await authViewModel.login()
+                            await authViewModel.login()
                         }
                     }) {
                         Text("Login")

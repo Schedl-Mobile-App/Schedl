@@ -63,7 +63,7 @@ class NotificationViewModel: NotificationViewModelProtocol, ObservableObject {
         self.errorMessage = nil
         do {
             let notificationData = try await notificationService.fetchAllNotifications(userId: currentUser.id)
-            self.notifications = notificationData
+            self.notifications = notificationData.sorted { $0.creationDate > $1.creationDate }
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to fetch user notifications. Received Server Error: \(error.localizedDescription)"
@@ -74,14 +74,14 @@ class NotificationViewModel: NotificationViewModelProtocol, ObservableObject {
     @MainActor
     func setupNotificationObserver() {
         removeNotificationObserver()
-        notificationObserver = notificationService.observeUserNotifications(userId: currentUser.id) { [weak self] (notificationIds: [String]) in
+        notificationObserver = notificationService.observeUserNotifications(userId: currentUser.id) { [weak self] (notificationId: String) in
             guard let self = self else { return }
             
             Task { @MainActor in
                 do {
-                    let newNotifications = try await self.notificationService.fetchNotificationsByIds(notificationIds: notificationIds, userId: self.currentUser.id)
-                                        
-                    self.notifications.append(contentsOf: newNotifications)
+                    guard let newNotification = try await self.notificationService.fetchNotificationById(notificationId: notificationId, userId: self.currentUser.id) else { return }
+                    
+                    self.notifications.insert(newNotification, at: 0)
                     
                     self.isLoading = false
                 } catch {

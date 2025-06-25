@@ -7,7 +7,7 @@
 
 import UIKit
 import Foundation
-import SwiftUICore
+import SwiftUI
 
 class ScheduleViewOptions: UIStackView {
     
@@ -44,7 +44,7 @@ class ScheduleViewOptions: UIStackView {
         let titleView = UIView()
         titleView.translatesAutoresizingMaskIntoConstraints = false
         titleView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 5, leading: 10, bottom: 10, trailing: 5)
-        titleView.backgroundColor = UIColor(Color.black.opacity(0.12))
+        titleView.backgroundColor = UIColor(Color.black.opacity(0.07))
         
         let titleLabel = UILabel()
         titleLabel.text = "Calendar View"
@@ -59,28 +59,28 @@ class ScheduleViewOptions: UIStackView {
         let dayOptionView = UIView()
         dayOptionView.translatesAutoresizingMaskIntoConstraints = false
         dayOptionView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 10, trailing: 5)
-        dayOptionView.backgroundColor = UIColor(Color.black.opacity(0.12))
+        dayOptionView.backgroundColor = UIColor(Color.black.opacity(0.07))
         
         
         
         let weekOptionView = UIView()
         weekOptionView.translatesAutoresizingMaskIntoConstraints = false
         weekOptionView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 10, trailing: 5)
-        weekOptionView.backgroundColor = UIColor(Color.black.opacity(0.12))
+        weekOptionView.backgroundColor = UIColor(Color.black.opacity(0.07))
         
         
         
         let monthOptionView = UIView()
         monthOptionView.translatesAutoresizingMaskIntoConstraints = false
         monthOptionView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 10, trailing: 5)
-        monthOptionView.backgroundColor = UIColor(Color.black.opacity(0.12))
+        monthOptionView.backgroundColor = UIColor(Color.black.opacity(0.07))
         
         
         
         let yearOptionView = UIView()
         yearOptionView.translatesAutoresizingMaskIntoConstraints = false
         yearOptionView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 10, trailing: 5)
-        yearOptionView.backgroundColor = UIColor(Color.black.opacity(0.12))
+        yearOptionView.backgroundColor = UIColor(Color.black.opacity(0.07))
         
         dayOption.setImage(nil, for: .normal)
         dayOption.setImage(UIImage(systemName: "checkmark"), for: .selected)
@@ -127,25 +127,25 @@ class ScheduleViewOptions: UIStackView {
         let dayLabel = UILabel()
         dayLabel.text = "Day"
         dayLabel.font = .systemFont(ofSize: 15, weight: .bold)
-        dayLabel.textColor = UIColor(Color(hex: 0x333333))
+        dayLabel.textColor = UIColor(Color(hex: 0x666666))
         dayLabel.translatesAutoresizingMaskIntoConstraints = false
         
         let weekLabel = UILabel()
         weekLabel.text = "Week"
         weekLabel.font = .systemFont(ofSize: 15, weight: .bold)
-        weekLabel.textColor = UIColor(Color(hex: 0x333333))
+        weekLabel.textColor = UIColor(Color(hex: 0x666666))
         weekLabel.translatesAutoresizingMaskIntoConstraints = false
         
         let monthLabel = UILabel()
         monthLabel.text = "Month"
         monthLabel.font = .systemFont(ofSize: 15, weight: .bold)
-        monthLabel.textColor = UIColor(Color(hex: 0x333333))
+        monthLabel.textColor = UIColor(Color(hex: 0x666666))
         monthLabel.translatesAutoresizingMaskIntoConstraints = false
         
         let yearLabel = UILabel()
         yearLabel.text = "Year"
         yearLabel.font = .systemFont(ofSize: 15, weight: .bold)
-        yearLabel.textColor = UIColor(Color(hex: 0x333333))
+        yearLabel.textColor = UIColor(Color(hex: 0x666666))
         yearLabel.translatesAutoresizingMaskIntoConstraints = false
         
         dayOption.addSubview(dayLabel)

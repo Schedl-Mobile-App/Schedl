@@ -11,8 +11,6 @@ import Combine
 
 class EventCell: UIView {
     
-//    private var bottomShadowLayer: CAShapeLayer!
-//    private var topShadowLayer: CAShapeLayer!
     private var shadowLayer: CAShapeLayer!
     private var cornerRadius: CGFloat = 5.0
     private var shadowBackgroundColor: UIColor!
@@ -20,11 +18,14 @@ class EventCell: UIView {
     weak var viewModel: ScheduleViewModel?
     weak var rootVC: UIViewController?
     
+    var onSelectEvent: ((RecurringEvents) -> Void)?
+    
     var event: RecurringEvents?
-    let eventCell = UIButton()
+    let eventCell = UIButton(type: .custom)
     let titleLabel = UILabel()
     let startTimeLabel = UILabel()
     let endTimeLabel = UILabel()
+    let shortenedTimeLabel = UILabel()
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -34,75 +35,86 @@ class EventCell: UIView {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func configureUI(viewModel: ScheduleViewModel, event: RecurringEvents, rootVC: UIViewController) {
+    func configureUI(event: RecurringEvents) {
         
-        self.viewModel = viewModel
         self.event = event
-        self.rootVC = rootVC
+        
+//        EventCell.performWithoutAnimation {
+//            layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).cgPath
+//            layer.shadowColor = UIColor(Color.black).cgColor
+//            layer.shadowOpacity = 0.2
+//            layer.shadowOffset = CGSize(width: 1, height: 4)
+//            layer.shouldRasterize = true
+//            layer.rasterizationScale = UIScreen.main.scale
+//        }
         
         shadowBackgroundColor = UIColor(Color(hex: Int(event.event.color, radix: 16)!))
-                
-//        eventCell.configuration = .filled()
-//        eventCell.configuration?.baseBackgroundColor = shadowBackgroundColor
+        
         eventCell.translatesAutoresizingMaskIntoConstraints = false
-        eventCell.configuration = .filled()
-        eventCell.configuration?.baseBackgroundColor = shadowBackgroundColor.withAlphaComponent(0.90)
+        eventCell.backgroundColor = shadowBackgroundColor
         eventCell.layer.cornerRadius = cornerRadius
                 
         eventCell.addTarget(self, action: #selector(showEventDetails), for: .touchUpInside)
         
         addSubview(eventCell)
         
+        let startTimeText = "\(Date.convertHourAndMinuteToDate(time: event.event.startTime).formatted(date: .omitted, time: .shortened))-"
+        let endTimeText = "\(Date.convertHourAndMinuteToDate(time: event.event.endTime).formatted(date: .omitted, time: .shortened))"
+        
+        // title label for the event
         titleLabel.text = event.event.title
         titleLabel.textAlignment = .left
-        titleLabel.textColor = UIColor(Color(hex: 0xf7f4f2))
         titleLabel.backgroundColor = .clear
-//        titleLabel.numberOfLines = 0 // Allow unlimited lines initially for calculation
+        titleLabel.numberOfLines = 0                                    // allow the label to determine the number of lines
+        titleLabel.textColor = UIColor(Color(hex: 0xf7f4f2))
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        // Calculate optimal font size based on content and available space
-//        let titleOptimalFont = calculateOptimalFont(for: event.event.title, in: frame.size)
-//        titleLabel.font = titleOptimalFont
         titleLabel.font = UIFont.systemFont(ofSize: 10, weight: .heavy)
         titleLabel.adjustsFontSizeToFitWidth = true
-
-        // Set final number of lines based on height
-        titleLabel.numberOfLines = calculateMaxLines(for: frame.height)
+        titleLabel.numberOfLines = calculateMaxLines(for: frame.height, fontWeight: .heavy)
         
         eventCell.addSubview(titleLabel)
                 
-        startTimeLabel.text = "\(Date.convertHourAndMinuteToDate(time: event.event.startTime).formatted(date: .omitted, time: .shortened))-"
-        
+        // start time label for the event
+        startTimeLabel.text = startTimeText
         startTimeLabel.textAlignment = .left
         startTimeLabel.textColor = UIColor(Color(hex: 0xf7f4f2))
         startTimeLabel.backgroundColor = .clear
         startTimeLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        // Calculate optimal font size based on content and available space
-//        let timeOptimalFont = calculateOptimalFont(for: timeString, in: frame.size)
-//        timeLabel.font = timeOptimalFont
-        startTimeLabel.font = .systemFont(ofSize: 10, weight: .bold)
-//        timeLabel.adjustsFontSizeToFitWidth = true
+        startTimeLabel.font = UIFont.systemFont(ofSize: 9, weight: .bold)
         
-        endTimeLabel.text = "\(Date.convertHourAndMinuteToDate(time: event.event.endTime).formatted(date: .omitted, time: .shortened))"
+        // end time label for the event
+        endTimeLabel.text = endTimeText
         endTimeLabel.textAlignment = .left
         endTimeLabel.textColor = UIColor(Color(hex: 0xf7f4f2))
         endTimeLabel.backgroundColor = .clear
         endTimeLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        // Calculate optimal font size based on content and available space
-//        let timeOptimalFont = calculateOptimalFont(for: timeString, in: frame.size)
-//        timeLabel.font = timeOptimalFont
-        endTimeLabel.font = .systemFont(ofSize: 10, weight: .bold)
-//        timeLabel.adjustsFontSizeToFitWidth = true
-            
+        endTimeLabel.font = UIFont.systemFont(ofSize: 9, weight: .bold)
+        
+        // single lined time label for really short events
+        shortenedTimeLabel.text = startTimeText + endTimeText
+        shortenedTimeLabel.textAlignment = .left
+        shortenedTimeLabel.textColor = UIColor(Color(hex: 0xf7f4f2))
+        shortenedTimeLabel.backgroundColor = .clear
+        shortenedTimeLabel.numberOfLines = 1
+        shortenedTimeLabel.translatesAutoresizingMaskIntoConstraints = false
+        shortenedTimeLabel.font = UIFont.systemFont(ofSize: 10, weight: .bold)
+        shortenedTimeLabel.adjustsFontSizeToFitWidth = true
+                
+        let spacingBetweenTitleAndStartTime: CGFloat = frame.size.height < 75 ? 1 : 3
+        let spacingBetweenTimes: CGFloat = frame.size.height <= 75 ? -3 : -1
+                    
+        // hide the multi-line time labels for a fixed height threshold
         let hideTimeLabels = frame.size.height > 40
         startTimeLabel.isHidden = !hideTimeLabels
         endTimeLabel.isHidden = !hideTimeLabels
+        let topPadding = CGFloat(hideTimeLabels ? 5 : 2)
         
+        // show the single line time label when height is less than the above value
+        shortenedTimeLabel.isHidden = hideTimeLabels
+
         eventCell.addSubview(startTimeLabel)
         eventCell.addSubview(endTimeLabel)
-            
+        eventCell.addSubview(shortenedTimeLabel)
         
         NSLayoutConstraint.activate([
             eventCell.topAnchor.constraint(equalTo: topAnchor),
@@ -112,151 +124,75 @@ class EventCell: UIView {
             
             titleLabel.leadingAnchor.constraint(equalTo: eventCell.leadingAnchor, constant: 2),
             titleLabel.trailingAnchor.constraint(equalTo: eventCell.trailingAnchor, constant: -2),
-            titleLabel.topAnchor.constraint(equalTo: eventCell.topAnchor, constant: 5),
+            titleLabel.topAnchor.constraint(equalTo: eventCell.topAnchor, constant: topPadding),
             
             startTimeLabel.leadingAnchor.constraint(equalTo: eventCell.leadingAnchor, constant: 2),
             startTimeLabel.trailingAnchor.constraint(equalTo: eventCell.trailingAnchor, constant: -2),
-            startTimeLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 3),
+            startTimeLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: spacingBetweenTitleAndStartTime),
             
             endTimeLabel.leadingAnchor.constraint(equalTo: eventCell.leadingAnchor, constant: 2),
             endTimeLabel.trailingAnchor.constraint(equalTo: eventCell.trailingAnchor, constant: -2),
-            endTimeLabel.topAnchor.constraint(equalTo: startTimeLabel.bottomAnchor, constant: -2),
+            endTimeLabel.topAnchor.constraint(equalTo: startTimeLabel.bottomAnchor, constant: spacingBetweenTimes),
+            
+            shortenedTimeLabel.leadingAnchor.constraint(equalTo: eventCell.leadingAnchor, constant: 2),
+            shortenedTimeLabel.trailingAnchor.constraint(equalTo: eventCell.trailingAnchor, constant: -2),
+            shortenedTimeLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: -2),
         ])
     }
     
     override func layoutSubviews() {
         super.layoutSubviews()
-        
-//        full shadow
-//        let shadowHeight: CGFloat = 8
-//        let rect = CGRect(x: 0, y: 0, width: bounds.width, height: bounds.height)
-//        
-//        if shadowLayer == nil {
-//            shadowLayer = CAShapeLayer()
-//            
-//            shadowLayer.path = UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).cgPath
-//            
-//            shadowLayer.shadowPath = shadowLayer.path
-//            shadowLayer.shadowColor  = UIColor.black.cgColor
-//            shadowLayer.shadowOpacity = 0.7
-//            shadowLayer.shadowOffset  = CGSize(width: 0.0, height: 1.0)
-//            shadowLayer.shadowRadius = 3
-//            
-//            layer.insertSublayer(shadowLayer, at: 0)
-//        }
-        
-//        bottom shadow
-//        let bottomRect = CGRect(
-//            x: 0,
-//            y: bounds.maxY - shadowHeight - 1,
-//            width: bounds.width,
-//            height: shadowHeight
-//        )
-//        let topRect = CGRect(
-//            x: 0,
-//            y: bounds.minY + 1,
-//            width: bounds.width,
-//            height: shadowHeight
-//        )
-//
         if shadowLayer == nil {
             shadowLayer = CAShapeLayer()
             
             shadowLayer.path = UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).cgPath
-            shadowLayer.backgroundColor = shadowBackgroundColor.withAlphaComponent(0.95).cgColor
-            shadowLayer.cornerRadius = cornerRadius
-            
-            shadowLayer.shadowPath   = shadowLayer.path
-            shadowLayer.shadowColor  = UIColor.black.cgColor
+            shadowLayer.fillColor = shadowBackgroundColor.withAlphaComponent(1.2).cgColor
+
+            shadowLayer.shadowPath = shadowLayer.path
+            shadowLayer.shadowColor = UIColor.black.cgColor
             shadowLayer.shadowOpacity = 0.20
-            shadowLayer.shadowOffset  = CGSize(width: 0.0, height: 4.0)
+            shadowLayer.shadowOffset = CGSize(width: 0, height: 4.0)
             shadowLayer.shadowRadius = 3
             
-//            topShadowLayer = CAShapeLayer()
-//            
-//            topShadowLayer.path = UIBezierPath(roundedRect: topRect, cornerRadius: cornerRadius).cgPath
-//            
-//            topShadowLayer.shadowPath   = topShadowLayer.path
-//            topShadowLayer.shadowColor  = UIColor.black.cgColor
-//            topShadowLayer.shadowOpacity = 0.7
-//            topShadowLayer.shadowOffset  = CGSize(width: 0.0, height: -4.0)
-//            topShadowLayer.shadowRadius = 3
-//            
-//            layer.insertSublayer(topShadowLayer, at: 0)
-            layer.insertSublayer(shadowLayer, at: 0)
+            layer.insertSublayer(shadowLayer, at: .zero)
         }
     }
     
     @objc func showEventDetails() {
-        
-        guard let rootVC = rootVC, let viewModel = viewModel, let event = event else { return }
-        
-        let hostingController = UIHostingController(
-            rootView: EventDetailsView(event: event, currentUser: viewModel.currentUser)
-        )
-        
-        hostingController.modalPresentationStyle = .fullScreen
-        
-        // will present it as a full screen page rather than trying to implement some voodoo method
-        // to push our view onto the navigation stack defined in our root view from this VC (possibly hard)
-        rootVC.present(hostingController, animated: true)
+        guard let event = event else { return }
+        self.onSelectEvent?(event)
     }
     
-//    func convertHexStringToInt(colorCode: String) -> Int {
-//        if let value = hexString
-//    }
-    
-//    private func calculateOptimalFont(for text: String, in size: CGSize) -> UIFont {
-//        let availableHeight = size.height - 8 // Account for padding
-//        let availableWidth = size.width - 8
-//        
-//        // Start with base font size
-//        var fontSize = calculateOptimalFontSize(for: size.height)
-//        
-//        while fontSize > 8 { // Minimum readable size
-//            let font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
-//            let attributes = [NSAttributedString.Key.font: font]
-//            
-//            // Calculate text size with current font
-//            let textSize = text.boundingRect(
-//                with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
-//                options: [.usesLineFragmentOrigin, .usesFontLeading],
-//                attributes: attributes,
-//                context: nil
-//            ).size
-//            
-//            // Calculate number of lines needed
-//            let linesNeeded = ceil(textSize.height / font.lineHeight)
-//            let totalHeight = linesNeeded * font.lineHeight
-//            
-//            // If text fits, use this font size
-//            if totalHeight <= availableHeight {
-//                return font
-//            }
-//            
-//            // Reduce font size and try again
-//            fontSize -= 1
-//        }
-//        
-//        return UIFont.systemFont(ofSize: 8, weight: .bold)
-//    }
-
-    private func calculateMaxLines(for height: CGFloat, fontSize: CGFloat = 10) -> Int {
-        let lineHeight = UIFont.systemFont(ofSize: fontSize, weight: .heavy).lineHeight
-        let availableHeight = height - 8 // Account for padding
+    private func calculateMaxLines(for height: CGFloat, fontSize: CGFloat = 10, fontWeight: UIFont.Weight) -> Int {
+        let lineHeight = UIFont.systemFont(ofSize: fontSize, weight: fontWeight).lineHeight
+        let availableHeight = height - 4 // Account for padding
         return max(1, Int(availableHeight / lineHeight))
     }
-
-//    private func calculateOptimalFontSize(for height: CGFloat) -> CGFloat {
-//        switch height {
-//        case 0..<30:
-//            return 10
-//        case 30..<50:
-//            return 10
-//        case 50..<80:
-//            return 10
-//        default:
-//            return 10
-//        }
-//    }
 }
+
+extension UIColor {
+    /// Returns a color with its brightness adjusted by the given factor.
+    /// - Parameter factor: Multiplier for brightness (e.g. 1.2 = 20% brighter, 0.8 = 20% darker).
+    func withBrightnessAdjusted(by factor: CGFloat) -> UIColor {
+        var hue: CGFloat = 0
+        var saturation: CGFloat = 0
+        var brightness: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        // Extract HSB components; fallback to original if unavailable
+        guard getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha) else {
+            return self
+        }
+
+        // Clamp brightness to [0,1]
+        let newBrightness = min(max(brightness * factor, 0), 1)
+
+        return UIColor(
+            hue: hue,
+            saturation: saturation,
+            brightness: newBrightness,
+            alpha: alpha
+        )
+    }
+}
+

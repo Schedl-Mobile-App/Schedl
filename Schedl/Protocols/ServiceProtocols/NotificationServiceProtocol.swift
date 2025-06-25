@@ -15,6 +15,6 @@ protocol NotificationServiceProtocol {
     func sendFriendRequest(userId: String, username: String, profileImage: String, toUsername: String) async throws -> Void
     func handleFriendRequestResponse(notificationId: String, senderId: String, toUserId: String, responseStatus: Bool) async throws -> Void
     func handleEventInviteResponse(notificationId: String, senderScheduleId: String, eventId: String, senderId: String, toUserId: String, userScheduleId: String, responseStatus: Bool) async throws -> Void
-    func observeUserNotifications(userId: String, completion: @escaping ([String]) -> Void) -> DatabaseHandle
+    func observeUserNotifications(userId: String, completion: @escaping (String) -> Void) -> DatabaseHandle
     func removeUserNotificationObserver(handle: DatabaseHandle, userId: String)
 }

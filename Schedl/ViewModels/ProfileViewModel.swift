@@ -11,7 +11,8 @@ import Firebase
 class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     @Published var currentUser: User
     @Published var userSchedule: Schedule?
-    @Published var isLoading: Bool = false
+    @Published var isLoadingProfileView: Bool = false
+    @Published var isLoadingFriendView = false
     @Published var errorMessage: String?
     @Published var friends: [User] = []
     @Published var userPosts: [Post] = []
@@ -27,8 +28,10 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     @Published var isEditingProfile: Bool = false
     @Published var selectedImage: UIImage? = nil
     @Published var numberOfFriends: Int = 0
+    @Published var cachedProfileImage: UIImage?
+    @Published var showLogoutModal = false
     var profileUser: User
-    var isViewingFriend: Bool = false
+    @Published var isViewingFriend: Bool = false
     @Published var isShowingFriendRequest: Bool = false
     var tabOptions: [Tab] = [.schedules, .events, .activity]
     private var userService: UserServiceProtocol
@@ -36,14 +39,28 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     private var eventService: EventServiceProtocol
     private var notificationService: NotificationServiceProtocol
     private var postService: PostServiceProtocol
-    @Published var hasLoadedData: Bool = false
+    @Published var shouldReloadData: Bool = true
+    @Published var path = NavigationPath()
+    
+//    private var url: URL {
+//        return URL(string: currentUser.profileImage)!
+//    }
+    
+//    private let url = URL(string: "https://pokeapi.co/api/v2/pokemon/")!
+//    private let session = URLSession(configuration: .default)
+//    
+//    func downloadImage(for pokemon: Pokemon) async throws {
+//        guard let index = self.pokemon.firstIndex(where: { $0.id == pokemon.id }),
+//              self.pokemon[index].imageDataURL == nil
+//        else { return }
+//        let (data, _) = try await session.data(from: pokemon.imageURL)
+//        let dataURL = URL(string: "data:image/png;base64," + data.base64EncodedString())
+//        self.pokemon[index].imageDataURL = dataURL
+//    }
     
     // only needs to be read-only since we will be creating new instances of the view model whether the current user is on their profile
     // or visiting their friends profile
-    var isCurrentUser: Bool {
-        currentUser.id == profileUser.id
-    }
-    
+    var isCurrentUser: Bool
     init(userService: UserServiceProtocol = UserService.shared, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared, postService: PostServiceProtocol = PostService.shared, currentUser: User, profileUser: User){
         self.userService = userService
         self.scheduleService = scheduleService
@@ -52,6 +69,12 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         self.postService = postService
         self.currentUser = currentUser
         self.profileUser = profileUser
+        self.isCurrentUser = currentUser.id == profileUser.id
+        print("Being initialized in profile view model")
+    }
+    
+    func resetPath() {
+        path = NavigationPath()
     }
     
     func returnSelectedOptionIndex() -> Int {
@@ -62,21 +85,47 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     }
     
     @MainActor
-    func loadViewData() async {
-        self.isLoading = true
+    func loadProfileData() async {
+        self.isLoadingProfileView = true
+        
         self.errorMessage = nil
         await fetchTabInfo()
+        await loadProfileImageIfNeeded()
         await fetchEvents()
         await fetchFriends()
         await checkIfFriend()
-        self.hasLoadedData = true
         
-        self.isLoading = false
+        self.isLoadingProfileView = false
+    }
+    
+    @MainActor
+    func loadFriendsData() async {
+        self.isLoadingFriendView = true
+        self.errorMessage = nil
+        
+        await fetchFriends()
+        await fetchFriendsInfo()
+        
+        self.isLoadingFriendView = false
+    }
+    
+    @MainActor
+    func loadProfileImageIfNeeded() async {
+        guard cachedProfileImage == nil else { return }
+        let urlString = profileUser.profileImage
+        guard !urlString.isEmpty, let url = URL(string: urlString) else { return }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let image = UIImage(data: data) {
+                self.cachedProfileImage = image
+            }
+        } catch {
+            // Optionally handle image download errors
+        }
     }
     
     @MainActor
     func fetchTabInfo() async {
-        self.isLoading = true
         self.errorMessage = nil
         
         let scheduleAlreadyFetched: Bool = partitionedEvents.isEmpty == false
@@ -94,39 +143,32 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
                 if scheduleAlreadyFetched {
                     await fetchEvents()
                 }
-                self.isLoading = false
                 break
             case .events:
                 if eventsAlreadyFetched {
                     await fetchEvents()
                 }
-                self.isLoading = false
                 break
             case .activity:
                 if postsAlreadyFetched {
                     let fetchedPosts = try await postService.fetchPostsByUserId(userId: profileUser.id)
                     userPosts = fetchedPosts
                 }
-                self.isLoading = false
                 break
             }
         } catch {
             self.errorMessage = error.localizedDescription
-            self.isLoading = false
         }
     }
     
     @MainActor
     func sendFriendRequest() async {
-        self.isLoading = true
         self.errorMessage = nil
         do {
             try await notificationService.sendFriendRequest(userId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUsername: profileUser.username)
-            self.isLoading = false
         } catch {
             print("Friend request was not successfully sent")
             self.errorMessage = "Failed to fetch schedule: \(error.localizedDescription)"
-            self.isLoading = false
         }
     }
     
@@ -161,7 +203,6 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     
     @MainActor
     func fetchEvents() async {
-        self.isLoading = true
         self.errorMessage = nil
         do {
             let scheduleId = try await scheduleService.fetchScheduleId(userId: profileUser.id)
@@ -211,7 +252,17 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
                 // if they occur on the same day, then we sort by their start time
                 return $0.event.startTime < $1.event.startTime
             }
-            self.currentEvents = formattedEvents.filter{ $0.date >= currentDay }.sorted { $0.date < $1.date }
+            self.currentEvents = formattedEvents.filter{ $0.date >= currentDay }.sorted {
+                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+                
+                // if the event start dates are different, then we sort by their date
+                if dayComparison != .orderedSame {
+                    return dayComparison == .orderedAscending
+                }
+                
+                // if they occur on the same day, then we sort by their start time
+                return $0.event.startTime < $1.event.startTime
+            }
             let rawGroups = Dictionary(
                 grouping: currentEvents,
                 by: \.date,
@@ -219,78 +270,62 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
             self.partitionedEvents = rawGroups.mapValues { recurringEvent in
                 recurringEvent.sorted { $0.event.startTime < $1.event.startTime }
             }
-            self.isLoading = false
         } catch {
             print("Could not partion events by day successfully")
             self.errorMessage = "Failed to partion events by day successfully. The following error occured: \(error.localizedDescription)"
-            self.isLoading = false
         }
     }
     
     @MainActor
     func updateUserProfile() async {
-        self.isLoading = true
         self.errorMessage = nil
         do {
             try await userService.updateProfileInfo(userId: currentUser.id, username: currentUser.username, profileImage: selectedImage, email: currentUser.email)
-            self.isLoading = false
         } catch {
             self.errorMessage = "Failed to update user's profile iamge. The following error occured: \(error.localizedDescription)"
-            self.isLoading = false
         }
     }
     
     @MainActor
     func fetchNumberOfFriends() async {
-        self.isLoading = true
         self.errorMessage = nil
         do {
             self.numberOfFriends = try await userService.fetchNumberOfFriends(userId: profileUser.id)
-            self.isLoading = false
         } catch {
             self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
-            self.isLoading = false
         }
     }
     
     @MainActor
     func fetchFriends() async {
-        self.isLoading = true
         self.errorMessage = nil
         do {
             let friends = try await userService.fetchUserFriends(userId: profileUser.id)
             self.friends = friends
-            if friends.contains(where: { $0.id == profileUser.id }) {
-                self.isViewingFriend = true
-            } else {
-                self.isViewingFriend = false
-            }
-            self.isLoading = false
+//            if friends.contains(where: { $0.id == currentUser.id }) && profileUser.id != currentUser.id {
+//                self.isViewingFriend = true
+//            } else {
+//                self.isViewingFriend = false
+//            }
         } catch {
             self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
-            self.isLoading = false
         }
     }
     
     @MainActor
     func fetchUserPosts() async {
-        self.isLoading = true
         self.errorMessage = nil
         do {
             self.userPosts = try await postService.fetchPostsByUserId(userId: profileUser.id)
-            self.isLoading = false
         } catch {
             self.errorMessage = "Failed to fetch posts"
-            self.isLoading = false
         }
     }
     
     @MainActor
-    func fetchFriendsInfo(userId: String) async {
-        self.isLoading = true
-        self.errorMessage = nil
+    func fetchFriendsInfo() async {
         do {
-            let friendsIds = try await userService.fetchFriendIds(userId: userId)
+            let friendsIds = try await userService.fetchFriendIds(userId: profileUser.id)
             let friendsData = try await userService.fetchUsers(userIds: friendsIds)
             for user in friendsData {
                 let numOfFriends = try await userService.fetchNumberOfFriends(userId: user.id)
@@ -306,26 +341,24 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
                     isFriend: true
                 )
             }
-            self.isLoading = false
         } catch {
-            self.errorMessage = error.localizedDescription
-            print("Failed to find any matching users: \(error.localizedDescription)")
-            self.isLoading = false
+            self.errorMessage = "Failed to fetch any friends!"
         }
     }
     
     @MainActor
     func checkIfFriend() async {
-        self.isLoading = true
         self.errorMessage = nil
         
         do {
+            if profileUser.id == currentUser.id { return }
             self.isViewingFriend = try await userService.isFriend(userId: currentUser.id, otherUserId: profileUser.id)
-            self.isLoading = false
         } catch {
             self.errorMessage = "Failed to check friend status \(error.localizedDescription)"
-            self.isLoading = false
         }
     }
     
+    deinit {
+        print("in the deninit of ProfileViewModel")
+    }
 }
