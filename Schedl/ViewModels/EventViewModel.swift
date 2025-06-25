@@ -13,6 +13,7 @@ class EventViewModel: EventViewModelProtocol, ObservableObject {
     var invitedUsersForEvent: [User] = []
     @Published var isLoading: Bool = false      // Indicates loading state
     @Published var errorMessage: String?        // Holds error messages if any
+    @Published var hasLoadedPreviousPage = true
     
     private var userService: UserServiceProtocol
     private var scheduleService: ScheduleServiceProtocol
@@ -51,7 +52,7 @@ class EventViewModel: EventViewModelProtocol, ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            try await eventService.deleteEvent(eventId: selectedEvent.event.id, scheduleId: selectedEvent.event.scheduleId)
+            try await eventService.deleteEvent(eventId: selectedEvent.event.id, scheduleId: selectedEvent.event.scheduleId, userId: selectedEvent.event.userId)
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to delete event: \(error.localizedDescription)"

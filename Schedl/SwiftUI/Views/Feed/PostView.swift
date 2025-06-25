@@ -177,14 +177,6 @@ struct PostView: View {
             RoundedRectangle(cornerRadius: 15)
                 .fill(Color.white)
         }
-        
-//        .onChange(of: pickerItem) {
-//            Task {
-//                if let imageData = try await pickerItem?.loadTransferable(type: Data.self) {
-//                    selectedImage = UIImage(data: imageData)
-//                }
-//            }
-//        }
     }
 }
 

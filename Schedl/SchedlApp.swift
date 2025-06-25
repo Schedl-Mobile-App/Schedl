@@ -11,15 +11,20 @@ import FirebaseAuth
 import FirebaseCore
 import Firebase
 
+class SchedlAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
+  func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
+    return AppAttestProvider(app: app)
+  }
+}
+
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
           
-        #if DEBUG
-        // Add this before Firebase.configure()
+        
+//        let providerFactory = SchedlAppCheckProviderFactory()         // for production builds
         let providerFactory = AppCheckDebugProviderFactory()
         AppCheck.setAppCheckProviderFactory(providerFactory)
-        #endif
         FirebaseApp.configure()
           
         return true
@@ -42,14 +47,24 @@ struct SchedlApp: App {
                     OnboardingViewOne()
                 }
                 .environmentObject(authViewModel)
-            } else if !authViewModel.isLoggedIn {
-                NavigationStack {
-                    WelcomeView()
-                }
-                .environmentObject(authViewModel)
             } else {
-                MainTabBarView()
-                    .environmentObject(authViewModel)
+                Group {
+                    if authViewModel.isLoading {
+                        PostLaunchScreenLoadingView()
+                    }
+                    else if !authViewModel.isLoggedIn {
+                        NavigationStack {
+                            WelcomeView()
+                        }
+                        .environmentObject(authViewModel)
+                    } else {
+                        MainTabBarView()
+                            .environmentObject(authViewModel)
+                    }
+                }
+                .task {
+                    await authViewModel.persistentLogin()
+                }
             }
         }
     }

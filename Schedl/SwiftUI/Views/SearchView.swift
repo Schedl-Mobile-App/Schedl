@@ -21,19 +21,19 @@ struct UserSearchCell: View {
                Circle()
                    .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
                    .background(Color.clear)
-                   .frame(width: 53.75, height: 53.75)
+                   .frame(width: 55.75, height: 55.75)
                    .overlay {
                        AsyncImage(url: URL(string: user.profileImage)) { image in
                            image
                                .resizable()
                                .scaledToFill()
-                               .frame(width: 52, height: 52)
+                               .frame(width: 54, height: 54)
                                .clipShape(Circle())
                        } placeholder: {
                            // Show while loading or if image fails to load
                            Circle()
                                .fill(Color(hex: 0xe0dad5))
-                               .frame(width: 52, height: 52)
+                               .frame(width: 54, height: 54)
                                .overlay {
                                    Text("\(user.displayName.first?.uppercased() ?? "J")\(user.displayName.last?.uppercased() ?? "D")")
                                        .font(.title3)
@@ -46,7 +46,7 @@ struct UserSearchCell: View {
                        }
                    }
                
-               VStack(alignment: .leading) {
+               VStack(alignment: .leading, spacing: 1) {
                    let numOfPosts = searchViewModel.userInfo[user.id]?.numOfPosts ?? 0
                    let numOfFriends = searchViewModel.userInfo[user.id]?.numOfFriends ?? 0
                    Text("\(user.displayName)")
@@ -59,48 +59,47 @@ struct UserSearchCell: View {
                    HStack(spacing: 0) {
                        Text("@")
                            .font(.footnote)
-                           .foregroundStyle(Color(.systemGray))
+                           .fontWeight(.medium)
+                           .fontDesign(.rounded)
+                           .foregroundStyle(Color.black.opacity(0.50))
                            .multilineTextAlignment(.leading)
                        Text("\(user.username)")
                            .font(.footnote)
                            .fontWeight(.medium)
-                           .fontDesign(.monospaced)
-                           .tracking(-0.25)
-                           .foregroundStyle(Color(.systemGray))
+                           .fontDesign(.rounded)
+                           .tracking(1.05)
+                           .foregroundStyle(Color.black.opacity(0.50))
                            .multilineTextAlignment(.leading)
                    }
                    Text("\(numOfFriends) friends | \(numOfPosts) posts")
-                       .font(.caption)
+                       .font(.footnote)
                        .fontWeight(.medium)
                        .fontDesign(.monospaced)
                        .tracking(-0.25)
                        .fixedSize()
-                       .foregroundStyle(Color(.systemGray))
+                       .foregroundStyle(Color(hex: 0x333333))
                        .multilineTextAlignment(.leading)
                }
                .fixedSize(horizontal: true, vertical: false)
-               
-               Spacer()
-               
-               let isFriend = searchViewModel.userInfo[user.id]?.isFriend ?? false
-               Button(action: {}) {
-                   Text(isFriend ? "Friends" : "Add")
-                       .font(.footnote)
-                       .fontWeight(.bold)
-                       .fontDesign(.monospaced)
-                       .tracking(-0.25)
-                       .fixedSize()
-                       .foregroundColor(isFriend ? Color(.black) : Color(hex: 0xf7f4f2))
-                       .padding(.vertical, 6)
-                       .padding(.horizontal, 24)
-                       .frame(minHeight: 44)
-                       .background(
-                           Capsule()
-                            .fill(isFriend ? Color.black.opacity(0.1) : Color(hex: 0x3C859E))
-                       )
-                       .contentShape(Capsule())
-               }
-               .accessibilityLabel(isFriend ? "Remove friend" : "Add friend")
+//               let isFriend = searchViewModel.userInfo[user.id]?.isFriend ?? false
+//               Button(action: {}) {
+//                   Text(isFriend ? "Friends" : "Add Friend")
+//                       .font(.footnote)
+//                       .fontWeight(.heavy)
+//                       .fontDesign(.monospaced)
+//                       .multilineTextAlignment(.center)
+//                       .foregroundColor(isFriend ? Color(hex: 0x333333) : Color(hex: 0xf7f4f2))
+//                       .padding(.horizontal)
+//                       .fixedSize()
+//                       .frame(minHeight: 40)
+//                       .background(
+//                            RoundedRectangle(cornerRadius: 15)
+//                                .fill(isFriend ? Color.black.opacity(0.1) : Color(hex: 0x3C859E))
+//                                .stroke(Color(hex: 0x666666), lineWidth: 1)
+//                       )
+//                       .contentShape(Capsule())
+//               }
+//               .accessibilityLabel(isFriend ? "Remove friend" : "Add friend")
            }
            .frame(maxWidth: .infinity, alignment: .leading)
            .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -136,14 +135,15 @@ struct SearchView: View {
                             .focused($isFocused, equals: true)
                             .textFieldStyle(.plain)
                             .font(.subheadline)
-                            .fontWeight(.regular)
+                            .fontWeight(.medium)
                             .fontDesign(.monospaced)
                             .tracking(-0.25)
+                            .foregroundStyle(Color(hex: 0x333333))
                             .autocorrectionDisabled(true)
                         
                         Spacer()
                         
-                        Button("Cancel", action: {
+                        Button("Clear", action: {
                             searchViewModel.searchText = ""
                         })
                         .font(.subheadline)
@@ -155,11 +155,11 @@ struct SearchView: View {
                         .animation(.easeInOut(duration: 0.2), value: searchViewModel.searchText)
                     }
                     .padding()
-                    .background(Color.gray.opacity(0.1))
+                    .background(Color.gray.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 25))
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.horizontal)
-                    .padding(.top, 5)
+                    .padding(.top)
                     
                     if searchViewModel.isLoading {
                         Spacer()
@@ -171,6 +171,11 @@ struct SearchView: View {
                     } else if let error = searchViewModel.errorMessage {
                         Spacer()
                         Text("\(error)")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
+                            .foregroundStyle(Color(hex: 0x666666))
                             .frame(maxWidth: .infinity, alignment: .center)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
@@ -178,25 +183,26 @@ struct SearchView: View {
                     } else if searchViewModel.searchResults.isEmpty {
                         Spacer()
                         Text("Search for your friends using their unique username!")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
+                            .foregroundStyle(Color(hex: 0x666666))
                             .frame(maxWidth: .infinity, alignment: .center)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                         Spacer()
                     } else {
                         ScrollView(.vertical, showsIndicators: false) {
-                            VStack(spacing: 5) {
-                                Divider()
-                                    .background(Color(hex: 0xc0b8b2))
-                                    .frame(maxWidth: .infinity, maxHeight: 1.25)
+                            LazyVStack(spacing: 6) {
                                 ForEach (searchViewModel.searchResults) { user in
                                     UserSearchCell(currentUser: searchViewModel.currentUser, user: user)
-                                    Divider()
-                                        .background(Color(hex: 0xc0b8b2))
-                                        .frame(maxWidth: .infinity, maxHeight: 1.25)
+//                                    Divider()
+//                                        .background(Color(hex: 0xc0b8b2))
+//                                        .frame(maxWidth: .infinity, maxHeight: 1.25)
                                 }
                             }
                         }
-                        .frame(maxWidth: .infinity)
                         .scrollDismissesKeyboard(.immediately)
                     }
                     

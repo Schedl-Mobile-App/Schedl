@@ -12,8 +12,8 @@ import Foundation
 class AuthService: AuthServiceProtocol {
     
     static let shared = AuthService()
-    let ref: DatabaseReference
-    let auth: Auth
+    var ref: DatabaseReference
+    var auth: Auth
     
     private init() {
         ref = Database.database().reference()
@@ -32,7 +32,7 @@ class AuthService: AuthServiceProtocol {
     
     func signUp(email: String, password: String) async throws -> String {
         do {
-            let authResult = try await Auth.auth().createUser(withEmail: email, password: password)
+            let authResult = try await auth.createUser(withEmail: email, password: password)
             let userId = authResult.user.uid
             return userId
             
@@ -40,10 +40,22 @@ class AuthService: AuthServiceProtocol {
             throw AuthServiceError.failedToSignUp
         }
     }
+    
+    func changeEmail() {
+        guard let user = auth.currentUser else { return }
+        
+        user.sendEmailVerification { error in
+            if let error = error {
+                print("Error sending verification email: \(error.localizedDescription)")
+            } else {
+                return
+            }
+        }
+    }
 
     func signOut() async throws -> Void {
         do {
-            try Auth.auth().signOut()
+            try auth.signOut()
         } catch {
             throw AuthServiceError.failedToSignOut
         }

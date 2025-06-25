@@ -6,12 +6,13 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     
     @Published var currentUser: User?
-    @Published var email: String = "djay0628@gmail.com"
-    @Published var password: String = "123456"
+    @Published var email: String = ""
+    @Published var password: String = ""
     @Published var displayName: String = ""
     @Published var username: String = ""
     @Published var isLoading: Bool = false
@@ -29,7 +30,24 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     }
     
     @MainActor
-    func login() async throws {
+    func persistentLogin() async {
+        self.isLoading = true
+        guard let cachedUserId = authService.auth.currentUser?.uid else {
+            self.isLoading = false
+            return
+        }
+        do {
+            currentUser = try await userService.fetchUser(userId: cachedUserId)
+            isLoggedIn = true
+            self.isLoading = false
+        } catch {
+            print("The following error occured int he persistent login: \(error.localizedDescription)")
+            self.isLoading = false
+        }
+    }
+    
+    @MainActor
+    func login() async {
         self.isLoading = true
         self.errorMessage = nil
         do {
@@ -46,7 +64,7 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     }
     
     @MainActor
-    func signUp() async throws {
+    func signUp() async {
         isLoading = true
         errorMessage = nil
         do {
@@ -64,12 +82,27 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
         }
     }
     
+//    @MainActor
+//    func changeEmail() async throws {
+//        isLoading = true
+//        errorMessage = nil
+//        do {
+//            try await authService.changeEmail(currentEmail: currentUser.email)
+//            isLoading = false
+//        } catch {
+//            errorMessage = "Failed to register account. Please try again later."
+//        }
+//    }
+    
     @MainActor
-    func signOut() async throws {
+    func logout() async {
+        self.errorMessage = nil
         do {
             try await authService.signOut()
+            isLoggedIn = false
+            currentUser = nil
         } catch {
-            errorMessage = "failed to sign out. Please try again later."
+            self.errorMessage = "Failed to sign out. Please try again later."
         }
     }
     

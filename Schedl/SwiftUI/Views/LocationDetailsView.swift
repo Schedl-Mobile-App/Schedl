@@ -24,7 +24,7 @@ struct LocationDetailView: View {
     }
     
     var body: some View {
-        VStack {
+        VStack(spacing: 20) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading) {
                     Text(selectedPlacemark?.name ?? "")
@@ -56,7 +56,6 @@ struct LocationDetailView: View {
                 }
                 .padding(.top, 5)
             }
-            .padding(.vertical)
             
             if let scene = lookaroundScene {
                 LookAroundPreview(initialScene: scene)
@@ -68,21 +67,28 @@ struct LocationDetailView: View {
             }
             
             if let onConfirm {
-                HStack(alignment: .center, spacing: 20) {
-                    Button(action: {
-                        onConfirm()
-                        dismiss()
-                    }) {
-                        Text("Select")
-                            .font(.headline)
-                            .fontWeight(.heavy)
-                            .fontDesign(.rounded)
-                            .foregroundColor(Color(hex: 0x333333))
-                            .padding()
+                Button(action: {
+                    onConfirm()
+                    dismiss()
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "location.fill")
+                            .imageScale(.medium)
+                        Text("Select Location")
                     }
-                    .frame(maxWidth: .infinity)
-                    .background(Color.black.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 15))
+                    .font(.subheadline)
+                    .fontWeight(.heavy)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(Color("LaunchScreenCreamWhite"))
+                    .padding()
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(
+                         RoundedRectangle(cornerRadius: 15)
+                             .fill(Color("OnBoardingBackground"))
+                    )
+                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 4)
                 }
             } else {
                 Button("Open in maps", systemImage: "map") {
@@ -117,3 +123,4 @@ struct LocationDetailView: View {
         }
     }
 }
+

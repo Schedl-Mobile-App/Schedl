@@ -16,13 +16,16 @@ struct CreateEventView: View {
     @State private var showStartTimePicker: Bool = false
     @State private var showEndTimePicker: Bool = false
     @State private var showInviteUsersSheet: Bool = false
+    @State private var showColorPicker: Bool = false
     @State private var showMapSheet: Bool = false
+    @State var selectedFriends: [User] = []
     var components = DateComponents(hour: Calendar.current.component(.hour, from: Date()), minute: Calendar.current.component(.minute, from: Date()))
     @State var repeatedDays: [String]?
     @State var eventStartTime: Date?
     @State var eventEndTime: Date?
     @State var selectedPlacemark: MTPlacemark?
-    @State var eventColor: Color?
+    @State var eventColor: Color = .white
+    @State var eventColorAlpha: Double = 1.0
     @State var eventNotes: String = ""
     @State var dayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     @Environment(\.presentationMode) var presentationMode
@@ -67,11 +70,11 @@ struct CreateEventView: View {
     }
     
     private var selectedColor: String {
-        if let color = eventColor {
-            return color.toHex()!
-        }
-        // default blue color of the app
-        return "3C859E"
+        return eventColor.toHex()!
+    }
+    
+    private var isDefaultColor: Bool {
+        return eventColor.toHex()! == "FFFFFF"
     }
     
     var body: some View {
@@ -86,18 +89,18 @@ struct CreateEventView: View {
                     }) {
                         Image(systemName: "chevron.left")
                             .fontWeight(.bold)
-                            .font(.title3)
+                            .imageScale(.large)
                             .labelStyle(.iconOnly)
                             .foregroundStyle(Color.primary)
                     }
                     
                     
-                    Text("Event Details")
+                    Text("Create Event")
                         .foregroundStyle(Color(hex: 0x333333))
                         .font(.title3)
                         .fontWeight(.bold)
                         .fontDesign(.monospaced)
-                        .tracking(0.1)
+                        .tracking(-0.25)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .padding()
@@ -623,119 +626,126 @@ struct CreateEventView: View {
                             .animation(.easeInOut(duration: 0.2), value: isFocused)
                         }
                         
-                        if scheduleViewModel.invitedUsersForEvent.isEmpty || showInviteUsersSheet {
-                            Button(action: {
-                                showInviteUsersSheet.toggle()
-                            }) {
-                                HStack(spacing: 0) {
-                                    Text("Invite Friends to Your Event?")
-                                        .fontWeight(.medium)
-                                        .fontDesign(.monospaced)
-                                        .font(.subheadline)
-                                        .tracking(0.1)
-                                        .foregroundStyle(Color(hex: 0x333333))
-                                        .tracking(0.1)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    Spacer()
-                                    Image(systemName: "plus")
-                                        .foregroundStyle(Color.white)
-                                        .background {
-                                            Circle()
-                                                .fill(Color(hex: 0x3C859E))
-                                                .frame(width: 25, height: 25)
-                                        }
-                                }
-                            }
-                            .padding(.trailing, 20)
-                            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
-                            .sheet(isPresented: $showInviteUsersSheet) {
-                                NavigationView {
-                                    AddInvitedUsers(scheduleViewModel: scheduleViewModel)
-                                        .toolbar {
-                                            ToolbarItem(placement: .navigationBarTrailing) {
-                                                Button("Done") {
-                                                    showInviteUsersSheet = false
-                                                }
-                                            }
-                                        }
-                                }
-                            }
-                            
-                        } else {
-                            ZStack(alignment: .topLeading) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
+                        Group {
+                            if selectedFriends.isEmpty {
+                                Button(action: {
+                                    showInviteUsersSheet.toggle()
+                                }) {
+                                    HStack(spacing: 0) {
+                                        Text("Invite Friends to Your Event?")
+                                            .fontWeight(.medium)
+                                            .fontDesign(.monospaced)
+                                            .font(.subheadline)
+                                            .tracking(0.1)
+                                            .foregroundStyle(Color(hex: 0x333333))
+                                            .tracking(0.1)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                         Spacer()
-                                        Button("Edit", action: {
-                                            showInviteUsersSheet.toggle()
-                                        })
-                                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(Color(hex: 0x3C859E))
+                                        Image(systemName: "plus")
+                                            .imageScale(.medium)
+                                            .foregroundStyle(Color.white)
+                                            .background {
+                                                Circle()
+                                                    .fill(Color(hex: 0x3C859E))
+                                                    .frame(width: 25, height: 25)
+                                            }
                                     }
-                                    
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        ForEach(Array(scheduleViewModel.invitedUsersForEvent.enumerated()), id: \.element.id) { index, user in
-                                            if isExpanded || index < initialVisibleCount {
-                                                HStack {
-                                                    InvitedUserRow(user: user)
-                                                        .transition(.asymmetric(
-                                                            insertion: .scale(scale: 0.95).combined(with: .opacity).combined(with: .offset(y: -10)),
-                                                            removal: .scale(scale: 0.95).combined(with: .opacity).combined(with: .offset(y: 10))
-                                                        ))
-                                                        .animation(.spring(response: 0.6, dampingFraction: 0.8, blendDuration: 0), value: isExpanded)
-                                                    Spacer()
-                                                    Button(action: {
-                                                        scheduleViewModel.invitedUsersForEvent.removeAll(where: { $0.id == user.id })
-                                                    }) {
-                                                        Image(systemName: "xmark")
-                                                            .font(.system(size: 14))
-                                                            .foregroundStyle(Color(hex: 0x333333))
+                                }
+                                .padding(.trailing, 20)
+                                .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                            } else {
+                                ZStack(alignment: .topLeading) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack {
+                                            Spacer()
+                                            Button("Edit", action: {
+                                                showInviteUsersSheet.toggle()
+                                            })
+                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(Color(hex: 0x3C859E))
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: 0) {
+                                            ForEach(Array(selectedFriends.enumerated()), id: \.element.id) { index, user in
+                                                // only show if expanded OR within the first 2 items
+                                                if isExpanded || index < initialVisibleCount {
+                                                    HStack {
+                                                        InvitedUserRow(user: user)
+                                                            .transition(.asymmetric(
+                                                                insertion: .scale(scale: 0.95)
+                                                                    .combined(with: .opacity)
+                                                                    .combined(with: .offset(y: -10)),
+                                                                removal: .scale(scale: 0.95)
+                                                                    .combined(with: .opacity)
+                                                                    .combined(with: .offset(y: 10))
+                                                            ))
+                                                            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isExpanded)
+                                                        
+                                                        Spacer()
+                                                        
+                                                        Button {
+                                                            selectedFriends.removeAll { $0.id == user.id }
+                                                        } label: {
+                                                            Image(systemName: "xmark")
+                                                                .font(.system(size: 14))
+                                                                .foregroundStyle(Color(hex: 0x333333))
+                                                        }
                                                     }
+                                                    .padding(.vertical, 4)
                                                 }
                                             }
                                         }
-                                    }
-                                    
-                                    if scheduleViewModel.invitedUsersForEvent.count > initialVisibleCount {
-                                        Button(action: {
-                                            withAnimation(.easeIn(duration: 0.3)) {
-                                                isExpanded.toggle()
-                                            }
-                                        }) {
-                                            HStack {
-                                                Text(isExpanded ? "Show Less" : "Show \(scheduleViewModel.invitedUsersForEvent.count - initialVisibleCount) More")
-                                                Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                                        
+                                        // only show the toggle button when there are more than 2
+                                        if selectedFriends.count > initialVisibleCount {
+                                            Button {
+                                                withAnimation(.easeIn(duration: 0.3)) {
+                                                    isExpanded.toggle()
+                                                }
+                                            } label: {
+                                                HStack(spacing: 4) {
+                                                    Text(isExpanded
+                                                         ? "Show Less"
+                                                         : "Show \(selectedFriends.count - initialVisibleCount) More")
+                                                    Image(systemName: isExpanded
+                                                          ? "chevron.up.circle.fill"
+                                                          : "chevron.down.circle.fill")
                                                     .imageScale(.medium)
+                                                }
+                                                .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                                                .foregroundStyle(Color(hex: 0x3C859E))
+                                                .padding(.top, 8)
+                                                .frame(maxWidth: .infinity, alignment: .trailing)
                                             }
-                                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                                            .foregroundStyle(Color(hex: 0x3C859E))
-                                            .padding(.top)
-                                            .frame(maxWidth: .infinity, alignment: .trailing)
                                         }
                                     }
+                                    .padding()
+                                    .background {
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.gray, lineWidth: 1)
+                                    }
+                                    
+                                    HStack {
+                                        Spacer(minLength: 8)
+                                        Text("Invited Friends")
+                                            .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                        Spacer(minLength: 8)
+                                    }
+                                    .background(
+                                        Rectangle()
+                                            .fill(Color(hex: 0xf7f4f2))
+                                            .frame(height: 12)
+                                    )
+                                    .fixedSize()
+                                    .offset(x: 12, y: -7)
+                                    .opacity(!selectedFriends.isEmpty ? 1 : 0)
+                                    .animation(.easeInOut(duration: 0.2), value: isFocused)
                                 }
-                                .padding()
-                                .background {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.gray, lineWidth: 1)
-                                }
-                                
-                                HStack {
-                                    Spacer(minLength: 8)
-                                    Text("Invited Friends")
-                                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                                    Spacer(minLength: 8)
-                                }
-                                .background(
-                                    Rectangle()
-                                        .fill(Color(hex: 0xf7f4f2))
-                                        .frame(height: 12)
-                                )
-                                .fixedSize()
-                                .offset(x: 12, y: -7)
-                                .opacity(!scheduleViewModel.invitedUsersForEvent.isEmpty ? 1 : 0)
-                                .animation(.easeInOut(duration: 0.2), value: isFocused)
                             }
+                        }
+                        .animation(.easeInOut(duration: 0.4), value: selectedFriends.isEmpty)
+                        .sheet(isPresented: $showInviteUsersSheet) {
+                            AddInvitedUsers(userFriends: $scheduleViewModel.friends, selectedFriends: $selectedFriends, scheduleViewModel: scheduleViewModel)
                         }
                         
                         ZStack(alignment: .topLeading) {
@@ -768,7 +778,7 @@ struct CreateEventView: View {
                                 RoundedRectangle(cornerRadius: 10)
                                     .stroke(Color.gray, lineWidth: 1)
                             }
-                                                                
+                            
                             HStack {
                                 Spacer(minLength: 8)
                                 Text("Event Notes")
@@ -786,29 +796,47 @@ struct CreateEventView: View {
                             .animation(.easeInOut(duration: 0.2), value: isFocused)
                         }
                         
-                        HStack(spacing: 0) {
-                            Text("Choose a Color For Your Event?")
-                                .fontWeight(.medium)
-                                .fontDesign(.monospaced)
-                                .font(.subheadline)
-                                .tracking(0.1)
-                                .foregroundStyle(Color(hex: 0x333333))
-                                .tracking(0.1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Spacer()
-                            ColorPicker(
-                                "",
-                                selection: Binding(
-                                    get: { eventColor ?? Color(hex: 0x3C859E) },
-                                    set: { chosenColor in
-                                        eventColor = chosenColor
+                        Button(action: {
+                            showColorPicker.toggle()
+                        }) {
+                            HStack(spacing: 0) {
+                                Text(isDefaultColor ? "Choose a Color For Your Event?" : "Selected Event Color:")
+                                    .fontWeight(.medium)
+                                    .fontDesign(.monospaced)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color(hex: 0x333333))
+                                    .tracking(-0.25)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Spacer()
+                                if isDefaultColor {
+                                    Circle()
+                                        .strokeBorder(
+                                            AngularGradient(
+                                                gradient: Gradient(colors: [.red, .yellow, .green, .blue, .purple, .red]),
+                                                center: .center
+                                            ),
+                                            lineWidth: 3
+                                        )
+                                        .background(Circle().fill(eventColor))
+                                        .frame(width: 25, height: 25)
+                                        .shadow(radius: 1)
+                                } else {
+                                    HStack(spacing: 3) {
+                                        Image(systemName: "paintbrush")
+                                            .foregroundColor(Color(hex: 0x333333))
+                                            .imageScale(.medium)
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(eventColor)
+                                            .frame(width: 50, height: 25)
                                     }
-                                )
-                            )
-                            .frame(width: 25, height: 25)
+                                }
+                            }
+                            .padding(.trailing)
+                            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
                         }
-                        .padding(.trailing, 20)
-                        .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                        .sheet(isPresented: $showColorPicker) {
+                            ColorPickerSheet(selectedColor: $eventColor, alpha: $eventColorAlpha)
+                        }
                         
                         Button(action: {
                             Task {
@@ -831,10 +859,12 @@ struct CreateEventView: View {
                         }
                         .frame(maxWidth: .infinity, minHeight: 50)
                         .foregroundStyle(Color(hex: 0x3C859E))
+                        .padding(.bottom)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .animation(.easeInOut(duration: 0.2), value: eventDateText)
                 }
+                .padding(.bottom)
                 .padding(.horizontal, 25)
                 .defaultScrollAnchor(.top, for: .initialOffset)
                 .defaultScrollAnchor(.bottom, for: .sizeChanges)
@@ -847,118 +877,186 @@ struct CreateEventView: View {
                 })
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom)
         }
+        .ignoresSafeArea(.all)
         .navigationBarBackButtonHidden(true)
+        .onAppear {
+            scheduleViewModel.shouldReloadData = false
+        }
+        .onDisappear {
+            scheduleViewModel.shouldReloadData = true
+        }
     }
 }
 
 struct AddInvitedUsers: View {
     
+    @Environment(\.dismiss) private var dismiss
     @State var searchText: String = ""
+    @Binding var userFriends: [User]
+    @Binding var selectedFriends: [User]
+    @FocusState var isSearching: Bool?
     @ObservedObject var scheduleViewModel: ScheduleViewModel
-    
-    func checkForMatches() {
-        print("Do something later")
+    private var filteredUsers: [User] {
+        if searchText.isEmpty {
+            return userFriends
+        } else {
+            let filteredResults = userFriends.filter { user in
+                let startsWith = user.displayName.lowercased().hasPrefix(searchText.lowercased())
+                let endsWith = user.displayName.lowercased().hasSuffix(searchText.lowercased())
+                
+                return startsWith || endsWith
+            }
+            
+            return filteredResults
+        }
     }
     
     var body: some View {
-        ZStack {
-            Color(hex: 0xf7f4f2)
-                .ignoresSafeArea()
-            VStack(spacing: 15) {
+        NavigationView {
+            VStack(spacing: 0) {
                 HStack(alignment: .center, spacing: 10) {
                     Button(action: {}) {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(.gray)
-                            .font(.system(size: 16))
+                            .imageScale(.medium)
                     }
                     
                     TextField("Search friends", text: $searchText)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 15, weight: .regular, design: .monospaced))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                        .tracking(-0.25)
+                        .foregroundStyle(Color(hex: 0x333333))
+                        .autocorrectionDisabled(true)
+                        .focused($isSearching, equals: true)
                     
                     Spacer()
                     
                     Button("Clear", action: {
                         searchText = ""
                     })
-                    .font(.system(size: 15, weight: .bold, design: .monospaced))
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
                     .foregroundStyle(Color(hex: 0x3C859E))
+                    .opacity(!searchText.isEmpty ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: searchText)
                 }
                 .padding()
                 .background(Color.gray.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 25))
                 .frame(maxWidth: .infinity, alignment: .center)
                 
-                ScrollView(.vertical) {
-                    LazyVStack {
-                        ForEach(scheduleViewModel.friends, id: \.self.id) { friend in
-                            HStack(spacing: 15) {
-                                Circle()
-                                    .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
-                                    .background(Color.clear)
-                                    .frame(width: 39.75, height: 39.75)
-                                    .overlay {
-                                        AsyncImage(url: URL(string: friend.profileImage)) { image in
-                                            image
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 38, height: 38)
-                                                .clipShape(Circle())
-                                        } placeholder: {
-                                            Circle()
-                                                .fill(Color(hex: 0xe0dad5))
-                                                .frame(width: 38, height: 38)
-                                                .overlay {
-                                                    Text("\(friend.displayName.first?.uppercased() ?? "J")\(friend.displayName.last?.uppercased() ?? "D")")
-                                                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                                        .foregroundStyle(Color(hex: 0x333333))
-                                                        .multilineTextAlignment(.center)
-                                                }
+                Group {
+                    ScrollView(.vertical) {
+                        LazyVStack(spacing: 12) {
+                            ForEach(filteredUsers, id: \.self.id) { friend in
+                                HStack(spacing: 15) {
+                                    Circle()
+                                        .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
+                                        .background(Color.clear)
+                                        .frame(width: 40.75, height: 40.75)
+                                        .overlay {
+                                            AsyncImage(url: URL(string: friend.profileImage)) { image in
+                                                image
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 39, height: 39)
+                                                    .clipShape(Circle())
+                                            } placeholder: {
+                                                // Show while loading or if image fails to load
+                                                Circle()
+                                                    .fill(Color(hex: 0xe0dad5))
+                                                    .frame(width: 39, height: 39)
+                                                    .overlay {
+                                                        Text("\(friend.displayName.first?.uppercased() ?? "J")\(friend.displayName.last?.uppercased() ?? "D")")
+                                                            .font(.headline)
+                                                            .fontWeight(.bold)
+                                                            .fontDesign(.monospaced)
+                                                            .tracking(-0.25)
+                                                            .foregroundStyle(Color(hex: 0x333333))
+                                                            .multilineTextAlignment(.center)
+                                                    }
+                                            }
+                                        }
+                                    
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text("\(friend.displayName)")
+                                            .font(.subheadline)
+                                            .fontWeight(.bold)
+                                            .fontDesign(.monospaced)
+                                            .tracking(-0.10)
+                                            .foregroundStyle(Color(hex: 0x333333))
+                                            .multilineTextAlignment(.leading)
+                                        HStack(spacing: 0) {
+                                            Text("@")
+                                                .font(.footnote)
+                                                .fontWeight(.medium)
+                                                .fontDesign(.rounded)
+                                                .foregroundStyle(Color.black.opacity(0.50))
+                                                .multilineTextAlignment(.leading)
+                                            Text("\(friend.username)")
+                                                .font(.footnote)
+                                                .fontWeight(.medium)
+                                                .fontDesign(.rounded)
+                                                .tracking(1.05)
+                                                .foregroundStyle(Color.black.opacity(0.50))
+                                                .multilineTextAlignment(.leading)
                                         }
                                     }
-                                
-                                VStack(alignment: .leading) {
-                                    Text("\(friend.displayName)")
-                                        .font(.system(size: 16, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(Color(hex: 0x333333))
-                                        .multilineTextAlignment(.leading)
-                                    Text("\(friend.username)")
-                                        .font(.system(size: 14, weight: .medium, design: .monospaced))
-                                        .foregroundStyle(Color(hex: 0x333333))
-                                        .multilineTextAlignment(.leading)
-                                }
-                                .fixedSize(horizontal: true, vertical: false)
-                                
-                                Spacer()
-                                
-                                Button(action: {
-                                    if scheduleViewModel.invitedUsersForEvent.contains(friend) {
-                                        scheduleViewModel.invitedUsersForEvent.removeAll(where: { $0.id == friend.id })
-                                    } else {
-                                        scheduleViewModel.invitedUsersForEvent.append(friend)
+                                    
+                                    Spacer()
+                                    
+                                    Button {
+                                        if selectedFriends.contains(where: { $0.id == friend.id }) {
+                                            selectedFriends.removeAll { $0.id == friend.id }
+                                        } else {
+                                            selectedFriends.append(friend)
+                                        }
+                                    } label: {
+                                        ZStack {
+                                            Circle()
+                                                .fill(
+                                                    selectedFriends.contains(friend)
+                                                    ? Color(hex: 0x3C859E)
+                                                    : Color.clear
+                                                )
+                                            Circle()
+                                                .strokeBorder(Color(hex: 0x333333), lineWidth: 1.5)
+                                        }
+                                        .frame(width: 25, height: 25)
+                                        .contentShape(Circle())
                                     }
-                                }) {
-                                    Circle()
-                                        .fill(scheduleViewModel.invitedUsersForEvent.contains(friend) ? Color(hex: 0x3C859E) : Color.clear)
-                                        .stroke(Color(hex: 0x333333), lineWidth: 1.5)
-                                        .frame(width: 20, height: 20)
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
                     }
+                    .padding(.top)
+                    .scrollDismissesKeyboard(.immediately)
                 }
-                .padding(.top)
-                .scrollDismissesKeyboard(.immediately)
             }
-            .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.horizontal)
+            .navigationTitle("Invite Friends")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+            .onTapGesture {
+                isSearching = nil
+            }
         }
-        .onAppear {
-            Task {
-                await scheduleViewModel.fetchFriends()
-            }
+        .presentationDetents([.medium, .large])
+        .task {
+            await scheduleViewModel.fetchFriends()
         }
     }
 }
+

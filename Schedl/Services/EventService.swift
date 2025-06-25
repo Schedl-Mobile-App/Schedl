@@ -33,10 +33,12 @@ class EventService: EventServiceProtocol {
         let locationAddress = eventData["locationAddress"] as? String ?? ""
         let latitude = eventData["latitude"] as? Double ?? 0.0
         let longitude = eventData["longitude"] as? Double ?? 0.0
-        let taggedUsers = eventData["taggedUsers"] as? [String] ?? []
+        let taggedUsers = eventData["taggedUsers"] as? [String: Any] ?? [:]
         let endDate = eventData["endDate"] as? Double
         let repeatedDays = eventData["repeatingDays"] as? [String]
         let notes = eventData["notes"] as? String ?? ""
+        
+        let taggedUsersArray = Array(taggedUsers.keys)
         
         // only create a user object if we receive all parameters from the DB
         if
@@ -50,7 +52,7 @@ class EventService: EventServiceProtocol {
             let createdAt = eventData["creationDate"] as? Double,
             let eventColor = eventData["color"] as? String {
             
-            let event = Event(id: id, userId: userId, scheduleId: scheduleId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: locationName, locationAddress: locationAddress, latitude: latitude, longitude: longitude, taggedUsers: taggedUsers, color: eventColor, notes: notes, endDate: endDate, repeatingDays: repeatedDays)
+            let event = Event(id: id, userId: userId, scheduleId: scheduleId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: locationName, locationAddress: locationAddress, latitude: latitude, longitude: longitude, taggedUsers: taggedUsersArray, color: eventColor, notes: notes, endDate: endDate, repeatingDays: repeatedDays)
             return event
             
         } else {
@@ -186,42 +188,37 @@ class EventService: EventServiceProtocol {
         }
     }
     
-    func deleteEvent(eventId: String, scheduleId: String) async throws -> Void {
+    func deleteEvent(eventId: String, scheduleId: String, userId: String) async throws -> Void {
         
-        let eventRef = ref.child("events").child(eventId)
-        let scheduleEventsRef = ref.child("scheduleEvents").child(scheduleId).child(eventId)
+        // we need to remove any event invites that the owner of the event has sent that might still be pending
+        let eventInviteRef = ref.child("eventInvites").child(userId)
+        let snapshot = try await eventInviteRef.getData()
+        
+        var updates: [String: Any] = [
+            "/events/\(eventId)": NSNull(),
+            "/scheduleEvents/\(scheduleId)/\(eventId)": NSNull(),
+            "/schedules/\(scheduleId)/eventIds/\(eventId)": NSNull()
+        ]
+        
+        // this might return an array of all the invites the current user has sent out
+        // we will need to iterate over each one and check what notifications this particular user has received
+        let invitesDict = snapshot.value as? [String: Any] ?? [:]
+        
+        for (id, _) in invitesDict {
+            let notificationsRef = ref.child("notifications").child(id).child(eventId)
+            
+            // fetch data and check whether we received a non-null value
+            let notificationSnapshot = try await notificationsRef.getData()
+            if notificationSnapshot.exists() {
+                updates["/notifications/\(id)/\(eventId)"] = NSNull()
+                updates["/eventInvites/\(userId)/\(id)"] = NSNull()
+            }
+        }
         
         do {
-            try await eventRef.removeValue()
-            try await scheduleEventsRef.removeValue()
+            try await ref.updateChildValues(updates)
         } catch {
             throw EventServiceError.failedToDeleteEvent
         }
-    }
-    
-    func deleteScheduleEvents(scheduleId: String) async throws -> Void {
-        let eventRef = ref.child("schedules").child(scheduleId).child("eventIds")
-        let snapshot = try await eventRef.getData()
-        
-        guard let eventIdsNode = snapshot.value as? [String: Any] else {
-            throw EventServiceError.failedToDeleteAllEvents
-        }
-        
-        let eventIds = Array(eventIdsNode.keys)
-        
-        await withThrowingTaskGroup(of: Void.self) { group in
-            for id in eventIds {
-                group.addTask {
-                    try await self.deleteEvent(eventId: id, scheduleId: scheduleId)
-                }
-            }
-        }
-    }
-    
-    func fetchCurrentEvents(currentDay: TimeInterval, userId: String) async throws -> [Event] {
-        
-        let events = try await fetchEventsByUserId(userId: userId)
-        
-        return events.filter { $0.startDate >= currentDay }
     }
 }

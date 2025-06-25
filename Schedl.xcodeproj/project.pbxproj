@@ -10,7 +10,6 @@
 		046B834B2C867DE600F97BB4 /* SchedlApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B834A2C867DE600F97BB4 /* SchedlApp.swift */; };
 		046B834F2C867DE700F97BB4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 046B834E2C867DE700F97BB4 /* Assets.xcassets */; };
 		046B83532C867DE700F97BB4 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 046B83522C867DE700F97BB4 /* Preview Assets.xcassets */; };
-		CB27B9652D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */; };
 		CB2E0CF72D10B16F0069B028 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0CF62D10B16F0069B028 /* FirebaseAnalytics */; };
 		CB2E0CF92D10B16F0069B028 /* FirebaseAnalyticsOnDeviceConversion in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0CF82D10B16F0069B028 /* FirebaseAnalyticsOnDeviceConversion */; };
 		CB2E0CFB2D10B16F0069B028 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0CFA2D10B16F0069B028 /* FirebaseAnalyticsWithoutAdIdSupport */; };
@@ -76,7 +75,6 @@
 		046B834E2C867DE700F97BB4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		046B83502C867DE700F97BB4 /* Schedl.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Schedl.entitlements; sourceTree = "<group>"; };
 		046B83522C867DE700F97BB4 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugAppCheckProviderFactory.swift; sourceTree = "<group>"; };
 		CB3C314C2DD9CE6700124F03 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = ../LaunchScreen.storyboard; sourceTree = "<group>"; };
 		CB3FC7D02DE246BC004FD066 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CB8D57502C9D465F0051A415 /* Schedl.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Schedl.xctestplan; sourceTree = SOURCE_ROOT; };
@@ -175,7 +173,6 @@
 				CB377BFB2D67F9F30035E855 /* UIKit */,
 				CB377BFA2D67F9EC0035E855 /* SwiftUI */,
 				CB5F72422D3DBF20004C7FC8 /* Enums */,
-				CB27B9642D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift */,
 				CBFD83D52CF51C240034BE9F /* Core */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
 				CBB1F87F2DC416700002E3F1 /* Protocols */,
@@ -293,7 +290,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CB27B9652D109D1A008FAC3A /* DebugAppCheckProviderFactory.swift in Sources */,
 				046B834B2C867DE600F97BB4 /* SchedlApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

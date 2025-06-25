@@ -14,12 +14,13 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     @Published var userSchedule: Schedule?
     @Published var invitedUsersForEvent: [User] = []
     var friends: [User] = []
-    @Published var scheduleEvents: [Event] = []
+    @Published var scheduleEvents: [RecurringEvents] = []
     @Published var showCreateEvent = false
     @Published var isLoading: Bool = false      // Indicates loading state
     @Published var errorMessage: String?        // Holds error messages if any
     @Published var activeSidebar = false
     @Published var partionedEvents: [Double : [Event]]?
+    @Published var shouldReloadData = true
     private var addedEventsHandler: DatabaseHandle?
     private var removedEventsHandler: DatabaseHandle?
     private var scheduleService: ScheduleServiceProtocol
@@ -43,20 +44,70 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         activeSidebar.toggle()
     }
     
+    func parseRecurringEvents(event: Event) -> [RecurringEvents] {
+        
+        let originalEventInstance: RecurringEvents = RecurringEvents(date: event.startDate, event: event)
+        
+        // if there are no repeatedDays or endDate for this event, we simply return the single instance
+        guard let repeatedDays = event.repeatingDays else { return [originalEventInstance] }
+        guard let endDate = event.endDate else { return [originalEventInstance] }
+
+        let iterationStart = Date(timeIntervalSince1970: event.startDate)
+        let iterationEnd = Date(timeIntervalSince1970: endDate)
+
+        var repeatedEvents: [RecurringEvents] = []
+        var cursor = iterationStart
+        
+        while cursor <= iterationEnd {
+            // find the iterator's current weekday index
+            let weekIndex = Calendar.current.component(.weekday, from: cursor) - 1
+            
+            // next, we need to find a way to check whether our event instance includes the same weekday index
+            if repeatedDays.contains(String(weekIndex)) {
+                repeatedEvents.append(RecurringEvents(date: cursor.timeIntervalSince1970, event: event))
+            }
+            guard let next = Calendar.current.date(byAdding: .day, value: 1, to: cursor) else { break }
+                cursor = next
+        }
+
+        return repeatedEvents
+    }
+    
     // Use of MainActor ensures that updates to the Published variables occur on the main thread
     @MainActor
     func fetchSchedule() async {
-        self.isLoading = true
         self.errorMessage = nil
+        self.isLoading = true
         do {
             let fetchedSchedule = try await scheduleService.fetchSchedule(userId: currentUser.id)
             self.userSchedule = fetchedSchedule
             
             let scheduleId = fetchedSchedule.id
             
-            let fetchedEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
-            self.scheduleEvents = fetchedEvents
-
+            let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
+            
+            // now that we've fetched all events in DB, we need to check if any events are recurring meaning they'll have repeats in the future
+            // note that even singular events will be stored in this array of type RecurringEvents since there isn't a need
+            // to separate these from regular Event objects
+            var formattedEvents: [RecurringEvents] = []
+            for event in allEvents {
+                formattedEvents.append(contentsOf: parseRecurringEvents(event: event))
+            }
+            
+//            let currentDay = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+            
+            self.scheduleEvents = formattedEvents.sorted {
+                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+                
+                // if the event start dates are different, then we sort by their date
+                if dayComparison != .orderedSame {
+                    return dayComparison == .orderedAscending
+                }
+                
+                // if they occur on the same day, then we sort by their start time
+                return $0.event.startTime < $1.event.startTime
+            }
+            
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to fetch schedule: \(error.localizedDescription)"
@@ -71,7 +122,6 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         do {
             let newSchedule = try await scheduleService.createSchedule(userId: currentUser.id, title: title)
             self.userSchedule = newSchedule
-            
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to create schedule: \(error.localizedDescription)"
@@ -92,19 +142,19 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         }
     }
     
-    @MainActor
-    func deleteSchedule() async {
-        self.isLoading = true
-        self.errorMessage = nil
-        do {
-            guard let scheduleId = userSchedule?.id as? String else { return }
-            try await eventService.deleteScheduleEvents(scheduleId: scheduleId)
-            try await scheduleService.deleteSchedule(scheduleId: scheduleId, userId: currentUser.id)
-        } catch {
-            self.errorMessage = "Failed to delete schedule: \(error.localizedDescription)"
-            self.isLoading = false
-        }
-    }
+//    @MainActor
+//    func deleteSchedule() async {
+//        self.isLoading = true
+//        self.errorMessage = nil
+//        do {
+//            guard let scheduleId = userSchedule?.id as? String else { return }
+//            try await eventService.deleteScheduleEvents(scheduleId: scheduleId)
+//            try await scheduleService.deleteSchedule(scheduleId: scheduleId, userId: currentUser.id)
+//        } catch {
+//            self.errorMessage = "Failed to delete schedule: \(error.localizedDescription)"
+//            self.isLoading = false
+//        }
+//    }
     
     @MainActor
     func fetchEvents() async {
@@ -112,13 +162,35 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         self.errorMessage = nil
         do {
             guard let scheduleId = userSchedule?.id as? String else {
-                self.isLoading = false
                 return
             }
-            let fetchedEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
-            self.scheduleEvents = fetchedEvents
+            
+            let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
+            
+            // now that we've fetched all events in DB, we need to check if any events are recurring meaning they'll have repeats in the future
+            // note that even singular events will be stored in this array of type RecurringEvents since there isn't a need
+            // to separate these from regular Event objects
+            var formattedEvents: [RecurringEvents] = []
+            for event in allEvents {
+                formattedEvents.append(contentsOf: parseRecurringEvents(event: event))
+            }
+            
+//            let currentDay = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+            
+            self.scheduleEvents = formattedEvents.sorted {
+                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+                
+                // if the event start dates are different, then we sort by their date
+                if dayComparison != .orderedSame {
+                    return dayComparison == .orderedAscending
+                }
+                
+                // if they occur on the same day, then we sort by their start time
+                return $0.event.startTime < $1.event.startTime
+            }
             
             self.isLoading = false
+            
         } catch {
             self.errorMessage = "Failed to fetch events: \(error.localizedDescription)"
             self.isLoading = false
@@ -161,18 +233,21 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     
     @MainActor
     func observeScheduleChanges() {
-        guard let scheduleId = userSchedule?.id else { return }
         
-        removeScheduleObservers(scheduleId: scheduleId)
+        guard let scheduleId = userSchedule?.id else { return }
+        removeScheduleObservers()
         
         addedEventsHandler = scheduleService.observeAddedEvents(scheduleId: scheduleId) { [weak self] eventId in
             guard let self = self else { return }
             
             Task { @MainActor in
                 do {
+                    print("In the observer method of the schedule view model")
                     let newlyAddedEvent = try await self.eventService.fetchEvent(eventId: eventId)
-                    self.scheduleEvents.append(newlyAddedEvent)
+                    let modifiedEvent = self.parseRecurringEvents(event: newlyAddedEvent)
+                    self.scheduleEvents.append(contentsOf: modifiedEvent)
                 } catch {
+                    print("Unable to load schedule events: \(error.localizedDescription)")
                     self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
                 }
             }
@@ -186,8 +261,9 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         }
     }
     
-    @MainActor
-    func removeScheduleObservers(scheduleId: String) {
+    func removeScheduleObservers() {
+        guard let scheduleId = userSchedule?.id else { return }
+        
         if let addHandler = addedEventsHandler {
             scheduleService.removeScheduleObserver(handle: addHandler, scheduleId: scheduleId)
             addedEventsHandler = nil
@@ -195,8 +271,13 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         
         if let removeHandler = removedEventsHandler {
             scheduleService.removeScheduleObserver(handle: removeHandler, scheduleId: scheduleId)
-            addedEventsHandler = nil
+            removedEventsHandler = nil
         }
+    }
+    
+    deinit {
+        print("here in the deinit")
+        removeScheduleObservers()
     }
 }
 
