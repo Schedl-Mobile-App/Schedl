@@ -83,7 +83,6 @@ class SearchViewModel: ObservableObject {
                 self.isLoading = false
             } catch {
                 if error is CancellationError {
-                    print("Search is cancelled")
                     searchResults.removeAll()
                     self.isLoading = false
                 } else {
@@ -100,7 +99,6 @@ class SearchViewModel: ObservableObject {
         self.errorMessage = nil
         do {
             for user in searchData {
-                print("I am here")
                 let numOfFriends: Int
                 let numOfPosts: Int
                 do {
@@ -123,7 +121,6 @@ class SearchViewModel: ObservableObject {
             self.isLoading = false
         } catch {
             self.errorMessage = error.localizedDescription
-            print("Failed to find any matching users: \(error.localizedDescription)")
         }
     }
 }

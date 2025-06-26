@@ -11,17 +11,17 @@ struct PostLaunchScreenLoadingView: View {
     
     var body: some View {
         ZStack {
-            Color("OnBoardingBackground")
+            Color(hex: 0x0887A1)
                 .ignoresSafeArea()
             
             VStack(spacing: 8) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 33)
-                        .fill(Color("LaunchScreenCreamWhite"))
+                        .fill(Color(hex: 0xF6F4F2))
                         .frame(width: 128, height: 128)
                     
                     RoundedRectangle(cornerRadius: 17)
-                        .fill(Color("OnBoardingBackground"))
+                        .fill(Color(hex: 0x0887A1))
                         .frame(width: 90, height: 90)
                     
                     Image("AppLogo")
@@ -32,7 +32,7 @@ struct PostLaunchScreenLoadingView: View {
                 
                 Text("Schedl")
                     .font(.custom("GillSans-Bold", size: 36))
-                    .foregroundStyle(Color("LaunchScreenCreamWhite"))
+                    .foregroundStyle(Color(hex: 0xF6F4F2))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .padding(.top, 25)

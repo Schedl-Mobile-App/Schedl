@@ -11,7 +11,7 @@ struct FriendsLoadingView: View {
     
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(spacing: 0) {
+            LazyVStack(spacing: 25) {
                 ForEach(1..<10) { _ in
                     HStack(spacing: 15) {
                         ShimmerEffectBox()
@@ -32,9 +32,10 @@ struct FriendsLoadingView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding()
+                    .padding(.horizontal)
                 }
             }
+            .padding(.vertical)
         }
         .scrollDismissesKeyboard(.immediately)
     }

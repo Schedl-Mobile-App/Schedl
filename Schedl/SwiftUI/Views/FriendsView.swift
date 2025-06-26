@@ -80,7 +80,7 @@ struct FriendCell: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .padding()
+            .padding(.horizontal)
         }
     }
 }
@@ -147,6 +147,7 @@ struct FriendsView: View {
                         .tracking(-0.25)
                         .foregroundStyle(Color(hex: 0x333333))
                         .autocorrectionDisabled(true)
+                        .textInputAutocapitalization(.never)
                         .focused($isSearching, equals: true)
                     
                     Spacer()
@@ -185,11 +186,12 @@ struct FriendsView: View {
                     Spacer()
                 } else if profileViewModel.friends.count > 0 {
                     ScrollView(.vertical, showsIndicators: false) {
-                        LazyVStack(spacing: 0) {
+                        LazyVStack(spacing: 25) {
                             ForEach(filteredUsers, id: \.id) { user in
                                 FriendCell(profileViewModel: profileViewModel, userToDisplay: user)
                             }
                         }
+                        .padding(.vertical)
                     }
                     .scrollDismissesKeyboard(.immediately)
                 } else {
@@ -206,6 +208,7 @@ struct FriendsView: View {
                     Spacer()
                 }
             }
+            .padding(.bottom, 0.5)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .onTapGesture {

@@ -76,9 +76,7 @@ class NotificationService: NotificationServiceProtocol {
         let snapshot = try await notificationRef.getData()
         
         let notificationDict = snapshot.value as? [String: Any] ?? [:]
-        
-        print(notificationDict)
-        
+                
         let creationDate = notificationDict["creationDate"] as? Double ?? 0
         
         if
@@ -96,7 +94,6 @@ class NotificationService: NotificationServiceProtocol {
                 let notif = Notification(id: notificationId, type: .friendRequest, notificationPayload: .friendRequest(friendRequestObj), creationDate: creationDate)
                 return notif
             } catch {
-                print("Failed to decode notification")
                 throw NotificationServiceError.failedToDecodeNotification
             }
             
@@ -115,7 +112,6 @@ class NotificationService: NotificationServiceProtocol {
                 let notif = Notification(id: notificationId, type: .eventInvite, notificationPayload: .eventInvite(eventInviteObj), creationDate: creationDate)
                 return notif
             } catch {
-                print("Failed to decode notification")
                 throw NotificationServiceError.failedToDecodeNotification
             }
         }
@@ -281,9 +277,7 @@ class NotificationService: NotificationServiceProtocol {
             let dict = snapshot.value as? [String: Any] ?? [:]
             
             guard let notificationId = dict["id"] as? String else { return }
-            
-            print(notificationId)
-            
+                        
             completion(notificationId)
         }
         

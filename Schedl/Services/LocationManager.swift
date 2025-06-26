@@ -45,7 +45,6 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
             manager.requestWhenInUseAuthorization()
         case .denied:
             isAuthorized = false
-            print("Access Denied")
         default:
             isAuthorized = true
             startLocationServices()

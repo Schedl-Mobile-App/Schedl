@@ -132,13 +132,11 @@ class EventService: EventServiceProtocol {
                 
         let encoder = JSONEncoder()
         do {
-            print("i'm making it here at least")
             // Encode the Schedule object into JSON data
             let jsonData = try encoder.encode(eventObj)
             
             // Convert JSON data to a dictionary
             guard let jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
-                print("Error serialzing event object")
                 throw EventServiceError.eventDataSerializationFailed
             }
             
@@ -155,7 +153,6 @@ class EventService: EventServiceProtocol {
             return id
             
         } catch {
-            print("Error creating event")
             throw FirebaseError.failedToCreateEvent
         }
     }

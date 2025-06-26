@@ -34,7 +34,7 @@ struct EventDetailsView: View {
             Color(hex: 0xf7f4f2)
                 .ignoresSafeArea()
             
-            VStack(spacing: 30) {
+            VStack(spacing: 15) {
                 ZStack(alignment: .leading) {
                     Button(action: {
                         presentationMode.wrappedValue.dismiss()
@@ -64,7 +64,7 @@ struct EventDetailsView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
-                .padding()
+                .padding([.horizontal, .top])
                 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 30) {
@@ -103,7 +103,7 @@ struct EventDetailsView: View {
                                 .fill(Color.white)
                                 .shadow(color: Color.black.opacity(0.12), radius: 7, x: 0, y: 4)
                         }
-                        .padding(.horizontal)
+                        .padding(.top)
                         
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Date and Time")
@@ -141,7 +141,6 @@ struct EventDetailsView: View {
                                 .fill(Color.white)
                                 .shadow(color: Color.black.opacity(0.12), radius: 7, x: 0, y: 4)
                         }
-                        .padding(.horizontal)
                         
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Location")
@@ -192,7 +191,6 @@ struct EventDetailsView: View {
                                 .fill(Color.white)
                                 .shadow(color: Color.black.opacity(0.12), radius: 7, x: 0, y: 4)
                         }
-                        .padding(.horizontal)
                         
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
@@ -257,46 +255,45 @@ struct EventDetailsView: View {
                                 .shadow(color: Color.black.opacity(0.12), radius: 7, x: 0, y: 4)
                         }
                         .animation(.easeInOut(duration: 0.3), value: isExpanded)
-                        .padding(.horizontal)
                         
-                        // area for any event notes
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Notes")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .fontDesign(.monospaced)
-                                .tracking(0.1)
-                                .foregroundStyle(Color(hex: 0x333333))
-                            HStack(alignment: .top, spacing: 8) {
-                                Image(systemName: "pencil")
-                                    .imageScale(.medium)
-                                    .fontWeight(.bold)
-                                Text("\(eventViewModel.selectedEvent.event.notes)")
+                        if !eventViewModel.selectedEvent.event.notes.isEmpty {
+                            // area for any event notes
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Notes")
                                     .font(.headline)
                                     .fontWeight(.bold)
                                     .fontDesign(.monospaced)
                                     .tracking(0.1)
                                     .foregroundStyle(Color(hex: 0x333333))
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "pencil")
+                                        .imageScale(.medium)
+                                        .fontWeight(.bold)
+                                    Text("\(eventViewModel.selectedEvent.event.notes)")
+                                        .font(.headline)
+                                        .fontWeight(.bold)
+                                        .fontDesign(.monospaced)
+                                        .tracking(0.1)
+                                        .foregroundStyle(Color(hex: 0x333333))
+                                }
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.white)
+                                    .shadow(color: Color.black.opacity(0.12), radius: 7, x: 0, y: 4)
                             }
                         }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.white)
-                                .shadow(color: Color.black.opacity(0.12), radius: 7, x: 0, y: 4)
-                        }
-                        .padding(.horizontal)
-                        .hidden(eventViewModel.selectedEvent.event.notes.isEmpty)
                         
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.bottom)
+                    .padding(.horizontal, 25)
+                    .padding(.vertical)
                 }
                 .defaultScrollAnchor(isExpanded ? .bottom : .top, for: .sizeChanges)
-                .padding(.horizontal)
-                
             }
+            .padding(.bottom, 0.5)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationBarBackButtonHidden(true)
@@ -321,7 +318,6 @@ struct EventDetailsView: View {
         .onDisappear {
             shouldReloadData = true
         }
-        .toolbar(showTabBar ? .visible : .hidden, for: .tabBar)
     }
     
     func returnTimeFormatted(timeObj: Double) -> String {

@@ -138,7 +138,6 @@ class ScheduleService: ScheduleServiceProtocol {
         
         return eventsRef.observe(.childAdded) { snapshot in
             let eventId = snapshot.key
-            print("IN the added observer. Event Id: \(eventId)")
             completion(eventId)
         }
     }
@@ -148,7 +147,6 @@ class ScheduleService: ScheduleServiceProtocol {
         
         return eventsRef.observe(.childRemoved) { snapshot in
             let eventId = snapshot.key
-            print("IN the removed observer. Event Id: \(eventId)")
             completion(eventId)
         }
     }

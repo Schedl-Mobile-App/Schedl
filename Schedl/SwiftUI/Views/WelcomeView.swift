@@ -22,16 +22,14 @@ struct WelcomeView: View {
                     Spacer()
                     VStack(alignment: .center, spacing: 10) {
                         Text("Schedl")
-                            .font(.largeTitle)
-                            .fontWeight(.heavy)
-                            .fontDesign(.monospaced)
+                            .font(.custom("GillSans-Bold", size: 36))
                             .foregroundStyle(Color(hex: 0x333333))
                         Text("Create an Account")
                             .font(.headline)
                             .fontWeight(.medium)
                             .fontDesign(.monospaced)
                             .foregroundStyle(Color(hex: 0x666666))
-                            .tracking(0.1)
+                            .tracking(-0.25)
                     }
                     
                     VStack(spacing: 20) {
@@ -50,6 +48,7 @@ struct WelcomeView: View {
                                         .tracking(0.1)
                                         .focused($isFocused, equals: .username)
                                         .autocorrectionDisabled(true)
+                                        .textInputAutocapitalization(.never)
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
@@ -90,6 +89,7 @@ struct WelcomeView: View {
                                         .tracking(0.1)
                                         .focused($isFocused, equals: .displayName)
                                         .autocorrectionDisabled(true)
+                                        .textInputAutocapitalization(.never)
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
@@ -130,6 +130,7 @@ struct WelcomeView: View {
                                         .tracking(0.1)
                                         .focused($isFocused, equals: .email)
                                         .autocorrectionDisabled(true)
+                                        .textInputAutocapitalization(.never)
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
@@ -170,6 +171,7 @@ struct WelcomeView: View {
                                         .tracking(0.1)
                                         .focused($isFocused, equals: .password)
                                         .autocorrectionDisabled(true)
+                                        .textInputAutocapitalization(.never)
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
@@ -224,13 +226,13 @@ struct WelcomeView: View {
                             .fontWeight(.medium)
                             .fontDesign(.monospaced)
                             .foregroundStyle(Color(hex: 0x666666))
-                            .tracking(0.1)
+                            .tracking(-0.25)
                         NavigationLink(destination: LoginView()) {
                             Text("Login")
                                 .font(.headline)
                                 .fontWeight(.medium)
                                 .fontDesign(.monospaced)
-                                .tracking(0.1)
+                                .tracking(-0.25)
                                 .underline()
                                 .foregroundStyle(Color(hex: 0x47a2be))
                         }
