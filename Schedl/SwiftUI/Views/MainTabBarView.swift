@@ -19,9 +19,9 @@ struct MainTabBarView: View {
                     ZStack {
                         Color(hex: 0xf7f4f2)
                             .ignoresSafeArea()
-                            .allowsHitTesting(false)
+                        
                         ScheduleView(currentUser: user)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .ignoresSafeArea(edges: .top)
                     }
                     .tabItem {
                         Label("Schedule", systemImage: "calendar")

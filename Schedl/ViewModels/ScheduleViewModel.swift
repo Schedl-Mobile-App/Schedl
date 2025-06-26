@@ -108,6 +108,8 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
                 return $0.event.startTime < $1.event.startTime
             }
             
+            observeScheduleChanges()
+            
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to fetch schedule: \(error.localizedDescription)"
@@ -212,7 +214,6 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
             
             self.isLoading = false
         } catch {
-            print("Failed to create event: \(error.localizedDescription)")
             self.errorMessage = "Failed to create event: \(error.localizedDescription)"
             self.isLoading = false
         }
@@ -238,17 +239,20 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         removeScheduleObservers()
         
         addedEventsHandler = scheduleService.observeAddedEvents(scheduleId: scheduleId) { [weak self] eventId in
-            guard let self = self else { return }
-            
-            Task { @MainActor in
-                do {
-                    print("In the observer method of the schedule view model")
-                    let newlyAddedEvent = try await self.eventService.fetchEvent(eventId: eventId)
-                    let modifiedEvent = self.parseRecurringEvents(event: newlyAddedEvent)
-                    self.scheduleEvents.append(contentsOf: modifiedEvent)
-                } catch {
-                    print("Unable to load schedule events: \(error.localizedDescription)")
-                    self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
+            guard let self = self else {
+                return
+            }
+            if self.scheduleEvents.contains(where: { $0.event.id == eventId }) {
+                return
+            } else {
+                Task { @MainActor in
+                    do {
+                        let newlyAddedEvent = try await self.eventService.fetchEvent(eventId: eventId)
+                        let modifiedEvent = self.parseRecurringEvents(event: newlyAddedEvent)
+                        self.scheduleEvents.append(contentsOf: modifiedEvent)
+                    } catch {
+                        self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
+                    }
                 }
             }
         }
@@ -276,7 +280,6 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     }
     
     deinit {
-        print("here in the deinit")
         removeScheduleObservers()
     }
 }

@@ -11,7 +11,7 @@ struct ScheduleLoadingView: View {
     
     var body: some View {
         ZStack {
-            Color(hex: 0xf7f4f2)
+            Color(hex: 0xF6F4F2)
                 .ignoresSafeArea()
             
             VStack(spacing: 20) {

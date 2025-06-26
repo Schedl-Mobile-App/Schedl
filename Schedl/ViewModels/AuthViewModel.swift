@@ -15,7 +15,8 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     @Published var password: String = ""
     @Published var displayName: String = ""
     @Published var username: String = ""
-    @Published var isLoading: Bool = false
+    @Published var isLoadingLaunchScreen: Bool = false
+    @Published var isLoadingLogin: Bool = false
     @Published var errorMessage: String?
     @Published var hasOnboarded: Bool
     private var authService: AuthServiceProtocol
@@ -31,33 +32,32 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     
     @MainActor
     func persistentLogin() async {
-        self.isLoading = true
+        self.isLoadingLaunchScreen = true
         guard let cachedUserId = authService.auth.currentUser?.uid else {
-            self.isLoading = false
+            self.isLoadingLaunchScreen = false
             return
         }
         do {
             currentUser = try await userService.fetchUser(userId: cachedUserId)
             isLoggedIn = true
-            self.isLoading = false
+            self.isLoadingLaunchScreen = false
         } catch {
-            print("The following error occured int he persistent login: \(error.localizedDescription)")
-            self.isLoading = false
+            self.isLoadingLaunchScreen = false
         }
     }
     
     @MainActor
     func login() async {
-        self.isLoading = true
+        self.isLoadingLogin = true
         self.errorMessage = nil
         do {
             let userId = try await authService.login(email: email, password: password)
             currentUser = try await userService.fetchUser(userId: userId)
             isLoggedIn = true
-            isLoading = false
+            isLoadingLogin = false
         } catch {
             errorMessage = "Failed to login. Please try again later."
-            isLoading = false
+            isLoadingLogin = false
             email = ""
             password = ""
         }
@@ -65,16 +65,16 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     
     @MainActor
     func signUp() async {
-        isLoading = true
+        isLoadingLogin = true
         errorMessage = nil
         do {
             let userId = try await authService.signUp(email: email, password: password)
             currentUser = try await userService.saveNewUser(userId: userId, username: username, email: email, displayName: displayName)
             isLoggedIn = true
-            isLoading = false
+            isLoadingLogin = false
         } catch {
             errorMessage = "Failed to register account. Please try again later."
-            isLoading = false
+            isLoadingLogin = false
             username = ""
             displayName = ""
             email = ""

@@ -18,11 +18,9 @@ enum MapManager {
         }
         
         do {
-            print("Searching for: '\(searchText)'")
             let searchItems = try await MKLocalSearch(request: request).start()
-            print(searchItems)
             let results = searchItems.mapItems
-            print(results)
+            
             return results.map { mapItem in
                 MTPlacemark(
                     name: mapItem.placemark.name ?? "Unknown",
@@ -32,7 +30,6 @@ enum MapManager {
                 )
             }
         } catch {
-            print("Search error: \(error)")
             return []
         }
     }

@@ -69,7 +69,7 @@ class EventCell: UIView {
         titleLabel.textColor = UIColor(Color(hex: 0xf7f4f2))
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.font = UIFont.systemFont(ofSize: 10, weight: .heavy)
-        titleLabel.adjustsFontSizeToFitWidth = true
+        titleLabel.lineBreakMode = .byTruncatingTail
         titleLabel.numberOfLines = calculateMaxLines(for: frame.height, fontWeight: .heavy)
         
         eventCell.addSubview(titleLabel)
@@ -146,7 +146,7 @@ class EventCell: UIView {
             shadowLayer = CAShapeLayer()
             
             shadowLayer.path = UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).cgPath
-            shadowLayer.fillColor = shadowBackgroundColor.withAlphaComponent(1.2).cgColor
+            shadowLayer.fillColor = UIColor.clear.cgColor
 
             shadowLayer.shadowPath = shadowLayer.path
             shadowLayer.shadowColor = UIColor.black.cgColor
@@ -166,7 +166,15 @@ class EventCell: UIView {
     private func calculateMaxLines(for height: CGFloat, fontSize: CGFloat = 10, fontWeight: UIFont.Weight) -> Int {
         let lineHeight = UIFont.systemFont(ofSize: fontSize, weight: fontWeight).lineHeight
         let availableHeight = height - 4 // Account for padding
-        return max(1, Int(availableHeight / lineHeight))
+        
+        switch Int(availableHeight) {
+        case  ..<50:
+            return 2
+        case ..<100:
+            return 4
+        default:
+            return max(1, Int(availableHeight / lineHeight))
+        }
     }
 }
 

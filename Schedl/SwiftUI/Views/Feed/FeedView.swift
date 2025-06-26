@@ -19,8 +19,8 @@ struct FeedView: View {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .center) {
                     Text("Schedl")
-                        .foregroundStyle(Color.primary)
-                        .font(.system(size: 25, weight: .bold, design: .monospaced))
+                        .font(.custom("GillSans-Bold", size: 36))
+                        .foregroundStyle(Color(hex: 0x333333))
                     
                     Spacer()
                     NavigationLink(destination: NotificationsView(currentUser: feedViewModel.currentUser)) {

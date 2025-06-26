@@ -22,8 +22,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
           
         
-//        let providerFactory = SchedlAppCheckProviderFactory()         // for production builds
-        let providerFactory = AppCheckDebugProviderFactory()
+        let providerFactory = SchedlAppCheckProviderFactory()         // for production builds
         AppCheck.setAppCheckProviderFactory(providerFactory)
         FirebaseApp.configure()
           
@@ -49,17 +48,18 @@ struct SchedlApp: App {
                 .environmentObject(authViewModel)
             } else {
                 Group {
-                    if authViewModel.isLoading {
+                    if authViewModel.isLoadingLaunchScreen {
                         PostLaunchScreenLoadingView()
-                    }
-                    else if !authViewModel.isLoggedIn {
-                        NavigationStack {
-                            WelcomeView()
-                        }
-                        .environmentObject(authViewModel)
                     } else {
-                        MainTabBarView()
+                        if !authViewModel.isLoggedIn {
+                            NavigationStack {
+                                WelcomeView()
+                            }
                             .environmentObject(authViewModel)
+                        } else {
+                            MainTabBarView()
+                                .environmentObject(authViewModel)
+                        }
                     }
                 }
                 .task {

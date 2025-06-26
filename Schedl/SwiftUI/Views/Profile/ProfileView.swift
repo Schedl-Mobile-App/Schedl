@@ -22,12 +22,13 @@ struct ProfileView: View {
     
     var body: some View {
         ZStack {
-            Color("LaunchScreenCreamWhite")
+            Color(hex: 0xf7f4f2)
                 .ignoresSafeArea()
             
             if profileViewModel.isLoadingProfileView {
                 ProfileLoadingView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.bottom, 0.5)
             } else {
                 VStack(alignment: .center, spacing: 20) {
                     ZStack {
@@ -53,7 +54,7 @@ struct ProfileView: View {
                                 Spacer()
                                 NavigationLink(destination: SettingsView(profileViewModel: profileViewModel).environmentObject(authViewModel)) {
                                     Image(systemName: "gearshape")
-                                        .font(.system(size: 24))
+                                        .font(.system(size: 26))
                                         .fontWeight(.semibold)
                                         .foregroundStyle(Color(hex: 0x333333))
                                 }
@@ -179,6 +180,7 @@ struct ProfileView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     }
                 }
+                .padding(.bottom, 0.5)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 
                 ZStack {
@@ -305,7 +307,7 @@ struct UserProfileImage: View {
             if profileViewModel.isEditingProfile {
                 PhotosPicker(selection: $pickerItem, matching: .images) {
                     Circle()
-                        .foregroundStyle(Color(hex: 0x6d8a96))
+                        .foregroundStyle(Color(hex: 0x3C859E))
                         .frame(maxWidth: 30, maxHeight: 30)
                         .foregroundStyle(.clear)
                         .overlay {

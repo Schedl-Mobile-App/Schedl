@@ -107,7 +107,6 @@ struct ChangeAccountDataView: View {
             profileViewModel.shouldReloadData = false
         }
         .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .tabBar)
     }
 }
 
@@ -249,6 +248,5 @@ struct SettingsView: View {
             profileViewModel.shouldReloadData = true
         }
         .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .tabBar)
     }
 }

@@ -85,7 +85,6 @@ class NotificationViewModel: NotificationViewModelProtocol, ObservableObject {
                     
                     self.isLoading = false
                 } catch {
-                    print("Failed to fetch new user notifications in the observer method")
                     self.errorMessage = "Failed to fetch user notifications."
                     self.isLoading = false
                 }

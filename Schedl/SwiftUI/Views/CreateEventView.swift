@@ -103,7 +103,7 @@ struct CreateEventView: View {
                         .tracking(-0.25)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
-                .padding()
+                .padding([.horizontal, .top])
                 .frame(maxWidth: .infinity)
                 
                 ScrollView(.vertical, showsIndicators: false) {
@@ -665,24 +665,14 @@ struct CreateEventView: View {
                                             .foregroundStyle(Color(hex: 0x3C859E))
                                         }
                                         
-                                        VStack(alignment: .leading, spacing: 0) {
+                                        VStack(alignment: .leading, spacing: 2) {
                                             ForEach(Array(selectedFriends.enumerated()), id: \.element.id) { index, user in
                                                 // only show if expanded OR within the first 2 items
                                                 if isExpanded || index < initialVisibleCount {
                                                     HStack {
                                                         InvitedUserRow(user: user)
-                                                            .transition(.asymmetric(
-                                                                insertion: .scale(scale: 0.95)
-                                                                    .combined(with: .opacity)
-                                                                    .combined(with: .offset(y: -10)),
-                                                                removal: .scale(scale: 0.95)
-                                                                    .combined(with: .opacity)
-                                                                    .combined(with: .offset(y: 10))
-                                                            ))
-                                                            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isExpanded)
-                                                        
+                                                            .transition(.move(edge: .top).combined(with: .opacity))
                                                         Spacer()
-                                                        
                                                         Button {
                                                             selectedFriends.removeAll { $0.id == user.id }
                                                         } label: {
@@ -691,7 +681,6 @@ struct CreateEventView: View {
                                                                 .foregroundStyle(Color(hex: 0x333333))
                                                         }
                                                     }
-                                                    .padding(.vertical, 4)
                                                 }
                                             }
                                         }
@@ -699,7 +688,7 @@ struct CreateEventView: View {
                                         // only show the toggle button when there are more than 2
                                         if selectedFriends.count > initialVisibleCount {
                                             Button {
-                                                withAnimation(.easeIn(duration: 0.3)) {
+                                                withAnimation(.easeInOut(duration: 0.2)) {
                                                     isExpanded.toggle()
                                                 }
                                             } label: {
@@ -717,6 +706,7 @@ struct CreateEventView: View {
                                                 .padding(.top, 8)
                                                 .frame(maxWidth: .infinity, alignment: .trailing)
                                             }
+                                            .animation(nil, value: isExpanded)
                                         }
                                     }
                                     .padding()
@@ -767,7 +757,7 @@ struct CreateEventView: View {
                                     eventNotes = ""
                                 }) {
                                     Image(systemName: "xmark")
-                                        .font(.system(size: 14))
+                                        .imageScale(.medium)
                                         .foregroundStyle(Color(hex: 0x333333))
                                 }
                                 .hidden(eventNotes.isEmpty)
@@ -859,13 +849,12 @@ struct CreateEventView: View {
                         }
                         .frame(maxWidth: .infinity, minHeight: 50)
                         .foregroundStyle(Color(hex: 0x3C859E))
-                        .padding(.bottom)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.vertical)
+                    .padding(.horizontal, 25)
                     .animation(.easeInOut(duration: 0.2), value: eventDateText)
                 }
-                .padding(.bottom)
-                .padding(.horizontal, 25)
                 .defaultScrollAnchor(.top, for: .initialOffset)
                 .defaultScrollAnchor(.bottom, for: .sizeChanges)
                 .scrollDismissesKeyboard(.immediately)
@@ -878,7 +867,6 @@ struct CreateEventView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .ignoresSafeArea(.all)
         .navigationBarBackButtonHidden(true)
         .onAppear {
             scheduleViewModel.shouldReloadData = false
@@ -930,6 +918,7 @@ struct AddInvitedUsers: View {
                         .tracking(-0.25)
                         .foregroundStyle(Color(hex: 0x333333))
                         .autocorrectionDisabled(true)
+                        .textInputAutocapitalization(.never)
                         .focused($isSearching, equals: true)
                     
                     Spacer()
@@ -950,94 +939,18 @@ struct AddInvitedUsers: View {
                 .clipShape(RoundedRectangle(cornerRadius: 25))
                 .frame(maxWidth: .infinity, alignment: .center)
                 
-                Group {
-                    ScrollView(.vertical) {
-                        LazyVStack(spacing: 12) {
-                            ForEach(filteredUsers, id: \.self.id) { friend in
-                                HStack(spacing: 15) {
-                                    Circle()
-                                        .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
-                                        .background(Color.clear)
-                                        .frame(width: 40.75, height: 40.75)
-                                        .overlay {
-                                            AsyncImage(url: URL(string: friend.profileImage)) { image in
-                                                image
-                                                    .resizable()
-                                                    .scaledToFill()
-                                                    .frame(width: 39, height: 39)
-                                                    .clipShape(Circle())
-                                            } placeholder: {
-                                                // Show while loading or if image fails to load
-                                                Circle()
-                                                    .fill(Color(hex: 0xe0dad5))
-                                                    .frame(width: 39, height: 39)
-                                                    .overlay {
-                                                        Text("\(friend.displayName.first?.uppercased() ?? "J")\(friend.displayName.last?.uppercased() ?? "D")")
-                                                            .font(.headline)
-                                                            .fontWeight(.bold)
-                                                            .fontDesign(.monospaced)
-                                                            .tracking(-0.25)
-                                                            .foregroundStyle(Color(hex: 0x333333))
-                                                            .multilineTextAlignment(.center)
-                                                    }
-                                            }
-                                        }
-                                    
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        Text("\(friend.displayName)")
-                                            .font(.subheadline)
-                                            .fontWeight(.bold)
-                                            .fontDesign(.monospaced)
-                                            .tracking(-0.10)
-                                            .foregroundStyle(Color(hex: 0x333333))
-                                            .multilineTextAlignment(.leading)
-                                        HStack(spacing: 0) {
-                                            Text("@")
-                                                .font(.footnote)
-                                                .fontWeight(.medium)
-                                                .fontDesign(.rounded)
-                                                .foregroundStyle(Color.black.opacity(0.50))
-                                                .multilineTextAlignment(.leading)
-                                            Text("\(friend.username)")
-                                                .font(.footnote)
-                                                .fontWeight(.medium)
-                                                .fontDesign(.rounded)
-                                                .tracking(1.05)
-                                                .foregroundStyle(Color.black.opacity(0.50))
-                                                .multilineTextAlignment(.leading)
-                                        }
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    Button {
-                                        if selectedFriends.contains(where: { $0.id == friend.id }) {
-                                            selectedFriends.removeAll { $0.id == friend.id }
-                                        } else {
-                                            selectedFriends.append(friend)
-                                        }
-                                    } label: {
-                                        ZStack {
-                                            Circle()
-                                                .fill(
-                                                    selectedFriends.contains(friend)
-                                                    ? Color(hex: 0x3C859E)
-                                                    : Color.clear
-                                                )
-                                            Circle()
-                                                .strokeBorder(Color(hex: 0x333333), lineWidth: 1.5)
-                                        }
-                                        .frame(width: 25, height: 25)
-                                        .contentShape(Circle())
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
+                ScrollView(.vertical) {
+                    LazyVStack(spacing: 15) {
+                        ForEach(filteredUsers, id: \.self.id) { friend in
+                            InvitedUserCell(friend: friend, selectedFriends: $selectedFriends)
+                        }
+                        ForEach(mockUsers, id: \.self.id) { friend in
+                            InvitedUserCell(friend: friend, selectedFriends: $selectedFriends)
                         }
                     }
-                    .padding(.top)
-                    .scrollDismissesKeyboard(.immediately)
+                    .padding(.vertical)
                 }
+                .scrollDismissesKeyboard(.immediately)
             }
             .padding(.horizontal)
             .navigationTitle("Invite Friends")
@@ -1056,6 +969,104 @@ struct AddInvitedUsers: View {
         .presentationDetents([.medium, .large])
         .task {
             await scheduleViewModel.fetchFriends()
+        }
+    }
+}
+
+let mockUsers: [User] = [
+    User(id: "user1", username: "janedoe",    email: "jane@example.com",    displayName: "Jane Doe",      profileImage: "", creationDate: 1719360000),
+    User(id: "user2", username: "alices",     email: "alice@example.com",   displayName: "Alice Smith",   profileImage: "", creationDate: 1719363600),
+    User(id: "user3", username: "bobj",       email: "bob@example.com",     displayName: "Bob Jones",     profileImage: "", creationDate: 1719367200),
+    User(id: "user4", username: "charlieb",   email: "charlie@example.com", displayName: "Charlie Brown", profileImage: "", creationDate: 1719370800),
+    User(id: "user5", username: "emilyt",     email: "emily@example.com",   displayName: "Emily Turner",  profileImage: "", creationDate: 1719374400),
+    User(id: "user6", username: "danielt",    email: "daniel@example.com",  displayName: "Daniel Tran",   profileImage: "", creationDate: 1719378000),
+    User(id: "user7", username: "sarahw",     email: "sarah@example.com",   displayName: "Sarah White",   profileImage: "", creationDate: 1719381600),
+    User(id: "user8", username: "michaelc",   email: "michael@example.com", displayName: "Michael Chen",  profileImage: "", creationDate: 1719385200)
+]
+
+struct InvitedUserCell: View {
+    
+    let friend: User
+    @Binding var selectedFriends: [User]
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            Circle()
+                .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
+                .background(Color.clear)
+                .frame(width: 40.75, height: 40.75)
+                .overlay {
+                    AsyncImage(url: URL(string: friend.profileImage)) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 39, height: 39)
+                            .clipShape(Circle())
+                    } placeholder: {
+                        // Show while loading or if image fails to load
+                        Circle()
+                            .fill(Color(hex: 0xe0dad5))
+                            .frame(width: 39, height: 39)
+                            .overlay {
+                                Text("\(friend.displayName.first?.uppercased() ?? "J")\(friend.displayName.last?.uppercased() ?? "D")")
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .fontDesign(.monospaced)
+                                    .tracking(-0.25)
+                                    .foregroundStyle(Color(hex: 0x333333))
+                                    .multilineTextAlignment(.center)
+                            }
+                    }
+                }
+            
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(friend.displayName)")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.10)
+                    .foregroundStyle(Color(hex: 0x333333))
+                    .multilineTextAlignment(.leading)
+                HStack(spacing: 0) {
+                    Text("@")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .fontDesign(.rounded)
+                        .foregroundStyle(Color.black.opacity(0.50))
+                        .multilineTextAlignment(.leading)
+                    Text("\(friend.username)")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .fontDesign(.rounded)
+                        .tracking(1.05)
+                        .foregroundStyle(Color.black.opacity(0.50))
+                        .multilineTextAlignment(.leading)
+                }
+            }
+            
+            Spacer()
+            
+            Button {
+                if selectedFriends.contains(where: { $0.id == friend.id }) {
+                    selectedFriends.removeAll { $0.id == friend.id }
+                } else {
+                    selectedFriends.append(friend)
+                }
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(
+                            selectedFriends.contains(friend)
+                            ? Color(hex: 0x3C859E)
+                            : Color.clear
+                        )
+                    Circle()
+                        .strokeBorder(Color(hex: 0x333333), lineWidth: 1.5)
+                }
+                .frame(width: 25, height: 25)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
         }
     }
 }

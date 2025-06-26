@@ -40,7 +40,7 @@ struct AddFriendModal: View {
                     Text("Send")
                         .font(.system(size: 16, weight: .medium, design: .monospaced))
                         .multilineTextAlignment(.center)
-                        .foregroundStyle(Color(hex: 0xf7f4f2))
+                        .foregroundStyle(Color(hex: 0xF6F4F2))
                 }
                 .frame(maxWidth: .infinity, maxHeight: 50)
                 .background {

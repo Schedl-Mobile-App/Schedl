@@ -73,9 +73,9 @@ class ScheduleViewController: UIViewController {
                 dayList.append(Calendar.current.date(byAdding: .day, value: index, to: centerDate) ?? Date())
             }
         }
-        print(currentDate)
-        print(dayList.count)
     }
+    
+    var positionScroll: CGPoint = .zero
     
     // using the lazy keyword allows us to safely access member methods within our class => layout function
     lazy var collectionView: UICollectionView = {
@@ -318,7 +318,7 @@ class ScheduleViewController: UIViewController {
         view.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
         
         view.addSubview(headerView)
-        
+            
         view.addSubview(displayedMonthLabel)
         view.addSubview(displayedYearLabel)
         
@@ -334,7 +334,7 @@ class ScheduleViewController: UIViewController {
         searchButton.configuration?.image = UIImage(systemName: "magnifyingglass")
         searchButton.translatesAutoresizingMaskIntoConstraints = false
         searchButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 16, weight: .medium)
-        searchButton.addTarget(self, action: #selector(toggleSidebar), for: .touchUpInside)
+        searchButton.addTarget(self, action: #selector(showEventSearchMenu), for: .touchUpInside)
         searchButton.configuration?.baseForegroundColor = UIColor(Color(hex: 0x666666))
         
         filterButton.configuration = .filled()
@@ -416,12 +416,12 @@ class ScheduleViewController: UIViewController {
         // constraints for our collection view
         NSLayoutConstraint.activate([
             
-            headerView.topAnchor.constraint(equalTo: view.topAnchor),
+            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 5),
             headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             
             filterButton.leadingAnchor.constraint(equalTo: headerView.layoutMarginsGuide.leadingAnchor),
-            filterButton.topAnchor.constraint(equalTo: headerView.topAnchor, constant: 5),
+            filterButton.topAnchor.constraint(equalTo: headerView.safeAreaLayoutGuide.topAnchor, constant: 5),
             filterButton.widthAnchor.constraint(equalToConstant: 30),
             filterButton.heightAnchor.constraint(equalToConstant: 30),
             filterButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
@@ -429,14 +429,14 @@ class ScheduleViewController: UIViewController {
             scheduleNameLabel.leadingAnchor.constraint(equalTo: filterButton.trailingAnchor, constant: 10),
             scheduleNameLabel.centerYAnchor.constraint(equalTo: filterButton.centerYAnchor),
             
-            searchButton.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            searchButton.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 15),
-            
-            displayedMonthLabel.topAnchor.constraint(equalTo: filterButton.bottomAnchor, constant: 15),
+            displayedMonthLabel.topAnchor.constraint(equalTo: filterButton.bottomAnchor, constant: 10),
             displayedMonthLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             
-            displayedYearLabel.topAnchor.constraint(equalTo: filterButton.bottomAnchor, constant: 15),
+            displayedYearLabel.topAnchor.constraint(equalTo: filterButton.bottomAnchor, constant: 10),
             displayedYearLabel.leadingAnchor.constraint(equalTo: displayedMonthLabel.trailingAnchor, constant: 3),
+            
+            searchButton.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            searchButton.centerYAnchor.constraint(equalTo: displayedMonthLabel.centerYAnchor),
             
             dayHeaderScrollView.topAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor, constant: 5),
             dayHeaderScrollView.leadingAnchor.constraint(equalTo: overlayView.trailingAnchor),
@@ -494,17 +494,6 @@ class ScheduleViewController: UIViewController {
         setDisplayedDates(centerDate: currentDate)
         dayHeader.setDates(dayList: dayList)
     }
-        
-//    override func viewWillAppear(_ animated: Bool) {
-//        super.viewWillAppear(animated)
-//        
-//        guard let scheduleViewModel = coordinator?.scheduleViewModel else { return }
-//        
-//        if scheduleViewModel.shouldReloadData {
-//            showLoading()
-//            loadInitialData()
-//        }
-//    }
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
@@ -523,8 +512,6 @@ class ScheduleViewController: UIViewController {
         Task {
             await scheduleViewModel.fetchSchedule()
         }
-        
-        scheduleViewModel.observeScheduleChanges()
     }
     
     private func updateEventsOverlay() {
@@ -585,27 +572,6 @@ class ScheduleViewController: UIViewController {
                 }
             }
           .store(in: &cancellables)
-        
-        //        viewModel.$isLoading
-        //            .receive(on: RunLoop.main)
-        //            .sink { [weak self] isLoading in
-        //                // Show/hide loading indicator based on loading state
-        //                if isLoading {
-        //                    self?.activityIndicator.startAnimating()
-        //                } else {
-        //                    self?.activityIndicator.stopAnimating()
-        //                }
-        //            }
-        //            .store(in: &cancellables)
-        //
-        //        viewModel.$error
-        //            .receive(on: RunLoop.main)
-        //            .compactMap { $0 } // Only proceed with non-nil errors
-        //            .sink { [weak self] error in
-        //                // Show error alert when an error occurs
-        //                self?.showErrorAlert(message: error.localizedDescription)
-        //            }
-        //            .store(in: &cancellables)
     }
     
     @objc func toggleSidebar() {
@@ -624,6 +590,37 @@ class ScheduleViewController: UIViewController {
                 self.scheduleViewOptions.isHidden = finished
             }
         }
+    }
+    
+//    if let sheet = hostingController.sheetPresentationController {
+//            sheet.detents = [
+//                .custom { context in
+//                    return 300 // Custom height
+//                },
+//                .medium(),
+//                .large()
+//            ]
+//            sheet.selectedDetentIdentifier = .medium
+//            sheet.prefersGrabberVisible = true
+//        }
+//        
+//        present(hostingController, animated: true)
+    
+    @objc
+    func showEventSearchMenu() {
+        let eventSearchSheet = EventSearchView()
+        
+        let eventSearchSheetViewController = UIHostingController(rootView: eventSearchSheet)
+        
+        if let sheet = eventSearchSheetViewController.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.largestUndimmedDetentIdentifier = .medium
+            sheet.prefersScrollingExpandsWhenScrolledToEdge = false
+            sheet.prefersEdgeAttachedInCompactHeight = true
+            sheet.widthFollowsPreferredContentSizeWhenEdgeAttached = true
+        }
+        
+        present(eventSearchSheetViewController, animated: true, completion: nil)
     }
     
     func showCreateEventButton() {
@@ -649,10 +646,7 @@ class ScheduleViewController: UIViewController {
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(
                 rootView: CreateEventView(scheduleViewModel: scheduleViewModel)
-                    .ignoresSafeArea(.all)
             )
-            
-            hostingController.navigationItem.setHidesBackButton(true, animated: true)
             
             navigationController?.pushViewController(hostingController, animated: true)
         }
@@ -675,10 +669,7 @@ class ScheduleViewController: UIViewController {
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(
                 rootView: EventDetailsView(event: event, currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding)
-                    .ignoresSafeArea(.all)
             )
-            
-            hostingController.navigationItem.setHidesBackButton(true, animated: true)
             
             navigationController?.pushViewController(hostingController, animated: true)
         }
@@ -704,7 +695,7 @@ class ScheduleViewController: UIViewController {
         let itemWidth: CGFloat = 60
         
         // initial horizontal offset so that the current day is the first day displayed
-        let xOffset = CGFloat(currentDayIndex) * itemWidth
+        let xOffset = CGFloat(currentDayIndex) * itemWidth + 0.50
         
         collectionView.setContentOffset(CGPoint(x: xOffset, y: safeYOffset), animated: false)
         
@@ -804,7 +795,6 @@ class ScheduleViewController: UIViewController {
                 newDays.append(newDate)
             }
         }
-        print(newDays.count)
         
         // since we've created the new 30 days, we now remove 30 from the beginning of dayList
         dayList.removeFirst(datesToAdd)
@@ -845,10 +835,21 @@ class ScheduleViewController: UIViewController {
 extension ScheduleViewController: UICollectionViewDelegate {
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        
         // Prevent recursive scroll handling
         guard !isHandlingScroll, scrollView === collectionView else { return }
         
         isHandlingScroll = true
+        
+        // The user wants to scroll on the X axis
+        if scrollView.contentOffset.x > positionScroll.x || scrollView.contentOffset.x < positionScroll.x {
+            // Reset the Y position of the scrollView to what it was before scrolling started
+            scrollView.contentOffset = CGPoint(x: scrollView.contentOffset.x, y: positionScroll.y)
+        } else {
+            // The user wants to scroll on the Y axis
+            // Reset the X position of the scrollView to what it was before scrolling started
+            scrollView.contentOffset = CGPoint(x: positionScroll.x, y: scrollView.contentOffset.y)
+        }
     
         let dayIndex = Int(scrollView.contentOffset.x / singleDayGroupWidth)
         
@@ -968,6 +969,7 @@ extension ScheduleViewController: UICollectionViewDelegate {
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        positionScroll = scrollView.contentOffset
         hideCreateEventButton()
         
         if !hasUserScrolled {
@@ -978,13 +980,6 @@ extension ScheduleViewController: UICollectionViewDelegate {
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
         showCreateEventButton()
     }
-//    
-//    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-//        guard !isSnapping else { return }
-//        isSnapping = true
-//        
-//        snapCellPosition()
-//    }
     
     func scrollViewWillEndDragging(_ scrollView: UIScrollView,
                                    withVelocity velocity: CGPoint,
@@ -994,27 +989,6 @@ extension ScheduleViewController: UICollectionViewDelegate {
         let page        = round(proposedX / itemWidth)
         targetContentOffset.pointee.x = page * itemWidth + 0.50
     }
-    
-//    func snapCellPosition() {
-//        let itemWidth: CGFloat = 60
-//        
-//        // Get the total offset from the left edge
-//        let totalOffset = collectionView.contentOffset.x
-//        
-//        // Calculate which day we're closest to, accounting for the time column
-//        let estimatedIndex = round(totalOffset / itemWidth)
-//        
-//        // Ensure the index is within bounds (0 to 59 for your 60 days)
-//        let safeIndex = max(0, min(Int(estimatedIndex), numberOfDays-1))
-//        
-//        // Calculate the precise final position
-//        let finalXOffset = (CGFloat(safeIndex) * itemWidth)
-//        
-//        // Maintain the current y offset
-//        let currentYOffset = collectionView.contentOffset.y
-//        
-//        collectionView.setContentOffset(CGPoint(x: finalXOffset+1, y: currentYOffset), animated: true)
-//    }
 }
 
 extension ScheduleViewController: UICollectionViewDataSourcePrefetching {
@@ -1079,9 +1053,5 @@ extension UICollectionView {
         
         return indexPaths
     }
-}
-
-protocol SchedulrRootViewwController: UIViewController {
-    var displayedMonth: String { get set }
 }
 

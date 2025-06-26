@@ -14,9 +14,7 @@ struct UserSearchCell: View {
     let user: User
 
     var body: some View {
-        NavigationLink(destination: ProfileView(currentUser: currentUser, profileUser: user)
-            .toolbar(.visible, for: .tabBar)
-        ) {
+        NavigationLink(destination: ProfileView(currentUser: currentUser, profileUser: user)) {
            HStack(spacing: 15) {
                Circle()
                    .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
@@ -81,29 +79,10 @@ struct UserSearchCell: View {
                        .multilineTextAlignment(.leading)
                }
                .fixedSize(horizontal: true, vertical: false)
-//               let isFriend = searchViewModel.userInfo[user.id]?.isFriend ?? false
-//               Button(action: {}) {
-//                   Text(isFriend ? "Friends" : "Add Friend")
-//                       .font(.footnote)
-//                       .fontWeight(.heavy)
-//                       .fontDesign(.monospaced)
-//                       .multilineTextAlignment(.center)
-//                       .foregroundColor(isFriend ? Color(hex: 0x333333) : Color(hex: 0xf7f4f2))
-//                       .padding(.horizontal)
-//                       .fixedSize()
-//                       .frame(minHeight: 40)
-//                       .background(
-//                            RoundedRectangle(cornerRadius: 15)
-//                                .fill(isFriend ? Color.black.opacity(0.1) : Color(hex: 0x3C859E))
-//                                .stroke(Color(hex: 0x666666), lineWidth: 1)
-//                       )
-//                       .contentShape(Capsule())
-//               }
-//               .accessibilityLabel(isFriend ? "Remove friend" : "Add friend")
            }
            .frame(maxWidth: .infinity, alignment: .leading)
            .clipShape(RoundedRectangle(cornerRadius: 12))
-           .padding()
+           .padding(.horizontal)
        }
     }
 }
@@ -140,6 +119,7 @@ struct SearchView: View {
                             .tracking(-0.25)
                             .foregroundStyle(Color(hex: 0x333333))
                             .autocorrectionDisabled(true)
+                            .textInputAutocapitalization(.never)
                         
                         Spacer()
                         
@@ -162,12 +142,8 @@ struct SearchView: View {
                     .padding(.top)
                     
                     if searchViewModel.isLoading {
-                        Spacer()
-                        ProgressView("Loading...")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                        Spacer()
+                        FriendsLoadingView()
+                            .padding(.bottom, 1)
                     } else if let error = searchViewModel.errorMessage {
                         Spacer()
                         Text("\(error)")
@@ -194,19 +170,18 @@ struct SearchView: View {
                         Spacer()
                     } else {
                         ScrollView(.vertical, showsIndicators: false) {
-                            LazyVStack(spacing: 6) {
+                            LazyVStack(spacing: 25) {
                                 ForEach (searchViewModel.searchResults) { user in
                                     UserSearchCell(currentUser: searchViewModel.currentUser, user: user)
-//                                    Divider()
-//                                        .background(Color(hex: 0xc0b8b2))
-//                                        .frame(maxWidth: .infinity, maxHeight: 1.25)
                                 }
                             }
+                            .padding(.vertical)
                         }
                         .scrollDismissesKeyboard(.immediately)
                     }
                     
                 }
+                .padding(.bottom, 0.5)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .onTapGesture {

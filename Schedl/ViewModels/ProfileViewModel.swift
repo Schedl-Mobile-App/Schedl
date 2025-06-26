@@ -70,7 +70,6 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         self.currentUser = currentUser
         self.profileUser = profileUser
         self.isCurrentUser = currentUser.id == profileUser.id
-        print("Being initialized in profile view model")
     }
     
     func resetPath() {
@@ -167,7 +166,6 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         do {
             try await notificationService.sendFriendRequest(userId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUsername: profileUser.username)
         } catch {
-            print("Friend request was not successfully sent")
             self.errorMessage = "Failed to fetch schedule: \(error.localizedDescription)"
         }
     }
@@ -271,7 +269,6 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
                 recurringEvent.sorted { $0.event.startTime < $1.event.startTime }
             }
         } catch {
-            print("Could not partion events by day successfully")
             self.errorMessage = "Failed to partion events by day successfully. The following error occured: \(error.localizedDescription)"
         }
     }
@@ -356,9 +353,5 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         } catch {
             self.errorMessage = "Failed to check friend status \(error.localizedDescription)"
         }
-    }
-    
-    deinit {
-        print("in the deninit of ProfileViewModel")
     }
 }

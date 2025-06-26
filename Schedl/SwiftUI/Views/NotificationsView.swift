@@ -274,6 +274,5 @@ struct NotificationsView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
-        .toolbar(showTabBar ? .visible : .hidden, for: .tabBar)
     }
 }

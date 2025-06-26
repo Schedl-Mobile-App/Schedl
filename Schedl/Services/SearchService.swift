@@ -29,7 +29,6 @@ class SearchService: SearchServiceProtocol {
             throw FirebaseError.failedToFetchUserById
         }
         
-        print(Array(DBUserNames.values))
         return Array(DBUserNames.values)
     }
 }

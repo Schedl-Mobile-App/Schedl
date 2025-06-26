@@ -24,7 +24,7 @@ struct LocationDetailView: View {
     }
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 15) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading) {
                     Text(selectedPlacemark?.name ?? "")
@@ -56,6 +56,7 @@ struct LocationDetailView: View {
                 }
                 .padding(.top, 5)
             }
+            .padding(.top)
             
             if let scene = lookaroundScene {
                 LookAroundPreview(initialScene: scene)
@@ -77,30 +78,45 @@ struct LocationDetailView: View {
                         Text("Select Location")
                     }
                     .font(.subheadline)
-                    .fontWeight(.heavy)
+                    .fontWeight(.bold)
                     .fontDesign(.monospaced)
                     .tracking(-0.25)
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(Color("LaunchScreenCreamWhite"))
+                    .foregroundStyle(Color(hex: 0xf7f4f2))
                     .padding()
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .background(
                          RoundedRectangle(cornerRadius: 15)
-                             .fill(Color("OnBoardingBackground"))
+                            .fill(Color(hex: 0x3C859E))
                     )
-                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 4)
                 }
             } else {
-                Button("Open in maps", systemImage: "map") {
+                Button(action: {
                     if let selectedPlacemark {
                         let placemark = MKPlacemark(coordinate: selectedPlacemark.coordinate)
                         let mapItem = MKMapItem(placemark: placemark)
                         mapItem.name = selectedPlacemark.name
                         mapItem.openInMaps()
                     }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "map")
+                            .imageScale(.medium)
+                        Text("Open in Maps")
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(Color(hex: 0xf7f4f2))
+                    .padding()
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(
+                         RoundedRectangle(cornerRadius: 15)
+                            .fill(Color(hex: 0x3C859E))
+                    )
                 }
-                .fixedSize(horizontal: true, vertical: false)
-                .buttonStyle(.bordered)
             }
         }
         .padding()
