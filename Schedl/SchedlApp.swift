@@ -22,7 +22,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
           
         
-        let providerFactory = SchedlAppCheckProviderFactory()         // for production builds
+        let providerFactory = SchedlAppCheckProviderFactory()
         AppCheck.setAppCheckProviderFactory(providerFactory)
         FirebaseApp.configure()
           

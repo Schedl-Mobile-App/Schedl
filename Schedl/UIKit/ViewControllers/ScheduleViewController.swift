@@ -730,7 +730,7 @@ class ScheduleViewController: UIViewController {
         
         let section = NSCollectionLayoutSection(group: horizontalGroupContainer)
         
-        let layout = UICollectionViewCompositionalLayout(section: section)
+        let layout = FixedUICollectionViewCompositionalLayout(section: section)
         
         return layout
     }
@@ -763,9 +763,8 @@ class ScheduleViewController: UIViewController {
         dayList.insert(contentsOf: newDays.reversed(), at: 0)
         
         currentDate = firstDate
-        
+                
         UIView.performWithoutAnimation {
-            resetModifiedCells()
             collectionView.reloadSections(IndexSet(integer: 0))
             collectionView.setContentOffset(newOffset, animated: false)
             updateEventsOverlay()
@@ -805,7 +804,6 @@ class ScheduleViewController: UIViewController {
         
         // necessary to ensure that all of these updates happen without animation to provide the smoothest transition
         UIView.performWithoutAnimation {
-            resetModifiedCells()
             // since we reload the section, the offset from this will make our prefetching delegate
             // call to loadPreviousDateInterval, so we must set ignoring trigger as such
             shouldIgnorePreviousTrigger = true
@@ -859,7 +857,7 @@ extension ScheduleViewController: UICollectionViewDelegate {
             let month = Calendar.current.component(.month, from: visibleDate) - 1
             let year = Calendar.current.component(.year, from: visibleDate)
             
-            let newMonth = monthsList[month]
+                    let newMonth = monthsList[month]
             if newMonth != displayedMonthLabel.text {
                 displayedMonthLabel.text = newMonth
                 displayedYearLabel.text = "\(year)"
@@ -893,7 +891,12 @@ extension ScheduleViewController: UICollectionViewDelegate {
         
         // Check for boundary conditions with proper tolerance
         let isAtTopBoundary = collectionView.contentOffset.y < 0
-        let isAtBottomBoundary = maxScrollY > 0 && collectionView.contentOffset.y > maxScrollY
+        let isAtBottomBoundary = maxScrollY > 0 && collectionView.contentOffset.y > maxScrollY + 5
+        
+        if !isAtTopBoundary && !isAtBottomBoundary {
+            resetModifiedCells()
+            return
+        }
         
         if isAtTopBoundary || isAtBottomBoundary {
             // Calculate actual offsets
@@ -946,26 +949,17 @@ extension ScheduleViewController: UICollectionViewDelegate {
     }
 
     func resetModifiedCells() {
-        // Create a copy to avoid mutation during iteration
-        let cellsToReset = modifiedCells
-        
-        for cell in cellsToReset {
-            // Only modify cells that are still in the view hierarchy
-            if cell.superview != nil {
-                if let originalPosition = cell.layer.value(forKey: "normal") as? CGFloat,
-                   let originalHeight = cell.layer.value(forKey: "normalHeight") as? CGFloat {
-                    var frame = cell.frame
-                    frame.origin.y = originalPosition
-                    frame.size.height = originalHeight
-                    cell.frame = frame
-                    
-                    // Clear stored values
-                    cell.layer.setValue(nil, forKey: "normal")
-                    cell.layer.setValue(nil, forKey: "normalHeight")
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            for cell in self.modifiedCells {
+                if let indexPath = self.collectionView.indexPath(for: cell) {
+                    // Force layout update for specific cells
+                    self.collectionView.reloadItems(at: [indexPath])
                 }
             }
+            self.modifiedCells.removeAll()
         }
-        modifiedCells.removeAll()
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
@@ -1035,6 +1029,145 @@ extension ScheduleViewController: UICollectionViewDataSource {
             for: indexPath,
             item: indexPath.item
         )
+    }
+}
+
+class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLayout {
+    
+    override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
+        guard let attributes = super.layoutAttributesForElements(in: rect) else { return nil }
+        
+        // Track seen index paths to eliminate exact duplicates
+        var seenIndexPaths = Set<IndexPath>()
+        var validAttributes: [UICollectionViewLayoutAttributes] = []
+        
+        for attribute in attributes {
+            let indexPath = attribute.indexPath
+            
+            // Skip if we've already processed this index path
+            if seenIndexPaths.contains(indexPath) {
+                // If we find a duplicate, keep the one that's more "valid"
+                if let existingIndex = validAttributes.firstIndex(where: { $0.indexPath == indexPath }) {
+                    let existing = validAttributes[existingIndex]
+                    let current = attribute
+                    
+                    // Prefer the attribute that's more within bounds
+                    if isMoreValidAttribute(current, than: existing) {
+                        validAttributes[existingIndex] = current
+                    }
+                }
+                continue
+            }
+            
+            // Check if the attribute is within reasonable bounds
+            if isAttributeValid(attribute, in: rect) {
+                seenIndexPaths.insert(indexPath)
+                validAttributes.append(attribute)
+            }
+        }
+        
+        return validAttributes
+    }
+    
+    private func isAttributeValid(_ attribute: UICollectionViewLayoutAttributes, in rect: CGRect) -> Bool {
+        let frame = attribute.frame
+        let contentSize = collectionViewContentSize
+        
+        // More comprehensive bounds checking
+        let isWithinHorizontalBounds = frame.origin.x >= -frame.size.width &&
+                                      frame.maxX <= contentSize.width + frame.size.width
+        
+        let isWithinVerticalBounds = frame.origin.y >= -frame.size.height &&
+                                    frame.maxY <= contentSize.height + frame.size.height
+        
+        // Check for reasonable frame dimensions
+        let hasValidDimensions = frame.size.width > 0 &&
+                                frame.size.height > 0 &&
+                                frame.size.width < contentSize.width * 2 &&
+                                frame.size.height < contentSize.height * 2
+        
+        // Check if frame intersects with the requested rect (with some tolerance)
+        let extendedRect = rect.insetBy(dx: -frame.size.width, dy: -frame.size.height)
+        let intersectsRequestedRect = frame.intersects(extendedRect)
+        
+        return isWithinHorizontalBounds &&
+               isWithinVerticalBounds &&
+               hasValidDimensions &&
+               intersectsRequestedRect
+    }
+    
+    private func isMoreValidAttribute(_ new: UICollectionViewLayoutAttributes,
+                                     than existing: UICollectionViewLayoutAttributes) -> Bool {
+        let newFrame = new.frame
+        let existingFrame = existing.frame
+        let contentSize = collectionViewContentSize
+        
+        // Calculate how "valid" each attribute is based on how well it fits within bounds
+        let newValidityScore = calculateValidityScore(for: newFrame, contentSize: contentSize)
+        let existingValidityScore = calculateValidityScore(for: existingFrame, contentSize: contentSize)
+        
+        return newValidityScore > existingValidityScore
+    }
+    
+    private func calculateValidityScore(for frame: CGRect, contentSize: CGSize) -> Double {
+        var score: Double = 0
+        
+        // Points for being within content bounds
+        if frame.maxX <= contentSize.width { score += 100 }
+        if frame.maxY <= contentSize.height { score += 100 }
+        if frame.origin.x >= 0 { score += 50 }
+        if frame.origin.y >= 0 { score += 50 }
+        
+        // Penalty for being outside bounds
+        if frame.origin.x < 0 { score -= abs(frame.origin.x) }
+        if frame.origin.y < 0 { score -= abs(frame.origin.y) }
+        if frame.maxX > contentSize.width { score -= (frame.maxX - contentSize.width) }
+        if frame.maxY > contentSize.height { score -= (frame.maxY - contentSize.height) }
+        
+        return score
+    }
+    
+    // Additional override to handle specific item requests
+    override func layoutAttributesForItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
+        guard let attribute = super.layoutAttributesForItem(at: indexPath) else { return nil }
+        
+        // Apply the same validation to individual item requests (without rect parameter)
+        return isAttributeValidForSingleItem(attribute) ? attribute : nil
+    }
+    
+    private func isAttributeValidForSingleItem(_ attribute: UICollectionViewLayoutAttributes) -> Bool {
+        let frame = attribute.frame
+        let contentSize = collectionViewContentSize
+        
+        // Basic bounds checking for single items
+        let isWithinHorizontalBounds = frame.origin.x >= -frame.size.width &&
+                                      frame.maxX <= contentSize.width + frame.size.width
+        
+        let isWithinVerticalBounds = frame.origin.y >= -frame.size.height &&
+                                    frame.maxY <= contentSize.height + frame.size.height
+        
+        // Check for reasonable frame dimensions
+        let hasValidDimensions = frame.size.width > 0 &&
+                                frame.size.height > 0 &&
+                                frame.size.width < contentSize.width * 2 &&
+                                frame.size.height < contentSize.height * 2
+        
+        return isWithinHorizontalBounds &&
+               isWithinVerticalBounds &&
+               hasValidDimensions
+    }
+    
+    // Override to ensure invalidation happens when needed
+    override func shouldInvalidateLayout(forBoundsChange newBounds: CGRect) -> Bool {
+        guard let collectionView = collectionView else { return false }
+        
+        // Only invalidate if bounds actually changed significantly
+        let oldBounds = collectionView.bounds
+        let sizeChanged = !oldBounds.size.equalTo(newBounds.size)
+        let significantOriginChange = abs(oldBounds.origin.x - newBounds.origin.x) > 1.0 ||
+                                     abs(oldBounds.origin.y - newBounds.origin.y) > 1.0
+        
+        return sizeChanged || significantOriginChange
     }
 }
 
