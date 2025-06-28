@@ -6,29 +6,6 @@
 //
 
 import SwiftUI
-import FirebaseAppCheck
-import FirebaseAuth
-import FirebaseCore
-import Firebase
-
-class SchedlAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
-  func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
-    return AppAttestProvider(app: app)
-  }
-}
-
-class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application: UIApplication,
-                   didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-          
-        
-        let providerFactory = SchedlAppCheckProviderFactory()
-        AppCheck.setAppCheckProviderFactory(providerFactory)
-        FirebaseApp.configure()
-          
-        return true
-    }
-}
 
 @main
 struct SchedlApp: App {

@@ -8,74 +8,152 @@
 import SwiftUI
 
 struct CreateEventView: View {
-    @State private var title: String = ""
-    @State private var selectedDate: Date?
-    @State private var selectedEndDate: Date?
-    @State private var showDatePicker: Bool = false
-    @State private var showEndDatePicker: Bool = false
-    @State private var showStartTimePicker: Bool = false
-    @State private var showEndTimePicker: Bool = false
-    @State private var showInviteUsersSheet: Bool = false
-    @State private var showColorPicker: Bool = false
-    @State private var showMapSheet: Bool = false
-    @State var selectedFriends: [User] = []
-    var components = DateComponents(hour: Calendar.current.component(.hour, from: Date()), minute: Calendar.current.component(.minute, from: Date()))
-    @State var repeatedDays: [String]?
-    @State var eventStartTime: Date?
-    @State var eventEndTime: Date?
-    @State var selectedPlacemark: MTPlacemark?
-    @State var eventColor: Color = .white
-    @State var eventColorAlpha: Double = 1.0
-    @State var eventNotes: String = ""
-    @State var dayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    @Environment(\.presentationMode) var presentationMode
-    @FocusState var isFocused: EventInfoFields?
+    
     @ObservedObject var scheduleViewModel: ScheduleViewModel
-    @State var initialVisibleCount = 2
-    @State var isExpanded = false
+    @Environment(\.dismiss) var dismiss
     
-    private var eventDateText: String {
-        if let date = selectedDate {
+    // Binding variables for picker views
+    @State var title: String? = nil
+    @State var eventDate: Date? = nil
+    @State var eventEndDate: Date? = nil
+    @State var startTime: Date? = nil
+    @State var endTime: Date? = nil
+    @State var selectedPlacemark: MTPlacemark? = nil
+    @State var notes: String? = nil
+    @State var eventColor: Color? = nil
+    @State var selectedFriends: [User] = []
+    @State var repeatedDays: [String]?
+    
+    var titleBinding: Binding<String> {
+        Binding(
+            get: { title ?? "" },
+            set: { newValue in
+                title = newValue.isEmpty ? nil : newValue
+            }
+        )
+    }
+    var eventDateBinding: Binding<Date> {
+        Binding(
+            get: { eventDate ?? Calendar.current.startOfDay(for: Date()) },
+            set: { selectedDate in
+                eventDate = selectedDate
+            }
+        )
+    }
+    var eventEndDateBinding: Binding<Date> {
+        Binding(
+            get: { eventEndDate ?? Calendar.current.startOfDay(for: Date()) },
+            set: { selectedDate in
+                eventEndDate = selectedDate
+            }
+        )
+    }
+    var startTimeBinding: Binding<Date> {
+        Binding(
+            get: { startTime ?? Calendar.current.startOfDay(for: Date()) },
+            set: { selectedTime in
+                startTime = selectedTime
+            }
+        )
+    }
+    var endTimeBinding: Binding<Date> {
+        Binding(
+            get: { endTime ?? Calendar.current.startOfDay(for: Date()) },
+            set: { selectedTime in
+                endTime = selectedTime
+            }
+        )
+    }
+    var notesBinding: Binding<String> {
+        Binding(
+            get: { notes ?? "" },
+            set: { newValue in
+                notes = newValue.isEmpty ? nil : newValue
+            }
+        )
+    }
+    var eventColorBinding: Binding<Color> {
+        Binding(
+            get: { eventColor ?? .blue},
+            set: { newColor in
+                eventColor = newColor
+            }
+        )
+    }
+    
+    var titleText: String {
+        if let text = title {
+            return text
+        }
+        return ""
+    }
+    var eventDateText: String {
+        if let date = eventDate {
             return date.formatted(date: .long, time: .omitted)
         }
-        return ""
+        return "Event Date"
     }
-    
-    private var eventEndDateText: String {
-        if let date = selectedEndDate {
+    var eventEndDateText: String {
+        if let date = eventEndDate {
             return date.formatted(date: .long, time: .omitted)
         }
-        return ""
+        return "Select Date"
     }
-    
-    private var startTimeText: String {
-        if let date = eventStartTime {
+    var startTimeText: String {
+        if let date = startTime {
             return date.formatted(date: .omitted, time: .shortened)
         }
-        return ""
+        return "Start Time"
     }
-    
-    private var endTimeText: String {
-        if let date = eventEndTime {
+    var endTimeText: String {
+        if let date = endTime {
             return date.formatted(date: .omitted, time: .shortened)
         }
-        return ""
+        return "End Time"
     }
-    
-    private var selectedLocationItem: MTPlacemark {
+    var selectedLocationText: String {
         if let location = selectedPlacemark {
-            return location
+            return location.name
         }
-        return MTPlacemark(name: "", address: "", latitude: 0, longitude: 0)
+        return "Add Location"
+    }
+    var selectedColor: String {
+        if let color = eventColor {
+            return color.toHex()!
+        }
+        // default Schedl teal color of the event if a user doesn't select one
+        return "3C859E"
+    }
+    var notesText: String {
+        if let eventNotes = notes {
+            return eventNotes
+        }
+        return "Add Notes"
     }
     
-    private var selectedColor: String {
-        return eventColor.toHex()!
-    }
+    @State var titleError: String = ""
+    @State var startDateError: String = ""
+    @State var endDateError: String = ""
+    @State var startTimeError: String = ""
+    @State var endTimeError: String = ""
+    @State var locationError: String = ""
     
-    private var isDefaultColor: Bool {
-        return eventColor.toHex()! == "FFFFFF"
-    }
+    // Binding values to trigger/dismiss sheets/pickers
+    @State var showDatePicker: Bool = false
+    @State var showEndDatePicker: Bool = false
+    @State var showStartTimePicker: Bool = false
+    @State var showEndTimePicker: Bool = false
+    @State var showInviteUsersSheet: Bool = false
+    @State var showColorPicker: Bool = false
+    @State var showMapSheet: Bool = false
+    
+    @State var showMoreInvitees = false
+    @State var hasTriedSubmitting = false
+    
+    @State var eventColorAlpha: Double = 1.0
+    var dayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    @FocusState var isFocused: EventInfoFields?
+    var initialVisibleCount = 2
     
     var body: some View {
         ZStack {
@@ -85,7 +163,7 @@ struct CreateEventView: View {
             VStack(spacing: 15) {
                 ZStack(alignment: .leading) {
                     Button(action: {
-                        presentationMode.wrappedValue.dismiss()
+                        dismiss()
                     }) {
                         Image(systemName: "chevron.left")
                             .fontWeight(.bold)
@@ -120,7 +198,7 @@ struct CreateEventView: View {
                                 .foregroundStyle(.clear)
                                 .overlay {
                                     HStack() {
-                                        TextField("Event Title", text: $title)
+                                        TextField("Event Title", text: titleBinding)
                                             .textFieldStyle(.plain)
                                             .font(.system(size: 15, weight: .medium, design: .monospaced))
                                             .foregroundStyle(Color(hex: 0x333333))
@@ -129,19 +207,19 @@ struct CreateEventView: View {
                                             .autocorrectionDisabled(true)
                                         Spacer()
                                         Button(action: {
-                                            title = ""
+                                            title = nil
                                         }) {
                                             Image(systemName: "xmark")
-                                                .font(.system(size: 14))
+                                                .imageScale(.small)
                                                 .foregroundStyle(Color(hex: 0x333333))
                                         }
-                                        .hidden(title.isEmpty)
+                                        .hidden(title == nil)
                                     }
                                     .padding(.horizontal, 20)
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.gray, lineWidth: 1)
+                                        .stroke(hasTriedSubmitting && title == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
                                 }
                             
                             HStack {
@@ -157,8 +235,15 @@ struct CreateEventView: View {
                             )
                             .fixedSize()
                             .offset(x: 12, y: -7)
-                            .opacity(isFocused == .title || !title.isEmpty ? 1 : 0)
+                            .opacity(isFocused == .title || title != nil ? 1 : 0)
                             .animation(.easeInOut(duration: 0.2), value: isFocused)
+                            
+                            Text(titleError)
+                                .font(.footnote)
+                                .offset(x: 12, y: 53)
+                                .foregroundStyle(.red)
+                                .opacity(hasTriedSubmitting && !titleError.isEmpty ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
                         }
                         
                         ZStack(alignment: .topLeading) {
@@ -167,61 +252,53 @@ struct CreateEventView: View {
                                 .foregroundStyle(.clear)
                                 .overlay {
                                     HStack {
-                                        Text(eventDateText.isEmpty ? "Event Date" : eventDateText)
-                                            .fontWeight(eventDateText.isEmpty ? .regular : .medium)
+                                        Text(eventDateText)
+                                            .fontWeight(eventDate == nil ? .light : .medium)
                                             .font(.system(size: 15, design: .monospaced))
-                                            .foregroundStyle(eventDateText.isEmpty ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                                            .foregroundStyle(eventDate == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
                                             .tracking(0.1)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                         
                                         Spacer()
                                         
                                         ZStack(alignment: .trailing) {
-                                            HStack(spacing: 8) {
-                                                if selectedDate != nil {
-                                                    Button("Edit", action: {
-                                                        showDatePicker.toggle()
-                                                    })
-                                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                                    .foregroundStyle(Color(hex: 0x3C859E))
-                                                } else {
-                                                    Button(action: {
-                                                        showDatePicker.toggle()
-                                                    }) {
-                                                        Image(systemName: "calendar")
-                                                            .font(.system(size: 20))
-                                                            .foregroundStyle(Color(hex: 0x333333))
-                                                    }
-                                                }
+                                            Button("Edit", action: {
+                                                showDatePicker.toggle()
+                                            })
+                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(Color(hex: 0x3C859E))
+                                            .hidden(eventDate == nil)
+                                            
+                                            Button(action: {
+                                                hasTriedSubmitting = false
+                                                showDatePicker.toggle()
+                                            }) {
+                                                Image(systemName: "calendar")
+                                                    .imageScale(.large)
+                                                    .foregroundStyle(Color(hex: 0x333333))
                                             }
+                                            .hidden(eventDate != nil)
                                         }
                                     }
                                     .padding(.horizontal, 20)
                                 }
                                 .onTapGesture {
+                                    hasTriedSubmitting = false
                                     showDatePicker.toggle()
                                 }
                                 .sheet(isPresented: $showDatePicker) {
                                     NavigationView {
                                         DatePicker("Select Event Date",
-                                                  selection: Binding(
-                                                    get: { selectedDate ?? Date() },
-                                                    set: { newDate in
-                                                        selectedDate = newDate
-                                                        isFocused = .date
-                                                    }
-                                                  ),
+                                                  selection: eventDateBinding,
                                                   displayedComponents: [.date])
                                             .datePickerStyle(.graphical)
                                             .navigationTitle("Select Date")
                                             .navigationBarTitleDisplayMode(.inline)
                                             .toolbar {
-                                                if selectedDate != nil {
-                                                    ToolbarItem(placement: .navigationBarLeading) {
-                                                        Button("Clear") {
-                                                            selectedDate = nil
-                                                            showDatePicker = false
-                                                        }
+                                                ToolbarItem(placement: .navigationBarLeading) {
+                                                    Button("Clear") {
+                                                        eventDate = nil
+                                                        showDatePicker = false
                                                     }
                                                 }
                                                 
@@ -236,7 +313,7 @@ struct CreateEventView: View {
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.gray, lineWidth: 1)
+                                        .stroke(hasTriedSubmitting && eventDate == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
                                 }
                             
                             HStack {
@@ -252,11 +329,18 @@ struct CreateEventView: View {
                             )
                             .fixedSize()
                             .offset(x: 12, y: -7)
-                            .opacity(isFocused == .date || selectedDate != nil ? 1 : 0)
+                            .opacity(isFocused == .date || eventDate != nil ? 1 : 0)
                             .animation(.easeInOut(duration: 0.2), value: isFocused)
+                            
+                            Text(startDateError)
+                                .font(.footnote)
+                                .offset(x: 12, y: 53)
+                                .foregroundStyle(.red)
+                                .opacity(hasTriedSubmitting && !startDateError.isEmpty ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
                         }
                         
-                        if !eventDateText.isEmpty {
+                        if eventDate != nil {
                             ZStack(alignment: .topLeading) {
                                 VStack(spacing: 15) {
                                     HStack(alignment: .center, spacing: 0) {
@@ -294,40 +378,50 @@ struct CreateEventView: View {
                                             .tracking(0.1)
                                             .foregroundStyle(Color(hex: 0x333333))
                                         Spacer()
-                                        Button(action: {
-                                            showEndDatePicker.toggle()
-                                        }) {
-                                            Text("Select Date")
-                                                .fontWeight(.bold)
-                                                .fontDesign(.monospaced)
-                                                .font(.caption)
-                                                .tracking(0.1)
-                                                .foregroundStyle(Color.gray)
-                                            Image(systemName: "calendar")
-                                                .font(.system(size: 20))
-                                                .foregroundStyle(Color(hex: 0x333333))
+                                        ZStack(alignment: .trailing) {
+                                            Button(action: {
+                                                showEndDatePicker.toggle()
+                                            }) {
+                                                Text(eventEndDateText)
+                                                    .font(.subheadline)
+                                                    .fontWeight(.medium)
+                                                    .foregroundStyle(Color(hex: 0x333333))
+                                                    .tracking(-0.25)
+                                                Image(systemName: "calendar")
+                                                    .imageScale(.medium)
+                                                    .foregroundStyle(Color(hex: 0x333333))
+                                            }
+                                            .hidden(eventEndDate == nil)
+                                            
+                                            Button(action: {
+                                                showEndDatePicker.toggle()
+                                            }) {
+                                                Text("Select Date")
+                                                    .fontWeight(.bold)
+                                                    .fontDesign(.monospaced)
+                                                    .font(.caption)
+                                                    .tracking(0.1)
+                                                    .foregroundStyle(Color.gray)
+                                                Image(systemName: "calendar")
+                                                    .imageScale(.medium)
+                                                    .foregroundStyle(Color(hex: 0x333333))
+                                            }
+                                            .hidden(eventEndDate != nil)
                                         }
                                     }
                                     .sheet(isPresented: $showEndDatePicker) {
                                         NavigationView {
                                             DatePicker("Select End Date",
-                                                      selection: Binding(
-                                                        get: { selectedEndDate ?? Date() },
-                                                        set: { newDate in
-                                                            selectedEndDate = newDate
-                                                        }
-                                                      ),
+                                                      selection: eventEndDateBinding,
                                                       displayedComponents: [.date])
                                                 .datePickerStyle(.graphical)
                                                 .navigationTitle("Select End Date")
                                                 .navigationBarTitleDisplayMode(.inline)
                                                 .toolbar {
-                                                    if selectedEndDate != nil {
-                                                        ToolbarItem(placement: .navigationBarLeading) {
-                                                            Button("Clear") {
-                                                                selectedEndDate = nil
-                                                                showEndDatePicker = false
-                                                            }
+                                                    ToolbarItem(placement: .navigationBarLeading) {
+                                                        Button("Clear") {
+                                                            eventEndDate = nil
+                                                            showEndDatePicker = false
                                                         }
                                                     }
                                                     
@@ -371,56 +465,57 @@ struct CreateEventView: View {
                                 .foregroundStyle(.clear)
                                 .overlay {
                                     HStack {
-                                        Text(startTimeText.isEmpty ? "Start Time" : startTimeText)
-                                            .fontWeight(startTimeText.isEmpty ? .light : .medium)
+                                        Text(startTimeText)
+                                            .fontWeight(startTime == nil ? .light : .medium)
                                             .font(.system(size: 15, design: .monospaced))
-                                            .foregroundStyle(startTimeText.isEmpty ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                                            .foregroundStyle(startTime == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
                                             .tracking(0.1)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                         
                                         Spacer()
                                         
                                         ZStack(alignment: .trailing) {
-                                            HStack(spacing: 8) {
-                                                if eventStartTime != nil {
-                                                    Button("Edit", action: {
-                                                        showStartTimePicker.toggle()
-                                                    })
-                                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                                    .foregroundStyle(Color(hex: 0x3C859E))
-                                                } else {
-                                                    Button(action: {
-                                                        showStartTimePicker.toggle()
-                                                    }) {
-                                                        Image(systemName: "clock.badge")
-                                                            .font(.system(size: 20))
-                                                            .foregroundStyle(Color(hex: 0x333333))
-                                                    }
-                                                }
+                                            Button("Edit", action: {
+                                                showStartTimePicker.toggle()
+                                            })
+                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(Color(hex: 0x3C859E))
+                                            .hidden(startTime == nil)
+                                            
+                                            Button(action: {
+                                                hasTriedSubmitting = false
+                                                showStartTimePicker.toggle()
+                                            }) {
+                                                Image(systemName: "clock.badge")
+                                                    .imageScale(.large)
+                                                    .foregroundStyle(Color(hex: 0x333333))
                                             }
+                                            .hidden(startTime != nil)
                                         }
                                     }
                                     .padding(.horizontal, 20)
                                 }
                                 .onTapGesture {
+                                    hasTriedSubmitting = false
                                     showStartTimePicker.toggle()
                                 }
                                 .sheet(isPresented: $showStartTimePicker) {
                                     NavigationView {
                                         DatePicker("",
-                                                  selection: Binding(
-                                                    get: { eventStartTime ?? Date() },
-                                                    set: { newTime in
-                                                        eventStartTime = newTime
-                                                        isFocused = .startTime
-                                                    }
-                                                  ),
+                                                  selection: startTimeBinding,
                                                   displayedComponents: [.hourAndMinute])
                                             .datePickerStyle(.wheel)
                                             .navigationTitle("Select Start Time")
                                             .navigationBarTitleDisplayMode(.inline)
                                             .labelsHidden()
                                             .toolbar {
+                                                ToolbarItem(placement: .navigationBarLeading) {
+                                                    Button("Clear") {
+                                                        startTime = nil
+                                                        showStartTimePicker = false
+                                                    }
+                                                }
+
                                                 ToolbarItem(placement: .navigationBarTrailing) {
                                                     Button("Done") {
                                                         showStartTimePicker = false
@@ -432,7 +527,7 @@ struct CreateEventView: View {
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.gray, lineWidth: 1)
+                                        .stroke(hasTriedSubmitting && !startTimeError.isEmpty ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
                                 }
                             
                             HStack {
@@ -448,8 +543,15 @@ struct CreateEventView: View {
                             )
                             .fixedSize()
                             .offset(x: 12, y: -7)
-                            .opacity(isFocused == .startTime || eventStartTime != nil ? 1 : 0)
+                            .opacity(isFocused == .startTime || startTime != nil ? 1 : 0)
                             .animation(.easeInOut(duration: 0.2), value: isFocused)
+                            
+                            Text(startTimeError)
+                                .font(.footnote)
+                                .offset(x: 12, y: 53)
+                                .foregroundStyle(.red)
+                                .opacity(hasTriedSubmitting && !startTimeError.isEmpty ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
                         }
                         
                         ZStack(alignment: .topLeading) {
@@ -458,57 +560,58 @@ struct CreateEventView: View {
                                 .foregroundStyle(.clear)
                                 .overlay {
                                     HStack {
-                                        Text(endTimeText.isEmpty ? "End Time" : endTimeText)
-                                            .fontWeight(endTimeText.isEmpty ? .light : .medium)
+                                        Text(endTimeText)
+                                            .fontWeight(endTime == nil ? .light : .medium)
                                             .font(.system(size: 15, design: .monospaced))
-                                            .foregroundStyle(endTimeText.isEmpty ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                                            .foregroundStyle(endTime == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
                                             .tracking(0.1)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                         
                                         Spacer()
                                         
                                         ZStack(alignment: .trailing) {
-                                            HStack(spacing: 8) {
-                                                if eventEndTime != nil {
-                                                    Button("Edit", action: {
-                                                        showEndTimePicker.toggle()
-                                                    })
-                                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                                    .foregroundStyle(Color(hex: 0x3C859E))
-                                                } else {
-                                                    Button(action: {
-                                                        showEndTimePicker.toggle()
-                                                    }) {
-                                                        Image(systemName: "clock.badge")
-                                                            .font(.system(size: 20))
-                                                            .foregroundStyle(Color(hex: 0x333333))
-                                                    }
-                                                }
+                                            Button("Edit", action: {
+                                                showEndTimePicker.toggle()
+                                            })
+                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(Color(hex: 0x3C859E))
+                                            .hidden(endTime == nil)
+                                            
+                                            Button(action: {
+                                                hasTriedSubmitting = false
+                                                showEndTimePicker.toggle()
+                                            }) {
+                                                Image(systemName: "clock.badge")
+                                                    .imageScale(.large)
+                                                    .foregroundStyle(Color(hex: 0x333333))
                                             }
+                                            .hidden(endTime != nil)
                                         }
                                     }
                                     .padding(.horizontal, 20)
                                 }
                                 .onTapGesture {
+                                    hasTriedSubmitting = false
                                     showEndTimePicker.toggle()
                                 }
                                 .sheet(isPresented: $showEndTimePicker) {
                                     NavigationView {
                                         DatePicker("",
-                                                  selection: Binding(
-                                                    get: { eventEndTime ?? Date() },
-                                                    set: { newTime in
-                                                        eventEndTime = newTime
-                                                        isFocused = .endTime
-                                                    }
-                                                  ),
+                                                  selection: endTimeBinding,
                                                   displayedComponents: [.hourAndMinute])
                                             .datePickerStyle(.wheel)
                                             .navigationTitle("Select End Time")
                                             .navigationBarTitleDisplayMode(.inline)
                                             .labelsHidden()
                                             .toolbar {
-                                                ToolbarItem(placement: .navigationBarTrailing) {
+                                                ToolbarItem(placement: .topBarLeading) {
+                                                    Button("Clear") {
+                                                        endTime = nil
+                                                        showEndTimePicker = false
+                                                    }
+                                                }
+                                                
+                                                ToolbarItem(placement: .topBarTrailing) {
                                                     Button("Done") {
                                                         showEndTimePicker = false
                                                     }
@@ -519,7 +622,7 @@ struct CreateEventView: View {
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.gray, lineWidth: 1)
+                                        .stroke(hasTriedSubmitting && !endTimeError.isEmpty ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
                                 }
                             
                             HStack {
@@ -535,8 +638,15 @@ struct CreateEventView: View {
                             )
                             .fixedSize()
                             .offset(x: 12, y: -7)
-                            .opacity(isFocused == .endTime || eventEndTime != nil ? 1 : 0)
+                            .opacity(isFocused == .endTime || endTime != nil ? 1 : 0)
                             .animation(.easeInOut(duration: 0.2), value: isFocused)
+                            
+                            Text(endTimeError)
+                                .font(.footnote)
+                                .offset(x: 12, y: 53)
+                                .foregroundStyle(.red)
+                                .opacity(hasTriedSubmitting && !endTimeError.isEmpty ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
                         }
                         
                         ZStack(alignment: .topLeading) {
@@ -545,53 +655,49 @@ struct CreateEventView: View {
                                 .foregroundStyle(.clear)
                                 .overlay {
                                     HStack {
-                                        Text(selectedLocationItem.name.isEmpty ? "Add Location" : selectedLocationItem.name)
+                                        Text(selectedLocationText)
                                             .fontWeight(.medium)
                                             .lineLimit(1)
                                             .truncationMode(.tail)
                                             .font(.system(size: 15, design: .monospaced))
                                             .tracking(0.1)
                                             .frame(maxWidth: .infinity, alignment: .leading)
-                                            .foregroundStyle(selectedLocationItem.name.isEmpty ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                                            .foregroundStyle(selectedPlacemark == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
                                         
                                         Spacer()
                                         
                                         ZStack(alignment: .trailing) {
-                                            HStack(spacing: 8) {
-                                                if !selectedLocationItem.name.isEmpty {
-                                                    Button("Edit", action: {
-                                                        showMapSheet.toggle()
-                                                    })
-                                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                                    .foregroundStyle(Color(hex: 0x3C859E))
-                                                } else {
-                                                    Button(action: {
-                                                        showMapSheet.toggle()
-                                                        isFocused = .location
-                                                    }) {
-                                                        Image(systemName: "mappin")
-                                                            .font(.system(size: 20))
-                                                            .foregroundStyle(Color(hex: 0x333333))
-                                                    }
-                                                }
+                                            Button("Edit", action: {
+                                                showMapSheet.toggle()
+                                            })
+                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(Color(hex: 0x3C859E))
+                                            .hidden(selectedPlacemark == nil)
+                                            
+                                            Button(action: {
+                                                hasTriedSubmitting = false
+                                                showMapSheet.toggle()
+                                            }) {
+                                                Image(systemName: "mappin")
+                                                    .imageScale(.large)
+                                                    .foregroundStyle(Color(hex: 0x333333))
                                             }
+                                            .hidden(selectedPlacemark != nil)
                                         }
                                     }
                                     .padding(.horizontal, 20)
                                 }
                                 .onTapGesture {
+                                    hasTriedSubmitting = false
                                     showMapSheet.toggle()
-                                    isFocused = .location
                                 }
-                                .fullScreenCover(isPresented: $showMapSheet, onDismiss: {
-                                    print("Location selected: \(selectedPlacemark?.name ?? "None")")
-                                }) {
+                                .fullScreenCover(isPresented: $showMapSheet) {
                                     NavigationView {
                                         LocationView(selectedPlacemark: $selectedPlacemark)
                                             .toolbar {
                                                 ToolbarItem(placement: .navigationBarLeading) {
                                                     Button("Cancel") {
-                                                        selectedPlacemark = nil // Clear selection if cancelled
+                                                        selectedPlacemark = nil
                                                         showMapSheet = false
                                                     }
                                                 }
@@ -606,7 +712,7 @@ struct CreateEventView: View {
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.gray, lineWidth: 1)
+                                        .stroke(hasTriedSubmitting && selectedPlacemark == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
                                 }
                             
                             HStack {
@@ -622,8 +728,15 @@ struct CreateEventView: View {
                             )
                             .fixedSize()
                             .offset(x: 12, y: -7)
-                            .opacity(!selectedLocationItem.name.isEmpty ? 1 : 0)
+                            .opacity(selectedPlacemark != nil ? 1 : 0)
                             .animation(.easeInOut(duration: 0.2), value: isFocused)
+                            
+                            Text(locationError)
+                                .font(.footnote)
+                                .offset(x: 12, y: 53)
+                                .foregroundStyle(.red)
+                                .opacity(hasTriedSubmitting && !locationError.isEmpty ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
                         }
                         
                         Group {
@@ -636,19 +749,19 @@ struct CreateEventView: View {
                                             .fontWeight(.medium)
                                             .fontDesign(.monospaced)
                                             .font(.subheadline)
-                                            .tracking(0.1)
                                             .foregroundStyle(Color(hex: 0x333333))
-                                            .tracking(0.1)
+                                            .tracking(-0.25)
                                             .frame(maxWidth: .infinity, alignment: .leading)
-                                        Spacer()
-                                        Image(systemName: "plus")
-                                            .imageScale(.medium)
-                                            .foregroundStyle(Color.white)
-                                            .background {
-                                                Circle()
-                                                    .fill(Color(hex: 0x3C859E))
-                                                    .frame(width: 25, height: 25)
-                                            }
+                                        ZStack(alignment: .trailing) {
+                                            Image(systemName: "plus")
+                                                .imageScale(.medium)
+                                                .foregroundStyle(Color.white)
+                                                .background {
+                                                    Circle()
+                                                        .fill(Color(hex: 0x3C859E))
+                                                        .frame(width: 25, height: 25)
+                                                }
+                                        }
                                     }
                                 }
                                 .padding(.trailing, 20)
@@ -668,7 +781,7 @@ struct CreateEventView: View {
                                         VStack(alignment: .leading, spacing: 2) {
                                             ForEach(Array(selectedFriends.enumerated()), id: \.element.id) { index, user in
                                                 // only show if expanded OR within the first 2 items
-                                                if isExpanded || index < initialVisibleCount {
+                                                if showMoreInvitees || index < initialVisibleCount {
                                                     HStack {
                                                         InvitedUserRow(user: user)
                                                             .transition(.move(edge: .top).combined(with: .opacity))
@@ -677,7 +790,7 @@ struct CreateEventView: View {
                                                             selectedFriends.removeAll { $0.id == user.id }
                                                         } label: {
                                                             Image(systemName: "xmark")
-                                                                .font(.system(size: 14))
+                                                                .imageScale(.medium)
                                                                 .foregroundStyle(Color(hex: 0x333333))
                                                         }
                                                     }
@@ -689,14 +802,14 @@ struct CreateEventView: View {
                                         if selectedFriends.count > initialVisibleCount {
                                             Button {
                                                 withAnimation(.easeInOut(duration: 0.2)) {
-                                                    isExpanded.toggle()
+                                                    showMoreInvitees.toggle()
                                                 }
                                             } label: {
                                                 HStack(spacing: 4) {
-                                                    Text(isExpanded
+                                                    Text(showMoreInvitees
                                                          ? "Show Less"
                                                          : "Show \(selectedFriends.count - initialVisibleCount) More")
-                                                    Image(systemName: isExpanded
+                                                    Image(systemName: showMoreInvitees
                                                           ? "chevron.up.circle.fill"
                                                           : "chevron.down.circle.fill")
                                                     .imageScale(.medium)
@@ -706,7 +819,7 @@ struct CreateEventView: View {
                                                 .padding(.top, 8)
                                                 .frame(maxWidth: .infinity, alignment: .trailing)
                                             }
-                                            .animation(nil, value: isExpanded)
+                                            .animation(nil, value: showMoreInvitees)
                                         }
                                     }
                                     .padding()
@@ -742,7 +855,7 @@ struct CreateEventView: View {
                             HStack(alignment: .top) {
                                 TextField(
                                     "Add Notes",
-                                    text: $eventNotes,
+                                    text: notesBinding,
                                     axis: .vertical,
                                 )
                                 .fontWeight(.medium)
@@ -753,14 +866,15 @@ struct CreateEventView: View {
                                 .foregroundStyle(Color(hex: 0x333333))
                                 
                                 Spacer()
+                                
                                 Button(action: {
-                                    eventNotes = ""
+                                    notes = nil
                                 }) {
                                     Image(systemName: "xmark")
-                                        .imageScale(.medium)
+                                        .imageScale(.small)
                                         .foregroundStyle(Color(hex: 0x333333))
                                 }
-                                .hidden(eventNotes.isEmpty)
+                                .hidden(notes == nil)
                             }
                             .padding(.vertical)
                             .padding(.horizontal, 20)
@@ -782,7 +896,7 @@ struct CreateEventView: View {
                             )
                             .fixedSize()
                             .offset(x: 12, y: -7)
-                            .opacity(isFocused == .description || !eventNotes.isEmpty ? 1 : 0)
+                            .opacity(isFocused == .description || notes != nil ? 1 : 0)
                             .animation(.easeInOut(duration: 0.2), value: isFocused)
                         }
                         
@@ -790,53 +904,95 @@ struct CreateEventView: View {
                             showColorPicker.toggle()
                         }) {
                             HStack(spacing: 0) {
-                                Text(isDefaultColor ? "Choose a Color For Your Event?" : "Selected Event Color:")
+                                Text(eventColor == nil ? "Choose a Color For Your Event?" : "Selected Event Color:")
                                     .fontWeight(.medium)
                                     .fontDesign(.monospaced)
                                     .font(.subheadline)
                                     .foregroundStyle(Color(hex: 0x333333))
                                     .tracking(-0.25)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.9)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                Spacer()
-                                if isDefaultColor {
-                                    Circle()
-                                        .strokeBorder(
-                                            AngularGradient(
-                                                gradient: Gradient(colors: [.red, .yellow, .green, .blue, .purple, .red]),
-                                                center: .center
-                                            ),
-                                            lineWidth: 3
-                                        )
-                                        .background(Circle().fill(eventColor))
-                                        .frame(width: 25, height: 25)
-                                        .shadow(radius: 1)
-                                } else {
+                                
+                                ZStack(alignment: .trailing) {
+                                    Image(systemName: "paintbrush")
+                                        .foregroundColor(Color(hex: 0x333333))
+                                        .imageScale(.large)
+                                        .hidden(eventColor != nil)
+                                    
                                     HStack(spacing: 3) {
                                         Image(systemName: "paintbrush")
                                             .foregroundColor(Color(hex: 0x333333))
                                             .imageScale(.medium)
                                         RoundedRectangle(cornerRadius: 10)
-                                            .fill(eventColor)
+                                            .fill(Color(hex: Int(selectedColor, radix: 16)!))
                                             .frame(width: 50, height: 25)
                                     }
+                                    .hidden(eventColor == nil)
                                 }
                             }
                             .padding(.trailing)
                             .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
                         }
                         .sheet(isPresented: $showColorPicker) {
-                            ColorPickerSheet(selectedColor: $eventColor, alpha: $eventColorAlpha)
+                            ColorPickerSheet(selectedColor: eventColorBinding, alpha: $eventColorAlpha)
                         }
                         
                         Button(action: {
-                            Task {
-                                if (selectedDate != nil && selectedPlacemark != nil && selectedEndDate != nil) {
-                                    await scheduleViewModel.createEvent(title: title, startDate: Date.convertCurrentDateToTimeInterval(date: selectedDate ?? Date()), startTime: Date.computeTimeSinceStartOfDay(date: eventStartTime ?? Date()), endTime: Date.computeTimeSinceStartOfDay(date: eventEndTime ?? Date()), location: selectedLocationItem, color: selectedColor, notes: eventNotes, endDate: Date.convertCurrentDateToTimeInterval(date: selectedEndDate ?? Date()), repeatedDays: repeatedDays)
-                                    presentationMode.wrappedValue.dismiss()
-                                } else {
-                                    await scheduleViewModel.createEvent(title: title, startDate: Date.convertCurrentDateToTimeInterval(date: selectedDate ?? Date()), startTime: Date.computeTimeSinceStartOfDay(date: eventStartTime ?? Date()), endTime: Date.computeTimeSinceStartOfDay(date: eventEndTime ?? Date()), location: selectedLocationItem, color: selectedColor, notes: eventNotes, endDate: nil, repeatedDays: repeatedDays)
-                                    presentationMode.wrappedValue.dismiss()
+                            titleError = ""
+                            startDateError = ""
+                            endDateError = ""
+                            startTimeError = ""
+                            endTimeError = ""
+                            locationError = ""
+                            
+                            var isValid = true
+                            
+                            if title == nil {
+                                titleError = "Title is required"
+                                isValid = false
+                            }
+                            if eventDate == nil {
+                                startDateError = "Start date is required"
+                                isValid = false
+                            }
+                            if startTime == nil {
+                                startTimeError = "Start time is required"
+                                isValid = false
+                            }
+                            if endTime == nil {
+                                endTimeError = "End time is required"
+                                isValid = false
+                            }
+                            if selectedPlacemark == nil {
+                                locationError = "Location is required"
+                                isValid = false
+                            }
+                            
+                            if let startTime = startTime, let endTime = endTime {
+                                if Date.computeTimeSinceStartOfDay(date: endTime) < Date.computeTimeSinceStartOfDay(date: startTime) {
+                                    endTimeError = "Invalid time range"
+                                } else if Date.computeTimeSinceStartOfDay(date: endTime) > 60 * 60 * 24 {
+                                    endTimeError = "End time exceeds current day"
                                 }
+                            }
+                            
+                            if !isValid {
+                                hasTriedSubmitting = true
+                                return
+                            }
+                            
+                            let safeTitle     = title!
+                            let safeDate      = eventDate!
+                            let safeStart     = startTime!
+                            let safeEnd       = endTime!
+                            let safeLocation  = selectedPlacemark!
+                            
+                            let eventNotes = notes ?? ""
+                            
+                            Task {
+                                await scheduleViewModel.createEvent(title: safeTitle, startDate: safeDate.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: safeStart), endTime: Date.computeTimeSinceStartOfDay(date: safeEnd), location: safeLocation, color: selectedColor, notes: eventNotes)
+                                dismiss()
                             }
                         }) {
                             RoundedRectangle(cornerRadius: 10)
@@ -853,7 +1009,6 @@ struct CreateEventView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.vertical)
                     .padding(.horizontal, 25)
-                    .animation(.easeInOut(duration: 0.2), value: eventDateText)
                 }
                 .defaultScrollAnchor(.top, for: .initialOffset)
                 .defaultScrollAnchor(.bottom, for: .sizeChanges)
@@ -861,9 +1016,9 @@ struct CreateEventView: View {
                 .onTapGesture {
                     isFocused = nil
                 }
-                .onChange(of: isFocused, {
-                    scheduleViewModel.errorMessage = nil
-                })
+                .onChange(of: isFocused) {
+                    hasTriedSubmitting = false
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -939,12 +1094,9 @@ struct AddInvitedUsers: View {
                 .clipShape(RoundedRectangle(cornerRadius: 25))
                 .frame(maxWidth: .infinity, alignment: .center)
                 
-                ScrollView(.vertical) {
-                    LazyVStack(spacing: 15) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 20) {
                         ForEach(filteredUsers, id: \.self.id) { friend in
-                            InvitedUserCell(friend: friend, selectedFriends: $selectedFriends)
-                        }
-                        ForEach(mockUsers, id: \.self.id) { friend in
                             InvitedUserCell(friend: friend, selectedFriends: $selectedFriends)
                         }
                     }
@@ -972,17 +1124,6 @@ struct AddInvitedUsers: View {
         }
     }
 }
-
-let mockUsers: [User] = [
-    User(id: "user1", username: "janedoe",    email: "jane@example.com",    displayName: "Jane Doe",      profileImage: "", creationDate: 1719360000),
-    User(id: "user2", username: "alices",     email: "alice@example.com",   displayName: "Alice Smith",   profileImage: "", creationDate: 1719363600),
-    User(id: "user3", username: "bobj",       email: "bob@example.com",     displayName: "Bob Jones",     profileImage: "", creationDate: 1719367200),
-    User(id: "user4", username: "charlieb",   email: "charlie@example.com", displayName: "Charlie Brown", profileImage: "", creationDate: 1719370800),
-    User(id: "user5", username: "emilyt",     email: "emily@example.com",   displayName: "Emily Turner",  profileImage: "", creationDate: 1719374400),
-    User(id: "user6", username: "danielt",    email: "daniel@example.com",  displayName: "Daniel Tran",   profileImage: "", creationDate: 1719378000),
-    User(id: "user7", username: "sarahw",     email: "sarah@example.com",   displayName: "Sarah White",   profileImage: "", creationDate: 1719381600),
-    User(id: "user8", username: "michaelc",   email: "michael@example.com", displayName: "Michael Chen",  profileImage: "", creationDate: 1719385200)
-]
 
 struct InvitedUserCell: View {
     

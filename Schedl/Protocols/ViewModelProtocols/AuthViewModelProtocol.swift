@@ -8,7 +8,7 @@
 protocol AuthViewModelProtocol {
     var currentUser: User? { get set }
     
-    func login() async -> Void
-    func signUp() async -> Void
+    func login(email: String, password: String) async -> Void
+    func signUp(username: String, displayName: String, email: String, password: String) async -> Void
     func logout() async
 }

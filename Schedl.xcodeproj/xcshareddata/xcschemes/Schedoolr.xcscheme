@@ -73,7 +73,7 @@
    </AnalyzeAction>
    <ArchiveAction
       buildConfiguration = "Release"
-      customArchiveName = "Schel"
+      customArchiveName = "Schedl"
       revealArchiveInOrganizer = "YES">
    </ArchiveAction>
 </Scheme>

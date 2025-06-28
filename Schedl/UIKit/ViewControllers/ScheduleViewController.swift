@@ -767,8 +767,8 @@ class ScheduleViewController: UIViewController {
         UIView.performWithoutAnimation {
             collectionView.reloadSections(IndexSet(integer: 0))
             collectionView.setContentOffset(newOffset, animated: false)
-            updateEventsOverlay()
             dayHeader.addPreviousDates(updatedDayList: newDays)
+            updateEventsOverlay()
         }
         
         isLoadingPreviousDates = false
