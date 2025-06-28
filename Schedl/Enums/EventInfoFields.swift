@@ -8,6 +8,7 @@
 enum EventInfoFields {
     case title
     case date
+    case repeatedEndDate
     case startTime
     case endTime
     case location
