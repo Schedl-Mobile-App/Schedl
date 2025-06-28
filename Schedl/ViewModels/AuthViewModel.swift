@@ -11,17 +11,13 @@ import FirebaseAuth
 class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     
     @Published var currentUser: User?
-    @Published var email: String = ""
-    @Published var password: String = ""
-    @Published var displayName: String = ""
-    @Published var username: String = ""
     @Published var isLoadingLaunchScreen: Bool = false
     @Published var isLoadingLogin: Bool = false
     @Published var errorMessage: String?
     @Published var hasOnboarded: Bool
     private var authService: AuthServiceProtocol
     private var userService: UserServiceProtocol
-    
+        
     @Published var isLoggedIn = false
     
     init(authService: AuthServiceProtocol = AuthService.shared, userService: UserServiceProtocol = UserService.shared, hasOnboarded: Bool) {
@@ -47,7 +43,7 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     }
     
     @MainActor
-    func login() async {
+    func login(email: String, password: String) async {
         self.isLoadingLogin = true
         self.errorMessage = nil
         do {
@@ -58,13 +54,11 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
         } catch {
             errorMessage = "Failed to login. Please try again later."
             isLoadingLogin = false
-            email = ""
-            password = ""
         }
     }
     
     @MainActor
-    func signUp() async {
+    func signUp(username: String, displayName: String, email: String, password: String) async {
         isLoadingLogin = true
         errorMessage = nil
         do {
@@ -75,10 +69,6 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
         } catch {
             errorMessage = "Failed to register account. Please try again later."
             isLoadingLogin = false
-            username = ""
-            displayName = ""
-            email = ""
-            password = ""
         }
     }
     
@@ -106,4 +96,13 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
         }
     }
     
+    func isValidPassword(_ pw: String) -> String? {
+        let passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+        
+        if pw.wholeMatch(of: passwordRegex) != nil {
+            return nil
+        } else {
+            return "Password must be 8+ characters with uppercase, lowercase, and number"
+        }
+    }
 }

@@ -69,7 +69,7 @@ class EventCell: UIView {
         titleLabel.textColor = UIColor(Color(hex: 0xf7f4f2))
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.font = UIFont.systemFont(ofSize: 10, weight: .heavy)
-        titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.adjustsFontSizeToFitWidth = true
         titleLabel.numberOfLines = calculateMaxLines(for: frame.height, fontWeight: .heavy)
         
         eventCell.addSubview(titleLabel)
@@ -170,8 +170,6 @@ class EventCell: UIView {
         switch Int(availableHeight) {
         case  ..<50:
             return 2
-        case ..<100:
-            return 4
         default:
             return max(1, Int(availableHeight / lineHeight))
         }
