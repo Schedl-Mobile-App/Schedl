@@ -65,15 +65,15 @@ class CollectionViewDaysHeader: UIView {
         
         // Create and add borders to the container (left, right, bottom)
         let leftBorder = UIView()
-        leftBorder.backgroundColor = UIColor(Color.black.opacity(0.30))
+        leftBorder.backgroundColor = UIColor(Color(hex: 0xD1CCC6))
         leftBorder.translatesAutoresizingMaskIntoConstraints = false
         
         let rightBorder = UIView()
-        rightBorder.backgroundColor = UIColor(Color.black.opacity(0.30))
+        rightBorder.backgroundColor = UIColor(Color(hex: 0xD1CCC6))
         rightBorder.translatesAutoresizingMaskIntoConstraints = false
         
         let bottomBorder = UIView()
-        bottomBorder.backgroundColor = UIColor(Color.black.opacity(0.30))
+        bottomBorder.backgroundColor = UIColor(Color(hex: 0xD1CCC6))
         bottomBorder.translatesAutoresizingMaskIntoConstraints = false
         
         containerView.addSubview(leftBorder)
@@ -82,13 +82,13 @@ class CollectionViewDaysHeader: UIView {
         
         let dayLabel = UILabel()
         dayLabel.text = "\(dayComponent.day ?? 0)"
-        dayLabel.textColor = UIColor(Color(hex: 0x333333))
+        dayLabel.textColor = UIColor(Color(hex: 0x6D675F))
         dayLabel.translatesAutoresizingMaskIntoConstraints = false
         dayLabel.font = UIFont.monospacedSystemFont(ofSize: 16, weight: .heavy)
         
         let dateLabel = UILabel()
         dateLabel.text = "\(weekList[actualDateComponent.weekday ?? 0] ?? "")"
-        dateLabel.textColor = UIColor(Color(hex: 0x666666))
+        dateLabel.textColor = UIColor(Color(hex: 0x6D675F))
         dateLabel.translatesAutoresizingMaskIntoConstraints = false
         dateLabel.font = UIFont.monospacedSystemFont(ofSize: 13, weight: .semibold)
         

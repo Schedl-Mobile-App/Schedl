@@ -14,6 +14,7 @@ class EventViewModel: EventViewModelProtocol, ObservableObject {
     @Published var isLoading: Bool = false      // Indicates loading state
     @Published var errorMessage: String?        // Holds error messages if any
     @Published var hasLoadedPreviousPage = true
+    @Published var eventCreatorName: String = ""
     
     private var userService: UserServiceProtocol
     private var scheduleService: ScheduleServiceProtocol
@@ -61,14 +62,18 @@ class EventViewModel: EventViewModelProtocol, ObservableObject {
     }
     
     @MainActor
-    func fetchInvitedUsers() async {
-        self.isLoading = true
+    func fetchEventData() async {
+        self.isLoading = false
         self.errorMessage = nil
         do {
+            if selectedEvent.event.userId != currentUser.id {
+                self.eventCreatorName = try await userService.fetchDisplayNameById(userId: selectedEvent.event.userId)
+            } else {
+                self.eventCreatorName = currentUser.displayName
+            }
             self.invitedUsersForEvent = try await userService.fetchUsers(userIds: selectedEvent.event.taggedUsers)
-            self.isLoading = false
         } catch {
-            self.errorMessage = "Failed to fetch invited users: \(error.localizedDescription)"
+            self.errorMessage = "Failed to fetch event data: \(error.localizedDescription)"
             self.isLoading = false
         }
     }

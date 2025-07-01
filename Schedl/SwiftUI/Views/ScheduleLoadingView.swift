@@ -152,7 +152,6 @@ struct ScheduleLoadingView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .padding(.top, 5)
         }
-        .ignoresSafeArea(.all)
     }
 }
 

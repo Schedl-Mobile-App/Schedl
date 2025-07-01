@@ -87,7 +87,7 @@ struct EventDetailsView: View {
                                         .fontDesign(.monospaced)
                                         .tracking(0.1)
                                         .foregroundStyle(Color(hex: 0x333333))
-                                    Text("Created By: David Medina")
+                                    Text("Created By: \(eventViewModel.eventCreatorName)")
                                         .font(.footnote)
                                         .fontWeight(.medium)
                                         .fontDesign(.monospaced)
@@ -310,7 +310,7 @@ struct EventDetailsView: View {
             }
         }
         .task {
-            await eventViewModel.fetchInvitedUsers()
+            await eventViewModel.fetchEventData()
         }
         .onAppear {
             shouldReloadData = false

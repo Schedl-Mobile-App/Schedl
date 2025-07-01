@@ -212,6 +212,20 @@ class UserService: UserServiceProtocol {
         return username
     }
     
+    func fetchDisplayNameById(userId: String) async throws -> String {
+        let userRef = ref.child("users").child(userId)
+        
+        let snapshot = try await userRef.getData()
+        
+        guard let userData = snapshot.value as? [String: Any] else {
+            throw FirebaseError.failedToFetchUserById
+        }
+        
+        let displayName = userData["displayName"] as? String ?? ""
+        
+        return displayName
+    }
+    
     func fetchFriendIds(userId: String) async throws -> [String] {
         let userRef = ref.child("users").child(userId).child("friends")
         let snapshot = try await userRef.getData()
