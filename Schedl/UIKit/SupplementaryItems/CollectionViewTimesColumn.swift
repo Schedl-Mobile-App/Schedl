@@ -54,7 +54,7 @@ class TimeLabel: UIView {
     
     private func setupView() {
         
-        label.textColor = UIColor(Color(hex: 0x666666))
+        label.textColor = UIColor(Color(hex: 0x6D675F))
         
         addSubview(label)
         NSLayoutConstraint.activate([

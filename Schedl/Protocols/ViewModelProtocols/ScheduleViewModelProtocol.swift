@@ -14,5 +14,5 @@ protocol ScheduleViewModelProtocol {
 //    func deleteSchedule() async
     func fetchEvents() async
     func fetchFriends() async
-    func createEvent(title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, endDate: Double?, repeatedDays: [String]?) async
+    func createEvent(title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, invitedUsers: [User], endDate: Double?, repeatedDays: [String]?) async
 }

@@ -22,7 +22,7 @@ struct CreateEventView: View {
     @State var notes: String? = nil
     @State var eventColor: Color? = nil
     @State var selectedFriends: [User] = []
-    @State var repeatedDays: [String]?
+    @State var repeatedDays: [String]? = nil
     
     var titleBinding: Binding<String> {
         Binding(
@@ -50,7 +50,7 @@ struct CreateEventView: View {
     }
     var startTimeBinding: Binding<Date> {
         Binding(
-            get: { startTime ?? Calendar.current.startOfDay(for: Date()) },
+            get: { startTime ?? Date.now },
             set: { selectedTime in
                 startTime = selectedTime
             }
@@ -58,7 +58,7 @@ struct CreateEventView: View {
     }
     var endTimeBinding: Binding<Date> {
         Binding(
-            get: { endTime ?? Calendar.current.startOfDay(for: Date()) },
+            get: { endTime ?? Date.now },
             set: { selectedTime in
                 endTime = selectedTime
             }
@@ -150,7 +150,6 @@ struct CreateEventView: View {
     @State var showMoreInvitees = false
     @State var hasTriedSubmitting = false
     
-    @State var eventColorAlpha: Double = 1.0
     var dayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     @FocusState var isFocused: EventInfoFields?
     var initialVisibleCount = 2
@@ -270,7 +269,6 @@ struct CreateEventView: View {
                                             .hidden(eventDate == nil)
                                             
                                             Button(action: {
-                                                hasTriedSubmitting = false
                                                 showDatePicker.toggle()
                                             }) {
                                                 Image(systemName: "calendar")
@@ -283,7 +281,6 @@ struct CreateEventView: View {
                                     .padding(.horizontal, 20)
                                 }
                                 .onTapGesture {
-                                    hasTriedSubmitting = false
                                     showDatePicker.toggle()
                                 }
                                 .sheet(isPresented: $showDatePicker) {
@@ -310,6 +307,11 @@ struct CreateEventView: View {
                                             }
                                     }
                                     .presentationDetents([.medium])
+                                    .onAppear {
+                                        if eventDate == nil {
+                                            eventDate = Calendar.current.startOfDay(for: Date())
+                                        }
+                                    }
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
@@ -383,8 +385,9 @@ struct CreateEventView: View {
                                                 showEndDatePicker.toggle()
                                             }) {
                                                 Text(eventEndDateText)
-                                                    .font(.subheadline)
+                                                    .font(.footnote)
                                                     .fontWeight(.medium)
+                                                    .fontDesign(.monospaced)
                                                     .foregroundStyle(Color(hex: 0x333333))
                                                     .tracking(-0.25)
                                                 Image(systemName: "calendar")
@@ -433,13 +436,17 @@ struct CreateEventView: View {
                                                 }
                                         }
                                         .presentationDetents([.medium])
+                                        .onAppear {
+                                            if eventEndDate == nil {
+                                                eventEndDate = Calendar.current.startOfDay(for: Date())
+                                            }
+                                        }
                                     }
                                 }
                                 .padding()
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color(hex: 0xf7f4f2))
-                                        .stroke(Color.gray, lineWidth: 1)
+                                        .stroke(hasTriedSubmitting && !endDateError.isEmpty ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
                                 }
                                 
                                 HStack {
@@ -455,6 +462,13 @@ struct CreateEventView: View {
                                 )
                                 .fixedSize()
                                 .offset(x: 12, y: -7)
+                                
+                                Text(endDateError)
+                                    .font(.footnote)
+                                    .offset(x: 12, y: 120)
+                                    .foregroundStyle(.red)
+                                    .opacity(hasTriedSubmitting && !endDateError.isEmpty ? 1 : 0)
+                                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
                             }
                             .transition(.move(edge: .top).combined(with: .opacity))
                         }
@@ -483,7 +497,6 @@ struct CreateEventView: View {
                                             .hidden(startTime == nil)
                                             
                                             Button(action: {
-                                                hasTriedSubmitting = false
                                                 showStartTimePicker.toggle()
                                             }) {
                                                 Image(systemName: "clock.badge")
@@ -496,7 +509,6 @@ struct CreateEventView: View {
                                     .padding(.horizontal, 20)
                                 }
                                 .onTapGesture {
-                                    hasTriedSubmitting = false
                                     showStartTimePicker.toggle()
                                 }
                                 .sheet(isPresented: $showStartTimePicker) {
@@ -524,6 +536,11 @@ struct CreateEventView: View {
                                             }
                                     }
                                     .presentationDetents([.medium])
+                                    .onAppear {
+                                        if startTime == nil {
+                                            startTime = Date.now
+                                        }
+                                    }
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
@@ -578,7 +595,6 @@ struct CreateEventView: View {
                                             .hidden(endTime == nil)
                                             
                                             Button(action: {
-                                                hasTriedSubmitting = false
                                                 showEndTimePicker.toggle()
                                             }) {
                                                 Image(systemName: "clock.badge")
@@ -591,7 +607,6 @@ struct CreateEventView: View {
                                     .padding(.horizontal, 20)
                                 }
                                 .onTapGesture {
-                                    hasTriedSubmitting = false
                                     showEndTimePicker.toggle()
                                 }
                                 .sheet(isPresented: $showEndTimePicker) {
@@ -619,6 +634,11 @@ struct CreateEventView: View {
                                             }
                                     }
                                     .presentationDetents([.medium])
+                                    .onAppear {
+                                        if endTime == nil {
+                                            endTime = Date.now
+                                        }
+                                    }
                                 }
                                 .background {
                                     RoundedRectangle(cornerRadius: 10)
@@ -675,7 +695,6 @@ struct CreateEventView: View {
                                             .hidden(selectedPlacemark == nil)
                                             
                                             Button(action: {
-                                                hasTriedSubmitting = false
                                                 showMapSheet.toggle()
                                             }) {
                                                 Image(systemName: "mappin")
@@ -935,7 +954,7 @@ struct CreateEventView: View {
                             .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
                         }
                         .sheet(isPresented: $showColorPicker) {
-                            ColorPickerSheet(selectedColor: eventColorBinding, alpha: $eventColorAlpha)
+                            ColorPickerSheet(selectedColor: eventColorBinding)
                         }
                         
                         Button(action: {
@@ -972,9 +991,29 @@ struct CreateEventView: View {
                             if let startTime = startTime, let endTime = endTime {
                                 if Date.computeTimeSinceStartOfDay(date: endTime) < Date.computeTimeSinceStartOfDay(date: startTime) {
                                     endTimeError = "Invalid time range"
+                                    isValid = false
                                 } else if Date.computeTimeSinceStartOfDay(date: endTime) > 60 * 60 * 24 {
                                     endTimeError = "End time exceeds current day"
+                                    isValid = false
                                 }
+                            }
+                            
+                            if repeatedDays != nil {
+                                if let startDate = eventDate, let endDate = eventEndDate {
+                                    if endDate.timeIntervalSince1970 < startDate.timeIntervalSince1970 {
+                                        endDateError = "Invalid end date"
+                                        isValid = false
+                                    } else if repeatedDays!.isEmpty {
+                                        endDateError = "No repeated days have been selected with the end date"
+                                        isValid = false
+                                    }
+                                } else if !repeatedDays!.isEmpty {
+                                    endDateError = "End date is required for recurring events"
+                                    isValid = false
+                                }
+                            } else if eventEndDate != nil {
+                                endDateError = "No repeated days have been selected with the end date"
+                                isValid = false
                             }
                             
                             if !isValid {
@@ -987,11 +1026,11 @@ struct CreateEventView: View {
                             let safeStart     = startTime!
                             let safeEnd       = endTime!
                             let safeLocation  = selectedPlacemark!
-                            
                             let eventNotes = notes ?? ""
+                            let endDateAsDouble: Double? = eventEndDate == nil ? nil : eventEndDate!.timeIntervalSince1970
                             
                             Task {
-                                await scheduleViewModel.createEvent(title: safeTitle, startDate: safeDate.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: safeStart), endTime: Date.computeTimeSinceStartOfDay(date: safeEnd), location: safeLocation, color: selectedColor, notes: eventNotes)
+                                await scheduleViewModel.createEvent(title: safeTitle, startDate: safeDate.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: safeStart), endTime: Date.computeTimeSinceStartOfDay(date: safeEnd), location: safeLocation, color: selectedColor, notes: eventNotes, invitedUsers: selectedFriends, endDate: endDateAsDouble, repeatedDays: repeatedDays)
                                 dismiss()
                             }
                         }) {
@@ -1009,15 +1048,17 @@ struct CreateEventView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.vertical)
                     .padding(.horizontal, 25)
+                    .simultaneousGesture(TapGesture().onEnded {
+                        if hasTriedSubmitting {
+                            hasTriedSubmitting = false
+                        }
+                    })
                 }
                 .defaultScrollAnchor(.top, for: .initialOffset)
                 .defaultScrollAnchor(.bottom, for: .sizeChanges)
                 .scrollDismissesKeyboard(.immediately)
                 .onTapGesture {
                     isFocused = nil
-                }
-                .onChange(of: isFocused) {
-                    hasTriedSubmitting = false
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

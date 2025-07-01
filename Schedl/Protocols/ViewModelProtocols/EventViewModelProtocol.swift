@@ -10,6 +10,6 @@ protocol EventViewModelProtocol {
     var currentUser: User { get set }
     
     //    func updateEvent(title: String, eventDate: Double, startTime: Double, endTime: Double) async
-    func fetchInvitedUsers() async
+    func fetchEventData() async 
     func deleteEvent() async
 }

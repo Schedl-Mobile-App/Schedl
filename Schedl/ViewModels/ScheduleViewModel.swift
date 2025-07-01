@@ -124,6 +124,8 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         do {
             let newSchedule = try await scheduleService.createSchedule(userId: currentUser.id, title: title)
             self.userSchedule = newSchedule
+            
+            observeScheduleChanges()
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to create schedule: \(error.localizedDescription)"
@@ -200,17 +202,17 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     }
     
     @MainActor
-    func createEvent(title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, endDate: Double? = nil, repeatedDays: [String]? = nil) async {
+    func createEvent(title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, invitedUsers: [User], endDate: Double? = nil, repeatedDays: [String]? = nil) async {
         self.isLoading = true
         self.errorMessage = nil
         do {
             guard let scheduleId = userSchedule?.id else { return }
             
-            let taggedUsers: [String] = self.invitedUsersForEvent.compactMap { $0.id }
-            
+            let userIds = invitedUsers.compactMap { $0.id }
+                                    
             let eventId = try await eventService.createEvent(scheduleId: scheduleId, userId: currentUser.id, title: title, startDate: startDate, startTime: startTime, endTime: endTime, location: location, color: color, notes: notes, endDate: endDate, repeatedDays: repeatedDays)
             
-            try await notificationService.sendEventInvites(senderId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserIds: taggedUsers, eventId: eventId)
+            try await notificationService.sendEventInvites(senderId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserIds: userIds, eventId: eventId)
             
             self.isLoading = false
         } catch {
@@ -260,8 +262,13 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         removedEventsHandler = scheduleService.observeRemovedEvents(scheduleId: scheduleId) { [weak self] eventId in
             guard let self = self else { return }
             
-            guard let removedEventIndex = self.scheduleEvents.firstIndex(where: { $0.id == eventId }) else { return }
+            print("Removed event id is: \(eventId)")
+            print("Schedule Events before removal is: \(scheduleEvents.compactMap({$0.id}))")
+            
+            guard let removedEventIndex = self.scheduleEvents.firstIndex(where: { $0.event.id == eventId }) else { return }
             self.scheduleEvents.remove(at: removedEventIndex)
+            
+            print("Schedule Events after removal is: \(scheduleEvents)")
         }
     }
     

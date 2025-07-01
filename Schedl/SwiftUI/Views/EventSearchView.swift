@@ -113,7 +113,6 @@ struct EventSearchView: View {
                     }
                 }
             }
-            .presentationDetents([.medium, .large])
         }
     }
 }

@@ -39,15 +39,6 @@ class EventCell: UIView {
         
         self.event = event
         
-//        EventCell.performWithoutAnimation {
-//            layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).cgPath
-//            layer.shadowColor = UIColor(Color.black).cgColor
-//            layer.shadowOpacity = 0.2
-//            layer.shadowOffset = CGSize(width: 1, height: 4)
-//            layer.shouldRasterize = true
-//            layer.rasterizationScale = UIScreen.main.scale
-//        }
-        
         shadowBackgroundColor = UIColor(Color(hex: Int(event.event.color, radix: 16)!))
         
         eventCell.translatesAutoresizingMaskIntoConstraints = false
