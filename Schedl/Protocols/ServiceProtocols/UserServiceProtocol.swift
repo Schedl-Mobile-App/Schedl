@@ -19,5 +19,6 @@ protocol UserServiceProtocol {
     func fetchNumberOfFriends(userId: String) async throws -> Int
     func isFriend(userId: String, otherUserId: String) async throws -> Bool
     func fetchUserNameById(userId: String) async throws -> String
+    func fetchDisplayNameById(userId: String) async throws -> String
     func fetchFriendIds(userId: String) async throws -> [String]
 }
