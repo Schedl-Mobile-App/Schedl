@@ -239,7 +239,7 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
                 // if they occur on the same day, then we sort by their start time
                 return $0.event.startTime < $1.event.startTime
             }
-            self.invitedEvents = formattedEvents.filter { $0.event.userId != self.currentUser.id }.sorted {
+            self.invitedEvents = formattedEvents.filter { $0.event.userId != self.profileUser.id }.sorted {
                 let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
                 
                 // if the event start dates are different, then we sort by their date

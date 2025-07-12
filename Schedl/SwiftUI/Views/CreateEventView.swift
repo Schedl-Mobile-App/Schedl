@@ -1058,6 +1058,8 @@ struct CreateEventView: View {
                 .defaultScrollAnchor(.bottom, for: .sizeChanges)
                 .scrollDismissesKeyboard(.immediately)
                 .onTapGesture {
+                    
+                    
                     isFocused = nil
                 }
             }
