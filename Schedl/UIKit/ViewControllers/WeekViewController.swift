@@ -120,31 +120,6 @@ class WeekViewController: UIViewController {
         return scrollView
     }()
     
-    private var loadingHostingController: UIHostingController<ScheduleLoadingView>?
-
-    func showLoading() {
-        if loadingHostingController == nil {
-            let loadingVC = UIHostingController(rootView: ScheduleLoadingView())
-            loadingVC.view.backgroundColor = .black
-            loadingVC.view.frame = view.bounds
-            loadingVC.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            addChild(loadingVC)
-            view.addSubview(loadingVC.view)
-            view.bringSubviewToFront(loadingVC.view)
-            loadingVC.didMove(toParent: self)
-            loadingHostingController = loadingVC
-        }
-    }
-
-    func hideLoading() {
-        if let loadingVC = loadingHostingController {
-            loadingVC.willMove(toParent: nil)
-            loadingVC.view.removeFromSuperview()
-            loadingVC.removeFromParent()
-            loadingHostingController = nil
-        }
-    }
-    
     let eventContainer = EventCellsContainer()
                 
     let overlayView = UIView()
@@ -341,6 +316,7 @@ class WeekViewController: UIViewController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newEvents in
                 self?.updateEventsOverlay()
+                print("Being called here in view model observation")
             }
             .store(in: &cancellables)
     }
@@ -427,7 +403,6 @@ class WeekViewController: UIViewController {
         
         // Calculate the maximum possible y-offset to prevent scrolling too far
         let maxYOffset = CGFloat(maxHeight) - collectionView.frame.height
-        print("MaxYOffset value is: \(maxYOffset)")
         
         // Ensure we don't scroll beyond content boundaries
         let safeYOffset = min(desiredYOffset, maxYOffset)
@@ -784,14 +759,14 @@ class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLay
         for attribute in attributes {
             let indexPath = attribute.indexPath
             
-            // Skip if we've already processed this index path
+            // skip if we've already processed this index path
             if seenIndexPaths.contains(indexPath) {
-                // If we find a duplicate, keep the one that's more "valid"
+                // if we find a duplicate, keep the one that's more "valid"
                 if let existingIndex = validAttributes.firstIndex(where: { $0.indexPath == indexPath }) {
                     let existing = validAttributes[existingIndex]
                     let current = attribute
                     
-                    // Prefer the attribute that's more within bounds
+                    // prefer the attribute that's more within bounds
                     if isMoreValidAttribute(current, than: existing) {
                         validAttributes[existingIndex] = current
                     }
@@ -799,7 +774,7 @@ class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLay
                 continue
             }
             
-            // Check if the attribute is within reasonable bounds
+            // pheck if the attribute is within reasonable bounds
             if isAttributeValid(attribute, in: rect) {
                 seenIndexPaths.insert(indexPath)
                 validAttributes.append(attribute)
@@ -813,20 +788,20 @@ class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLay
         let frame = attribute.frame
         let contentSize = collectionViewContentSize
         
-        // More comprehensive bounds checking
+        // valid bounds checking
         let isWithinHorizontalBounds = frame.origin.x >= -frame.size.width &&
                                       frame.maxX <= contentSize.width + frame.size.width
         
         let isWithinVerticalBounds = frame.origin.y >= -frame.size.height &&
                                     frame.maxY <= contentSize.height + frame.size.height
         
-        // Check for reasonable frame dimensions
+        // valid frame dimension checking
         let hasValidDimensions = frame.size.width > 0 &&
                                 frame.size.height > 0 &&
                                 frame.size.width < contentSize.width * 2 &&
                                 frame.size.height < contentSize.height * 2
         
-        // Check if frame intersects with the requested rect (with some tolerance)
+        // check for frame intersections with the requested rect
         let extendedRect = rect.insetBy(dx: -frame.size.width, dy: -frame.size.height)
         let intersectsRequestedRect = frame.intersects(extendedRect)
         
@@ -842,7 +817,7 @@ class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLay
         let existingFrame = existing.frame
         let contentSize = collectionViewContentSize
         
-        // Calculate how "valid" each attribute is based on how well it fits within bounds
+        // calculate how "valid" each attribute is based on how well it fits within bounds
         let newValidityScore = calculateValidityScore(for: newFrame, contentSize: contentSize)
         let existingValidityScore = calculateValidityScore(for: existingFrame, contentSize: contentSize)
         
@@ -850,15 +825,14 @@ class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLay
     }
     
     private func calculateValidityScore(for frame: CGRect, contentSize: CGSize) -> Double {
+        // keeping a custom scoring tally for each rect
         var score: Double = 0
         
-        // Points for being within content bounds
         if frame.maxX <= contentSize.width { score += 100 }
         if frame.maxY <= contentSize.height { score += 100 }
         if frame.origin.x >= 0 { score += 50 }
         if frame.origin.y >= 0 { score += 50 }
         
-        // Penalty for being outside bounds
         if frame.origin.x < 0 { score -= abs(frame.origin.x) }
         if frame.origin.y < 0 { score -= abs(frame.origin.y) }
         if frame.maxX > contentSize.width { score -= (frame.maxX - contentSize.width) }
@@ -867,11 +841,9 @@ class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLay
         return score
     }
     
-    // Additional override to handle specific item requests
     override func layoutAttributesForItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
         guard let attribute = super.layoutAttributesForItem(at: indexPath) else { return nil }
         
-        // Apply the same validation to individual item requests (without rect parameter)
         return isAttributeValidForSingleItem(attribute) ? attribute : nil
     }
     
@@ -879,14 +851,14 @@ class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLay
         let frame = attribute.frame
         let contentSize = collectionViewContentSize
         
-        // Basic bounds checking for single items
+        // bounds checking for single items
         let isWithinHorizontalBounds = frame.origin.x >= -frame.size.width &&
                                       frame.maxX <= contentSize.width + frame.size.width
         
         let isWithinVerticalBounds = frame.origin.y >= -frame.size.height &&
                                     frame.maxY <= contentSize.height + frame.size.height
         
-        // Check for reasonable frame dimensions
+        // similar valid frame dimension check from earlier
         let hasValidDimensions = frame.size.width > 0 &&
                                 frame.size.height > 0 &&
                                 frame.size.width < contentSize.width * 2 &&
@@ -897,11 +869,10 @@ class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLay
                hasValidDimensions
     }
     
-    // Override to ensure invalidation happens when needed
     override func shouldInvalidateLayout(forBoundsChange newBounds: CGRect) -> Bool {
         guard let collectionView = collectionView else { return false }
         
-        // Only invalidate if bounds actually changed significantly
+        // only invalidate if bounds actually changed significantly
         let oldBounds = collectionView.bounds
         let sizeChanged = !oldBounds.size.equalTo(newBounds.size)
         let significantOriginChange = abs(oldBounds.origin.x - newBounds.origin.x) > 1.0 ||
@@ -913,6 +884,8 @@ class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLay
 
 extension UICollectionView {
 
+    // handles finding of boundary cells which in this context assumes that there are 24 vertically placed cells
+    // which is the case for the day and week view layout
     func indexPathsForFullyVisibleItems() -> [IndexPath] {
         
         let visibleIndexPaths = indexPathsForVisibleItems

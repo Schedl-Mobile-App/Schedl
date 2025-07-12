@@ -140,7 +140,7 @@ class ScheduleViewController: UIViewController {
         newVC.view.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
-            newVC.view.topAnchor.constraint(equalTo: filterButton.bottomAnchor),
+            newVC.view.topAnchor.constraint(equalTo: filterButton.bottomAnchor, constant: 5),
             newVC.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             newVC.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             newVC.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -276,6 +276,7 @@ class ScheduleViewController: UIViewController {
         label.textColor = UIColor(Color(hex: 0x666666))
         label.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(label)
+        view.bringSubviewToFront(label)
         
         let button = UIButton()
         button.backgroundColor = UIColor(Color(hex: 0x3C859E))
@@ -289,6 +290,7 @@ class ScheduleViewController: UIViewController {
         button.titleLabel?.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .bold)
         button.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(button)
+        view.bringSubviewToFront(button)
         
         NSLayoutConstraint.activate([
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
