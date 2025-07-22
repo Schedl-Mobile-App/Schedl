@@ -30,13 +30,16 @@ struct ProfileView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.bottom, 0.5)
             } else {
-                VStack(alignment: .center, spacing: 20) {
-                    ZStack {
+                VStack {
+                    ZStack(alignment: .leading) {
                         if profileViewModel.isCurrentUser {
                             Text("Profile")
-                                .font(.system(size: 20, weight: .bold, design: .monospaced))
                                 .foregroundStyle(Color(hex: 0x333333))
-                                .tracking(0.001)
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .fontDesign(.monospaced)
+                                .tracking(-0.25)
+                                .frame(maxWidth: .infinity, alignment: .center)
                             
                             HStack {
                                 Button(action: {
@@ -47,34 +50,41 @@ struct ProfileView: View {
                                     }
                                 }) {
                                     Text(profileViewModel.isEditingProfile ? "Done" : "Edit")
-                                        .font(.system(size: 18, weight: .bold, design: .monospaced))
                                         .foregroundStyle(Color(hex: 0x333333))
-                                        .tracking(0.001)
+                                        .font(.headline)
+                                        .fontWeight(.bold)
+                                        .fontDesign(.monospaced)
+                                        .tracking(-0.25)
+                                        .frame(maxWidth: .infinity, alignment: .center)
                                 }
                                 Spacer()
                                 NavigationLink(destination: SettingsView(profileViewModel: profileViewModel).environmentObject(authViewModel)) {
                                     Image(systemName: "gearshape")
-                                        .font(.system(size: 26))
-                                        .fontWeight(.semibold)
+                                        .fontWeight(.bold)
+                                        .imageScale(.large)
+                                        .labelStyle(.iconOnly)
                                         .foregroundStyle(Color(hex: 0x333333))
                                 }
                             }
                             .frame(maxWidth: .infinity)
                         } else {
                             Text("Profile")
-                                .font(.system(size: 20, weight: .bold, design: .monospaced))
                                 .foregroundStyle(Color(hex: 0x333333))
-                                .tracking(0.001)
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .fontDesign(.monospaced)
+                                .tracking(-0.25)
+                                .frame(maxWidth: .infinity, alignment: .center)
                             
                             HStack {
                                 Button(action: {
                                     dismiss()
                                 }) {
                                     Image(systemName: "chevron.left")
-                                            .font(.system(size: 24, weight: .medium))
-                                            .labelStyle(.iconOnly)
-                                            .foregroundStyle(Color.primary)
-                                            .accessibilityLabel("Go Back")
+                                        .fontWeight(.bold)
+                                        .imageScale(.large)
+                                        .labelStyle(.iconOnly)
+                                        .foregroundStyle(Color(hex: 0x333333))
                                 }
                                 Spacer()
                                 Button(action: {
@@ -93,92 +103,95 @@ struct ProfileView: View {
                     }
                     .padding()
                     
-                    VStack(spacing: 8) {
-                        UserProfileImage(profileViewModel: profileViewModel)
-                        UserDisplayName(profileViewModel: profileViewModel)
-                    }
-                    
-                    ProfileInformatics(profileViewModel: profileViewModel)
-                    
-                    UserViewOptions(profileViewModel: profileViewModel)
-                    
-                    if profileViewModel.isCurrentUser || profileViewModel.isViewingFriend {
-                        switch profileViewModel.selectedTab {
-                        case .schedules:
-                            ScrollView(.vertical, showsIndicators: false) {
-                                LazyVStack(spacing: 10) {
-                                    let sortedKeys = Array(profileViewModel.partitionedEvents.keys).sorted(by: <)
-                                    ForEach(sortedKeys, id: \.self) { key in
-                                        ScheduleEventCards(profileViewModel: profileViewModel, key: key)
-                                    }
-                                }
-                                .padding(.bottom)
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        case .events:
-                            VStack(spacing: 10) {
-                                HStack {
-                                    ForEach(utils.indices, id: \.self) { index in
-                                        Text("\(utils[index])")
-                                            .font(.system(size: 14, weight: .heavy, design: .monospaced))
-                                            .foregroundStyle(Color(hex: 0x666666))
-                                            .tracking(0.001)
-                                            .fixedSize()
-                                            .frame(maxWidth: .infinity)
-                                            .onTapGesture {
-                                                selectedType = index
-                                            }
-                                    }
-                                }
-                                .padding(.horizontal, 25)
-                                
-                                GeometryReader { proxy in
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color(hex: 0x3C859E))
-                                        .frame(width: proxy.size.width / CGFloat(utils.count), height: 4)
-                                        .offset(x: CGFloat(proxy.size.width / CGFloat(utils.count)) * CGFloat(selectedType))
-                                        .animation(.bouncy, value: selectedType)
-                                }
-                                .padding(.horizontal, 25)
-                                .padding(.bottom, 10)
-                                
+                    VStack(spacing: 20) {
+                        VStack(spacing: 8) {
+                            UserProfileImage(profileViewModel: profileViewModel)
+                            UserDisplayName(profileViewModel: profileViewModel)
+                        }
+                        
+                        ProfileInformatics(profileViewModel: profileViewModel)
+                        
+                        UserViewOptions(profileViewModel: profileViewModel)
+                        
+                        if profileViewModel.isCurrentUser || profileViewModel.isViewingFriend {
+                            switch profileViewModel.selectedTab {
+                            case .schedules:
                                 ScrollView(.vertical, showsIndicators: false) {
                                     LazyVStack(spacing: 10) {
-                                        switch selectedType {
-                                        case 0: ForEach(profileViewModel.currentEvents, id: \.self.id) { event in
-                                            if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
-                                                
-                                                EventCard(event: event, profileViewModel: profileViewModel)
-                                            }
-                                        }
-                                        case 1: ForEach(profileViewModel.invitedEvents, id: \.self.id) { event in
-                                            if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
-                                                
-                                                EventCard(event: event, profileViewModel: profileViewModel)
-                                            }
-                                        }
-                                        case 2: ForEach(profileViewModel.pastEvents, id: \.self.id) { EventCard(event: $0, profileViewModel: profileViewModel) }
-                                        default: EmptyView()
+                                        let sortedKeys = Array(profileViewModel.partitionedEvents.keys).sorted(by: <)
+                                        ForEach(sortedKeys, id: \.self) { key in
+                                            ScheduleEventCards(profileViewModel: profileViewModel, key: key)
                                         }
                                     }
                                     .padding(.bottom)
-                                    .frame(maxHeight: .infinity)
                                 }
-                                .padding(.horizontal, 25)
-                                .layoutPriority(1)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            case .events:
+                                VStack(spacing: 10) {
+                                    HStack {
+                                        ForEach(utils.indices, id: \.self) { index in
+                                            Text("\(utils[index])")
+                                                .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                                                .foregroundStyle(Color(hex: 0x666666))
+                                                .tracking(0.001)
+                                                .fixedSize()
+                                                .frame(maxWidth: .infinity)
+                                                .onTapGesture {
+                                                    selectedType = index
+                                                }
+                                        }
+                                    }
+                                    .padding(.horizontal, 25)
+                                    
+                                    GeometryReader { proxy in
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color(hex: 0x3C859E))
+                                            .frame(width: proxy.size.width / CGFloat(utils.count), height: 4)
+                                            .offset(x: CGFloat(proxy.size.width / CGFloat(utils.count)) * CGFloat(selectedType))
+                                            .animation(.bouncy, value: selectedType)
+                                    }
+                                    .padding(.horizontal, 25)
+                                    .padding(.bottom, 10)
+                                    
+                                    ScrollView(.vertical, showsIndicators: false) {
+                                        LazyVStack(spacing: 10) {
+                                            switch selectedType {
+                                            case 0: ForEach(profileViewModel.currentEvents, id: \.self.id) { event in
+                                                if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
+                                                    
+                                                    EventCard(event: event, profileViewModel: profileViewModel)
+                                                }
+                                            }
+                                            case 1: ForEach(profileViewModel.invitedEvents, id: \.self.id) { event in
+                                                if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
+                                                    
+                                                    EventCard(event: event, profileViewModel: profileViewModel)
+                                                }
+                                            }
+                                            case 2: ForEach(profileViewModel.pastEvents, id: \.self.id) { EventCard(event: $0, profileViewModel: profileViewModel) }
+                                            default: EmptyView()
+                                            }
+                                        }
+                                        .padding(.bottom)
+                                        .frame(maxHeight: .infinity)
+                                    }
+                                    .padding(.horizontal, 25)
+                                    .layoutPriority(1)
+                                }
+                                .frame(maxHeight: .infinity, alignment: .top)
+                            case .activity:
+                                ScrollView(.vertical, showsIndicators: false) {
+                                    Text("Activity")
+                                        .padding(.bottom)
+                                }
                             }
-                            .frame(maxHeight: .infinity, alignment: .top)
-                        case .activity:
-                            ScrollView(.vertical, showsIndicators: false) {
-                                Text("Activity")
-                                    .padding(.bottom)
-                            }
+                        } else {
+                            Text("Add \(profileViewModel.profileUser.displayName) as a friend first!")
+                                .font(.system(size: 20, weight: .medium, design: .monospaced))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                         }
-                    } else {
-                        Text("Add \(profileViewModel.profileUser.displayName) as a friend first!")
-                            .font(.system(size: 20, weight: .medium, design: .monospaced))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     }
+                    .padding(.top)
                 }
                 .padding(.bottom, 0.5)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

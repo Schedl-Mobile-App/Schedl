@@ -82,14 +82,7 @@ class EventCellsContainer: SecondPassthroughView {
         self.viewModel = scheduleViewModel
         self.events = events
         
-        // the width of placed events with some horizontal width shaved off
-//        let paddedEventWidth: Double = 120
-//        let adjustedXPosition: Double = (125 - paddedEventWidth) / 2
-        
         for event in events {
-            
-//            let dates = occurrenceDates(for: event, centerDate: centerDate, calendarInterval: calendarInterval)
-            
             let xPosition = Double((getDayIndex(eventDate: Date(timeIntervalSince1970: event.date), centerDate: centerDate, calendarInterval: calendarInterval) ?? 0) * 60) + 1
             let yStartPosition = event.event.startTime / 3600 * 100
             let yOffset = (event.event.endTime - event.event.startTime) / 3600 * 100
@@ -102,38 +95,6 @@ class EventCellsContainer: SecondPassthroughView {
             eventCell.isUserInteractionEnabled = true
             containerView.addSubview(eventCell)
             containerView.bringSubviewToFront(eventCell)
-            
-//            if dates.isEmpty {
-//                let eventObj = RecurringEvents(date: event.startDate, event: event)
-//                let xPosition = Double((getDayIndex(eventDate: Date(timeIntervalSince1970: event.startDate), centerDate: centerDate, calendarInterval: calendarInterval) ?? 0) * 60) + 1
-//                let yStartPosition = event.startTime / 3600 * 100
-//                let yOffset = (event.endTime - event.startTime) / 3600 * 100
-//                
-//                let eventCell = EventCell(frame: CGRect(x: xPosition, y: yStartPosition, width: 58, height: yOffset))
-//                eventCell.configureUI(event: eventObj)
-//                eventCell.onSelectEvent = { [weak self] event in
-//                    self?.onTap?(event)
-//                }
-//                eventCell.isUserInteractionEnabled = true
-//                containerView.addSubview(eventCell)
-//                containerView.bringSubviewToFront(eventCell)
-//            } else {
-//                for date in dates {
-//                    let eventObj = RecurringEvents(date: date.timeIntervalSince1970, event: event)
-//                    let xPosition = Double((getDayIndex(eventDate: date, centerDate: centerDate, calendarInterval: calendarInterval) ?? 0) * 60) + 1
-//                    let yStartPosition = event.startTime / 3600 * 100
-//                    let yOffset = (event.endTime - event.startTime) / 3600 * 100
-//                    
-//                    let eventCell = EventCell(frame: CGRect(x: xPosition, y: yStartPosition, width: 58, height: yOffset))
-//                    eventCell.configureUI(event: eventObj)
-//                    eventCell.onSelectEvent = { [weak self] event in
-//                        self?.onTap?(event)
-//                    }
-//                    eventCell.isUserInteractionEnabled = true
-//                    containerView.addSubview(eventCell)
-//                    containerView.bringSubviewToFront(eventCell)
-//                }
-//            }
         }
     }
     
@@ -151,43 +112,6 @@ class EventCellsContainer: SecondPassthroughView {
         
         return dayIndex
     }
-    
-//    func occurrenceDates(
-//        for event: Event,
-//        centerDate: Date,
-//        calendarInterval: Int
-//    ) -> [Date] {
-//        let cal = Calendar.current
-//        let halfWindow = calendarInterval / 2
-//
-//        guard
-//        let viewStart = cal.date(byAdding: .day, value: -halfWindow, to: centerDate),
-//        let viewEnd = cal.date(byAdding: .day, value:  halfWindow, to: centerDate)
-//        else { return [] }
-//
-//        let iterationStart = max(Date(timeIntervalSince1970: event.startDate), viewStart)
-//        let iterationEnd = min(Date(timeIntervalSince1970: event.endDate ?? viewEnd.timeIntervalSince1970), viewEnd)
-//
-//        var dates: [Date] = []
-//        var cursor = iterationStart
-//                
-//        guard let repeatedDays = event.repeatingDays else { return dates }
-//
-//        while cursor <= iterationEnd {
-//            // store the current iteration index
-//            let weekIndex = cal.component(.weekday, from: cursor) - 1
-//            
-//            // next, we need to find a way to check whether our event instance includes the same weekday index
-//            if repeatedDays.contains(String(weekIndex)) {
-//                dates.append(cursor)
-//            }
-//            guard let next = cal.date(byAdding: .day, value: 1, to: cursor) else { break }
-//                cursor = next
-//        }
-//
-//        return dates
-//    }
-
     
     @objc
     func didPan(_ gesture: UIPanGestureRecognizer) {

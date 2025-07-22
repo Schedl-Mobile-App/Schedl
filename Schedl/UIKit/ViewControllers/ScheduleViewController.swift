@@ -31,9 +31,17 @@ class ScheduleViewController: UIViewController {
     private var showScheduleOptions = false
     private var loadingHostingController: UIHostingController<ScheduleLoadingView>?
     private var cancellables: Set<AnyCancellable> = []
+    let dayVC = DayViewController()
+    let weekVC = WeekViewController()
+    let monthVC = MonthViewController()
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        if let coordinator = coordinator {
+            dayVC.coordinator = coordinator
+            weekVC.coordinator = coordinator
+        }
         
         configureUI()
     }
@@ -68,15 +76,10 @@ class ScheduleViewController: UIViewController {
         
         switch currentViewType {
         case .day:
-            let dayVC = DayViewController()
-            dayVC.coordinator = coordinator
             currentVC = dayVC
         case .week:
-            let weekVC = WeekViewController()
-            weekVC.coordinator = coordinator
             currentVC = weekVC
         case .month:
-            let monthVC = MonthViewController()
             currentVC = monthVC
         }
                 
@@ -122,15 +125,10 @@ class ScheduleViewController: UIViewController {
         let newVC: UIViewController
         switch type {
         case .day:
-            let dayVC = DayViewController()
-            dayVC.coordinator = coordinator
             newVC = dayVC
         case .week:
-            let weekVC = WeekViewController()
-            weekVC.coordinator = coordinator
             newVC = weekVC
         case .month:
-            let monthVC = MonthViewController()
             newVC = monthVC
         }
 
@@ -225,6 +223,7 @@ class ScheduleViewController: UIViewController {
     
     func setupModelObservation(scheduleViewModel: ScheduleViewModel) {
         scheduleViewModel.$isLoading
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] isLoading in
                 if isLoading {
                     self?.showLoading()
@@ -235,11 +234,17 @@ class ScheduleViewController: UIViewController {
             .store(in: &cancellables)
         
         scheduleViewModel.$userSchedule
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] userSchedule in
                 if let schedule = userSchedule {
-                    print("Being called in the model observation user schedule")
                     self?.scheduleNameLabel.text = schedule.title
-                } else if !scheduleViewModel.isLoading {
+                    self?.placeholderLabel?.removeFromSuperview()
+                    self?.placeholderLabel = nil
+                    self?.placeholderBackground?.removeFromSuperview()
+                    self?.placeholderBackground = nil
+                    self?.createScheduleButton?.removeFromSuperview()
+                    self?.createScheduleButton = nil
+                } else {
                     self?.blankSchedule()
                 }
             }
@@ -249,10 +254,10 @@ class ScheduleViewController: UIViewController {
     func loadInitialData(scheduleViewModel: ScheduleViewModel) {
         Task {
             await scheduleViewModel.fetchSchedule()
-            scheduleViewModel.observeScheduleChanges()
         }
     }
     
+    private var placeholderBackground: UIView?
     private var placeholderLabel: UILabel?
     private var createScheduleButton: UIButton?
     
@@ -262,12 +267,17 @@ class ScheduleViewController: UIViewController {
             Task {
                 let firstName = scheduleViewModel.currentUser.displayName.split(separator: " ").first ?? ""
                 await scheduleViewModel.createSchedule(title: "\(firstName)'s Schedule")
+                
             }
         }
     }
 
     func blankSchedule() {
-        hideLoading()
+        
+        let backgroundView = UIView()
+        backgroundView.translatesAutoresizingMaskIntoConstraints = false
+        backgroundView.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
+        view.addSubview(backgroundView)
         
         // show placeholder
         let label = UILabel()
@@ -293,6 +303,11 @@ class ScheduleViewController: UIViewController {
         view.bringSubviewToFront(button)
         
         NSLayoutConstraint.activate([
+            backgroundView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            backgroundView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            backgroundView.topAnchor.constraint(equalTo: view.topAnchor),
+            backgroundView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             
@@ -303,6 +318,7 @@ class ScheduleViewController: UIViewController {
         ])
         
         // keep strong refs so we can remove them later
+        placeholderBackground   = backgroundView
         placeholderLabel        = label
         createScheduleButton    = button
     }

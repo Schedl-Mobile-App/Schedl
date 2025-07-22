@@ -31,7 +31,7 @@ struct ChangeAccountDataView: View {
                             .fontWeight(.bold)
                             .imageScale(.large)
                             .labelStyle(.iconOnly)
-                            .foregroundStyle(Color.primary)
+                            .foregroundStyle(Color(hex: 0x333333))
                     }
                     Text("Account Data")
                         .foregroundStyle(Color(hex: 0x333333))
