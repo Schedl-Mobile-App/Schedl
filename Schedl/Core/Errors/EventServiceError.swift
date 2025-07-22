@@ -13,4 +13,5 @@ enum EventServiceError: Error {
     case failedToGetScheduleId
     case failedToFetchEvents
     case failedToDeleteAllEvents
+    case failedToCreateEvent
 }

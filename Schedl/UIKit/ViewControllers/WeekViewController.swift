@@ -36,6 +36,8 @@ class WeekViewController: UIViewController {
     
     private var cancellables: Set<AnyCancellable> = []
     
+    var previousSnapshot: [RecurringEvents] = []
+    
     var monthsList: [String] = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
@@ -299,12 +301,14 @@ class WeekViewController: UIViewController {
         if hasUserScrolled {
             return
         } else {
+            print("Being called in layout subviews")
             updateEventsOverlay()
             scrollToCurrentPosition()
         }
     }
     
     private func updateEventsOverlay() {
+        print("Being called in update events overlay")
         if let scheduleViewModel = coordinator?.scheduleViewModel {
             eventContainer.populateEventCells(rootVC: self, scheduleViewModel: scheduleViewModel, events: scheduleViewModel.scheduleEvents, centerDate: currentDate, calendarInterval: numberOfDays)
         }
@@ -315,7 +319,15 @@ class WeekViewController: UIViewController {
         coordinator?.scheduleViewModel.$scheduleEvents
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newEvents in
-                self?.updateEventsOverlay()
+                guard let self = self else { return }
+                if self.previousSnapshot.isEmpty {
+                    self.previousSnapshot = newEvents
+                    self.updateEventsOverlay()
+                }
+                if self.previousSnapshot != newEvents {
+                    self.updateEventsOverlay()
+                    self.previousSnapshot = newEvents
+                }
                 print("Being called here in view model observation")
             }
             .store(in: &cancellables)
@@ -357,10 +369,20 @@ class WeekViewController: UIViewController {
     func showCreateEvent() {
         
         if let scheduleViewModel = coordinator?.scheduleViewModel {
+            // since event details view expects a Binding type, and we can't explicity
+            // use the $ binding syntax within a view controller, we can create a
+            // binding type manually
+            let shouldReloadDataBinding = Binding<Bool>(
+                get: { scheduleViewModel.shouldReloadData },
+                set: { newValue in
+                    scheduleViewModel.shouldReloadData = newValue
+                }
+            )
+                        
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(
-                rootView: CreateEventView(scheduleViewModel: scheduleViewModel)
+                rootView: CreateEventView(currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding)
             )
             
             navigationController?.pushViewController(hostingController, animated: true)
@@ -379,7 +401,7 @@ class WeekViewController: UIViewController {
                     scheduleViewModel.shouldReloadData = newValue
                 }
             )
-            
+                        
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(

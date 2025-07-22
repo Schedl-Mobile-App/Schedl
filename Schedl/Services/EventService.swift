@@ -7,8 +7,13 @@
 
 import FirebaseDatabase
 
+struct Availability {
+    let timeSlot: String
+    let isAvailable: Bool
+}
+
 class EventService: EventServiceProtocol {
-    
+
     static let shared = EventService()
     let ref: DatabaseReference
     
@@ -123,31 +128,46 @@ class EventService: EventServiceProtocol {
         }
     }
     
-    func createEvent(scheduleId: String, userId: String, title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, endDate: Double? = nil, repeatedDays: [String]? = nil) async throws -> String {
+    func createEvent(userId: String, title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, endDate: Double? = nil, repeatedDays: [String]? = nil) async throws -> String {
         
-        let id = ref.child("events").childByAutoId().key ?? UUID().uuidString
+        guard let id = ref.child("events").childByAutoId().key else { throw EventServiceError.failedToCreateEvent }
         let createdAt = Date().timeIntervalSince1970
+        
+        let scheduleRef = ref.child("users").child(userId).child("schedule")
+        let snapshot = try await scheduleRef.getData()
+        
+        guard let scheduleId = snapshot.value as? String else { throw EventServiceError.failedToCreateEvent }
         
         let eventObj = Event(id: id, userId: userId, scheduleId: scheduleId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: location.name, locationAddress: location.address, latitude: location.latitude, longitude: location.longitude, taggedUsers: [], color: color, notes: notes, endDate: endDate, repeatingDays: repeatedDays)
                 
         let encoder = JSONEncoder()
         do {
-            // Encode the Schedule object into JSON data
             let jsonData = try encoder.encode(eventObj)
+            print(jsonData)
             
-            // Convert JSON data to a dictionary
             guard let jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
                 throw EventServiceError.eventDataSerializationFailed
             }
             
-            // this is the update for the user who created the event
-            let updates: [String: Any] = [
-                "/events/\(id)": jsonDictionary,
-                "/schedules/\(scheduleId)/eventIds/\(id)" : true,
-                "/scheduleEvents/\(scheduleId)/\(id)" : true,
+            let dict = [
+                "last_modified": ServerValue.timestamp()
             ]
             
-            // Perform atomic update
+            var updates: [String: Any] = [
+                "/events/\(id)": jsonDictionary,
+                "/schedules/\(scheduleId)/eventIds/\(id)" : true,
+                "/scheduleEvents/\(scheduleId)/\(id)" : dict,
+            ]
+            
+            let normalizedStartTime = floor(startTime / 900.0) * 900.0
+            
+            for i in stride(from: normalizedStartTime, to: endTime, by: 900) {
+                // always want to round the the startTime down to the nearest multiple of 15 or 0
+                let timeStamp: Double = floor(i / 900.0) * 900.0
+                updates["/userAvailability/\(userId)/\(Int(startDate))_\(Int(timeStamp))"] = true
+            }
+            
+            print(updates)
             try await ref.updateChildValues(updates)
             
             return id
@@ -157,25 +177,82 @@ class EventService: EventServiceProtocol {
         }
     }
     
-    func updateEvent(eventId: String, title: String?, eventDate: Double?, startTime: Double?, endTime: Double?) async throws -> Void {
+    func checkIndividualAvailability(userId: String, startQuery: String, endQuery: String) async throws -> FriendAvailability {
+        
+        // since our database writes user availability in ascending order, we can check if this query
+        // returns the start and anything in between the end time (inclusive)
+        let availabilityRef = ref.child("userAvailability").child(userId).queryOrderedByKey()
+            .queryStarting(atValue: startQuery)
+            .queryEnding(atValue: endQuery)
+        
+        let snapshot = try await availabilityRef.getData()
+        
+        if snapshot.exists() {
+            return FriendAvailability(available: false, userId: userId)
+        }
+        
+        return FriendAvailability(available: true, userId: userId)
+    }
+    
+    func checkAvailability(userIds: [String], eventDate: Int, startTime: Int, endTime: Int) async throws -> [FriendAvailability] {
+        
+        let startQuery = "\(eventDate)_\(startTime)"
+        let endQuery = "\(eventDate)_\(endTime)"
+        var availabilityList: [FriendAvailability] = []
+        
+        try await withThrowingTaskGroup(of: FriendAvailability.self) { group in
+            for id in userIds {
+                group.addTask {
+                    try await self.checkIndividualAvailability(userId: id, startQuery: startQuery, endQuery: endQuery)
+                }
+                
+                for try await availability in group {
+                    availabilityList.append(availability)
+                }
+            }
+        }
+        
+        return availabilityList
+    }
+    
+    func updateEvent(eventId: String, scheduleIds: [String], title: String?, eventDate: Double?, startTime: Double?, endTime: Double?, location: MTPlacemark?, repeatedDays: [String]?, color: String?, notes: String?) async throws {
         
         var updates: [String : Any] = [:]
         
         if let title = title {
-            updates["/events/\(eventId)/\("title")"] = title
+            updates["/events/\(eventId)/title"] = title
         }
         if let eventDate = eventDate {
-            updates["/events/\(eventId)/\("eventDate")"] = eventDate
+            updates["/events/\(eventId)/eventDate"] = eventDate
         }
         if let startTime = startTime {
-            updates["/events/\(eventId)/\("startTime")"] = startTime
+            updates["/events/\(eventId)/startTime"] = startTime
         }
         if let endTime = endTime {
-            updates["/events/\(eventId)/\("endTime")"] = endTime
+            updates["/events/\(eventId)/endTime"] = endTime
+        }
+        if let location = location {
+            updates["/events/\(eventId)/locationName"] = location.name
+            updates["/events/\(eventId)/locationAddress"] = location.address
+            updates["/events/\(eventId)/latitude"] = location.latitude
+            updates["/events/\(eventId)/longitude"] = location.longitude
+        }
+        if let repeatedDays = repeatedDays {
+            updates["/events/\(eventId)/repeatingDays"] = repeatedDays
+        }
+        if let color = color {
+            updates["/events/\(eventId)/color"] = color
+        }
+        if let notes = notes {
+            updates["/events/\(eventId)/notes"] = notes
         }
         
         if updates.isEmpty {
             return
+        }
+        
+        for id in scheduleIds {
+            updates["scheduleEvents/\(id)/\(eventId)/last_modified"] = ServerValue.timestamp()
         }
         
         do {
@@ -185,7 +262,14 @@ class EventService: EventServiceProtocol {
         }
     }
     
-    func deleteEvent(eventId: String, scheduleId: String, userId: String) async throws -> Void {
+    func deleteEvent(eventId: String, userId: String) async throws -> Void {
+        
+        let userRef = ref.child("users").child(userId).child("schedule")
+        let userSnapshot = try await userRef.getData()
+        
+        guard let scheduleId = userSnapshot.value as? String else {
+            throw EventServiceError.failedToGetScheduleId
+        }
         
         // we need to remove any event invites that the owner of the event has sent that might still be pending
         let eventInviteRef = ref.child("eventInvites").child(userId)
@@ -219,3 +303,4 @@ class EventService: EventServiceProtocol {
         }
     }
 }
+

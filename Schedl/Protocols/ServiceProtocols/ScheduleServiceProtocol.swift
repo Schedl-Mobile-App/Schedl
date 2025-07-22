@@ -17,5 +17,7 @@ protocol ScheduleServiceProtocol {
     func observeAddedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> DatabaseHandle
     func observeRemovedEvents(scheduleId: String, completion: @escaping (
         String) -> Void) -> DatabaseHandle
+    func observeUpdatedEvents(scheduleId: String, completion: @escaping (
+        String) -> Void) -> DatabaseHandle
     func removeScheduleObserver(handle: DatabaseHandle, scheduleId: String)
 }
