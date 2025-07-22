@@ -8,10 +8,10 @@
 import SwiftUI
 import Firebase
 
-class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
+class ScheduleViewModel: ObservableObject {
     
     var currentUser: User
-    @Published var userSchedule: Schedule?
+    @Published var userSchedule: Schedule? = nil
     @Published var invitedUsersForEvent: [User] = []
     var friends: [User] = []
     @Published var scheduleEvents: [RecurringEvents] = []
@@ -23,6 +23,7 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     @Published var shouldReloadData = true
     private var addedEventsHandler: DatabaseHandle?
     private var removedEventsHandler: DatabaseHandle?
+    private var updatedEventsHandler: DatabaseHandle?
     private var scheduleService: ScheduleServiceProtocol
     private var eventService: EventServiceProtocol
     private var userService: UserServiceProtocol
@@ -140,6 +141,7 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         do {
             guard let schedule = userSchedule else { return }
             try await scheduleService.updateSchedule(scheduleId: schedule.id, title: schedule.title)
+            self.isLoading = false
         } catch {
             self.errorMessage = "Failed to update schedule: \(error.localizedDescription)"
             self.isLoading = false
@@ -202,39 +204,6 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
     }
     
     @MainActor
-    func createEvent(title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, invitedUsers: [User], endDate: Double? = nil, repeatedDays: [String]? = nil) async {
-        self.isLoading = true
-        self.errorMessage = nil
-        do {
-            guard let scheduleId = userSchedule?.id else { return }
-            
-            let userIds = invitedUsers.compactMap { $0.id }
-                                    
-            let eventId = try await eventService.createEvent(scheduleId: scheduleId, userId: currentUser.id, title: title, startDate: startDate, startTime: startTime, endTime: endTime, location: location, color: color, notes: notes, endDate: endDate, repeatedDays: repeatedDays)
-            
-            try await notificationService.sendEventInvites(senderId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserIds: userIds, eventId: eventId)
-            
-            self.isLoading = false
-        } catch {
-            self.errorMessage = "Failed to create event: \(error.localizedDescription)"
-            self.isLoading = false
-        }
-    }
-    
-    @MainActor
-    func fetchFriends() async {
-        self.isLoading = true
-        self.errorMessage = nil
-        do {
-            self.friends = try await userService.fetchUserFriends(userId: currentUser.id)
-            self.isLoading = false
-        } catch {
-            self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
-            self.isLoading = false
-        }
-    }
-    
-    @MainActor
     func observeScheduleChanges() {
         
         guard let scheduleId = userSchedule?.id else { return }
@@ -262,14 +231,28 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         removedEventsHandler = scheduleService.observeRemovedEvents(scheduleId: scheduleId) { [weak self] eventId in
             guard let self = self else { return }
             
-            print("Removed event id is: \(eventId)")
-            print("Schedule Events before removal is: \(scheduleEvents.compactMap({$0.id}))")
-            
             guard let removedEventIndex = self.scheduleEvents.firstIndex(where: { $0.event.id == eventId }) else { return }
             self.scheduleEvents.remove(at: removedEventIndex)
             
-            print("Schedule Events after removal is: \(scheduleEvents)")
         }
+        
+        updatedEventsHandler = scheduleService.observeUpdatedEvents(scheduleId: scheduleId, completion: { [weak self] eventId in
+            
+            guard let self = self else {
+                return
+            }
+            
+            Task { @MainActor in
+                do {
+                    let updatedEvent = try await self.eventService.fetchEvent(eventId: eventId)
+                    let modifiedEvent = self.parseRecurringEvents(event: updatedEvent)
+                    self.scheduleEvents.removeAll(where: { $0.event.id == eventId })
+                    self.scheduleEvents.append(contentsOf: modifiedEvent)
+                } catch {
+                    self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
+                }
+            }
+        })
     }
     
     func removeScheduleObservers() {
@@ -283,6 +266,11 @@ class ScheduleViewModel: ScheduleViewModelProtocol, ObservableObject {
         if let removeHandler = removedEventsHandler {
             scheduleService.removeScheduleObserver(handle: removeHandler, scheduleId: scheduleId)
             removedEventsHandler = nil
+        }
+        
+        if let updateHandler = updatedEventsHandler {
+            scheduleService.removeScheduleObserver(handle: updateHandler, scheduleId: scheduleId)
+            updatedEventsHandler = nil
         }
     }
     

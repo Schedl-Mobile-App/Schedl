@@ -9,7 +9,7 @@ import FirebaseDatabase
 import FirebaseCore
 
 class ScheduleService: ScheduleServiceProtocol {
-
+    
     static let shared = ScheduleService()
     let ref: DatabaseReference
     
@@ -146,6 +146,15 @@ class ScheduleService: ScheduleServiceProtocol {
         let eventsRef = ref.child("scheduleEvents").child(scheduleId)
         
         return eventsRef.observe(.childRemoved) { snapshot in
+            let eventId = snapshot.key
+            completion(eventId)
+        }
+    }
+    
+    func observeUpdatedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
+        let eventsRef = ref.child("scheduleEvents").child(scheduleId)
+        
+        return eventsRef.observe(.childChanged) { snapshot in
             let eventId = snapshot.key
             completion(eventId)
         }

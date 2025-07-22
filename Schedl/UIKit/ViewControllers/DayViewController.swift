@@ -292,14 +292,14 @@ class DayViewController: UIViewController {
 //    }
     
     private func setupViewModelObservation() {
-        // keep in mind that the fetching of events is handled within this VC's root controller so all we need to do here is watch for changes to the vm's oublished value
-        coordinator?.scheduleViewModel.$scheduleEvents
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newEvents in
-//                self?.updateEventsOverlay()
-                print("Being called here in view model observation")
-            }
-            .store(in: &cancellables)
+        // keep in mind that the fetching of events is handled within this VC's root controller so all we need to do here is watch for changes to the vm's published value
+//        coordinator?.scheduleViewModel.$scheduleEvents
+//            .receive(on: DispatchQueue.main)
+//            .sink { [weak self] newEvents in
+////                self?.updateEventsOverlay()
+//                print("Being called here in view model observation")
+//            }
+//            .store(in: &cancellables)
     }
     
     @objc
@@ -338,10 +338,21 @@ class DayViewController: UIViewController {
     func showCreateEvent() {
         
         if let scheduleViewModel = coordinator?.scheduleViewModel {
+            
+            // since event details view expects a Binding type, and we can't explicity
+            // use the $ binding syntax within a view controller, we can create a
+            // binding type manually
+            let shouldReloadDataBinding = Binding<Bool>(
+                get: { scheduleViewModel.shouldReloadData },
+                set: { newValue in
+                    scheduleViewModel.shouldReloadData = newValue
+                }
+            )
+                        
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(
-                rootView: CreateEventView(scheduleViewModel: scheduleViewModel)
+                rootView: CreateEventView(currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding)
             )
             
             navigationController?.pushViewController(hostingController, animated: true)
@@ -360,7 +371,7 @@ class DayViewController: UIViewController {
                     scheduleViewModel.shouldReloadData = newValue
                 }
             )
-            
+                        
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(

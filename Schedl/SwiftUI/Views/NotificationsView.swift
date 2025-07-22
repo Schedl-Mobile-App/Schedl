@@ -193,7 +193,7 @@ struct NotificationsView: View {
                             .fontWeight(.bold)
                             .imageScale(.large)
                             .labelStyle(.iconOnly)
-                            .foregroundStyle(Color.primary)
+                            .foregroundStyle(Color(hex: 0x333333))
                     }
                     
                     
@@ -259,6 +259,7 @@ struct NotificationsView: View {
                     }
                 }
             }
+            .padding(.bottom, 0.5)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .task {
                 await notificationViewModel.fetchNotifications()

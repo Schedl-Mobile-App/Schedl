@@ -211,11 +211,15 @@ class NotificationService: NotificationServiceProtocol {
         
         if responseStatus {
             
+            let dict = [
+                "last_modified": ServerValue.timestamp()
+            ]
+            
             let queryRequest: [String: Any] = [
                 "/eventInvites/\(senderId)/\(toUserId)": NSNull(),
                 "/notifications/\(toUserId)/\(notificationId)": NSNull(),
                 "/schedules/\(userScheduleId)/eventIds/\(eventId)": true,
-                "/scheduleEvents/\(userScheduleId)/\(eventId)": true,
+                "/scheduleEvents/\(userScheduleId)/\(eventId)": dict,
                 "/events/\(eventId)/taggedUsers/\(toUserId)": true,
             ]
             
