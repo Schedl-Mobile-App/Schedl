@@ -63,7 +63,7 @@ class ScheduleViewController: UIViewController {
         filterButton.configuration?.image = UIImage(systemName: "line.horizontal.3")
         filterButton.translatesAutoresizingMaskIntoConstraints = false
         filterButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .bold)
-        filterButton.addTarget(self, action: #selector(toggleSidebar), for: .touchUpInside)
+        filterButton.addTarget(self, action: #selector(toggleOptions), for: .touchUpInside)
         filterButton.configuration?.baseForegroundColor = UIColor(Color(hex: 0x857F78))
         
         scheduleNameLabel.font = .systemFont(ofSize: 18, weight: .semibold)
@@ -152,7 +152,7 @@ class ScheduleViewController: UIViewController {
         self.currentVC = newVC
     }
     
-    @objc func toggleSidebar() {
+    @objc func toggleOptions() {
         spinButtonCABasic(filterButton)
         showScheduleOptions.toggle()
         

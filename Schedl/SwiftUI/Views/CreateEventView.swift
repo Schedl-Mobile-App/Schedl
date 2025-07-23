@@ -12,6 +12,7 @@ struct CreateEventView: View {
     @StateObject var eventViewModel: EventViewModel
     @Environment(\.dismiss) var dismiss
     @Binding var shouldReloadData: Bool
+    @State var hideTabbar = true
     
     @FocusState var isFocused: EventInfoFields?
     
@@ -28,6 +29,7 @@ struct CreateEventView: View {
             VStack(spacing: 15) {
                 ZStack(alignment: .leading) {
                     Button(action: {
+                        hideTabbar = false
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
@@ -119,6 +121,7 @@ struct CreateEventView: View {
                     isFocused = nil
                 }
             }
+            .padding(.bottom, 0.5)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationBarBackButtonHidden(true)
@@ -128,6 +131,7 @@ struct CreateEventView: View {
         .onDisappear {
             shouldReloadData = true
         }
+        .toolbar(hideTabbar ? .hidden : .visible, for: .tabBar)
     }
 }
 

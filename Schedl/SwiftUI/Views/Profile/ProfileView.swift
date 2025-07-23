@@ -12,6 +12,8 @@ struct ProfileView: View {
     
     @StateObject var profileViewModel: ProfileViewModel
     @EnvironmentObject var authViewModel: AuthViewModel
+    @State var hideTabbar = false
+    @State var isActive = false
     @State var selectedType: Int = 0
     var utils = ["Upcoming", "Invited", "Past"]
     @Environment(\.dismiss) var dismiss
@@ -55,13 +57,12 @@ struct ProfileView: View {
                                         .fontWeight(.bold)
                                         .fontDesign(.monospaced)
                                         .tracking(-0.25)
-                                        .frame(maxWidth: .infinity, alignment: .center)
                                 }
                                 Spacer()
-                                NavigationLink(destination: SettingsView(profileViewModel: profileViewModel).environmentObject(authViewModel)) {
+                                NavigationLink(destination: SettingsView(profileViewModel: profileViewModel, hideTabbar: $hideTabbar).environmentObject(authViewModel), isActive: $isActive) {
                                     Image(systemName: "gearshape")
                                         .fontWeight(.bold)
-                                        .imageScale(.large)
+                                        .font(.system(size: 24))
                                         .labelStyle(.iconOnly)
                                         .foregroundStyle(Color(hex: 0x333333))
                                 }
@@ -159,16 +160,16 @@ struct ProfileView: View {
                                             case 0: ForEach(profileViewModel.currentEvents, id: \.self.id) { event in
                                                 if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
                                                     
-                                                    EventCard(event: event, profileViewModel: profileViewModel)
+                                                    EventCard(event: event, hideTabbar: $hideTabbar, profileViewModel: profileViewModel)
                                                 }
                                             }
                                             case 1: ForEach(profileViewModel.invitedEvents, id: \.self.id) { event in
                                                 if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
                                                     
-                                                    EventCard(event: event, profileViewModel: profileViewModel)
+                                                    EventCard(event: event, hideTabbar: $hideTabbar, profileViewModel: profileViewModel)
                                                 }
                                             }
-                                            case 2: ForEach(profileViewModel.pastEvents, id: \.self.id) { EventCard(event: $0, profileViewModel: profileViewModel) }
+                                            case 2: ForEach(profileViewModel.pastEvents, id: \.self.id) { EventCard(event: $0, hideTabbar: $hideTabbar, profileViewModel: profileViewModel) }
                                             default: EmptyView()
                                             }
                                         }
@@ -227,7 +228,7 @@ struct ProfileView: View {
                 await profileViewModel.loadProfileData()
             }
         }
-        .toolbar(profileViewModel.showSaveChangesModal || profileViewModel.showAddFriendModal ? .hidden : .visible, for: .tabBar)
+        .toolbar(profileViewModel.showSaveChangesModal || profileViewModel.showAddFriendModal || hideTabbar || isActive ? .hidden : .visible, for: .tabBar)
     }
 }
 

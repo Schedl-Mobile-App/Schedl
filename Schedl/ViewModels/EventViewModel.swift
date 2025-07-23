@@ -49,6 +49,13 @@ class EventViewModel: ObservableObject {
     @Published var showInviteUsersSheet: Bool = false
     @Published var hasTriedSubmitting = false
     
+    var userCanEdit: Bool {
+        if let event = selectedEvent {
+            return event.event.userId == currentUser.id || event.event.taggedUsers.contains(currentUser.id)
+        }
+        return false
+    }
+    
     var selectedColor: String {
         if let color = eventColor {
             return color.toHex()!
@@ -112,6 +119,9 @@ class EventViewModel: ObservableObject {
             }
             
             try await eventService.updateEvent(eventId: event.event.id, scheduleIds: scheduleIds, title: newTitle, eventDate: newStartDate, startTime: newStartTime, endTime: newEndTime, location: newLocation, repeatedDays: newRepeatedDays, color: newEventColor, notes: newNotes)
+            
+            selectedEvent = RecurringEvents(date: event.date, event: Event(id: event.event.id, userId: event.event.userId, scheduleId: event.event.scheduleId, title: title!, startDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!), creationDate: event.event.creationDate, locationName: selectedPlacemark!.name, locationAddress: selectedPlacemark!.address, latitude: selectedPlacemark!.latitude, longitude: selectedPlacemark!.longitude, taggedUsers: event.event.taggedUsers, color: selectedColor, notes: notes ?? ""))
+            
             shouldDismiss = true
 
             self.isLoading = false

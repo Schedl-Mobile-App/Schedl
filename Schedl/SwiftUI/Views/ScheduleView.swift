@@ -38,6 +38,8 @@ struct ScheduleView: UIViewControllerRepresentable {
         
         navController.navigationBar.isTranslucent = false
         navController.setNavigationBarHidden(true, animated: false)
+        navController.hidesBottomBarWhenPushed = true
+        navController.toolbar.isTranslucent = true
         
         return navController
     }

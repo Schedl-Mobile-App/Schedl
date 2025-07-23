@@ -295,6 +295,12 @@ class WeekViewController: UIViewController {
         dayHeader.setDates(dayList: dayList)
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        showCreateEventButton()
+    }
+    
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         
@@ -369,6 +375,10 @@ class WeekViewController: UIViewController {
     func showCreateEvent() {
         
         if let scheduleViewModel = coordinator?.scheduleViewModel {
+            
+            self.createEventButton.alpha = 0
+            self.createEventButton.isHidden = true
+            
             // since event details view expects a Binding type, and we can't explicity
             // use the $ binding syntax within a view controller, we can create a
             // binding type manually
@@ -386,11 +396,17 @@ class WeekViewController: UIViewController {
             )
             
             navigationController?.pushViewController(hostingController, animated: true)
+            navigationController?.tabBarController?.isTabBarHidden = true
+            navigationController?.toolbar.isHidden = true
+            navigationController?.toolbar.isTranslucent = true
         }
     }
     
     func showEventDetails(event: RecurringEvents) {
         if let scheduleViewModel = coordinator?.scheduleViewModel {
+            
+            self.createEventButton.alpha = 0
+            self.createEventButton.isHidden = true
             
             // since event details view expects a Binding type, and we can't explicity
             // use the $ binding syntax within a view controller, we can create a
@@ -409,6 +425,9 @@ class WeekViewController: UIViewController {
             )
             
             navigationController?.pushViewController(hostingController, animated: true)
+            navigationController?.tabBarController?.isTabBarHidden = true
+            navigationController?.toolbar.isHidden = true
+            navigationController?.toolbar.isTranslucent = true
         }
     }
     

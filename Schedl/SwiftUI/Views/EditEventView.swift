@@ -9,16 +9,10 @@ import SwiftUI
 
 struct EditEventView: View {
     
-    @StateObject var eventViewModel: EventViewModel
+    @ObservedObject var eventViewModel: EventViewModel
     @Environment(\.dismiss) var dismiss
-    @Binding var shouldReloadData: Bool
         
     @FocusState var isFocused: EventInfoFields?
-    
-    init(currentUser: User, event: RecurringEvents, shouldReloadData: Binding<Bool>) {
-        _eventViewModel = StateObject(wrappedValue: EventViewModel(currentUser: currentUser, selectedEvent: event))
-        _shouldReloadData = Binding(projectedValue: shouldReloadData)
-    }
     
     var body: some View {
         ZStack {
@@ -147,11 +141,6 @@ struct EditEventView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationBarBackButtonHidden(true)
-        .onAppear {
-            shouldReloadData = false
-        }
-        .onDisappear {
-            shouldReloadData = true
-        }
+        .toolbar(.hidden, for: .tabBar)
     }
 }
