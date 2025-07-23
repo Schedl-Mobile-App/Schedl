@@ -115,7 +115,7 @@ struct SettingsView: View {
     @ObservedObject var profileViewModel: ProfileViewModel
     @EnvironmentObject var authViewModel: AuthViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var showTabBar = false
+    @Binding var hideTabbar: Bool
     
     @State private var defaultEventVisibility: Bool = false
     @State private var allowInvitesFromAnyone: Bool = true
@@ -130,7 +130,7 @@ struct SettingsView: View {
             VStack {
                 ZStack(alignment: .leading) {
                     Button(action: {
-                        showTabBar.toggle()
+                        hideTabbar = false
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
@@ -248,5 +248,6 @@ struct SettingsView: View {
             profileViewModel.shouldReloadData = true
         }
         .navigationBarBackButtonHidden(true)
+        .toolbar(hideTabbar ? .hidden : .visible, for: .tabBar)
     }
 }
