@@ -12,14 +12,19 @@ struct ProfileView: View {
     
     @StateObject var profileViewModel: ProfileViewModel
     @EnvironmentObject var authViewModel: AuthViewModel
-    @State var hideTabbar = false
-    @State var isActive = false
+    @EnvironmentObject var tabBarState: TabBarState
+        
+    @State var navigateToEventDetails = false
+    @State var navigateToSettings = false
+    @State var navigateToFriends = false
+    
     @State var selectedType: Int = 0
     var utils = ["Upcoming", "Invited", "Past"]
     @Environment(\.dismiss) var dismiss
         
     init(currentUser: User, profileUser: User) {
         _profileViewModel = StateObject(wrappedValue: ProfileViewModel(currentUser: currentUser, profileUser: profileUser))
+        print("in the init of profile view")
     }
     
     var body: some View {
@@ -59,7 +64,10 @@ struct ProfileView: View {
                                         .tracking(-0.25)
                                 }
                                 Spacer()
-                                NavigationLink(destination: SettingsView(profileViewModel: profileViewModel, hideTabbar: $hideTabbar).environmentObject(authViewModel), isActive: $isActive) {
+                                Button(action: {
+                                    tabBarState.hideTabbar = true
+                                    navigateToSettings = true
+                                }) {
                                     Image(systemName: "gearshape")
                                         .fontWeight(.bold)
                                         .font(.system(size: 24))
@@ -79,6 +87,7 @@ struct ProfileView: View {
                             
                             HStack {
                                 Button(action: {
+                                    tabBarState.hideTabbar = true
                                     dismiss()
                                 }) {
                                     Image(systemName: "chevron.left")
@@ -110,7 +119,7 @@ struct ProfileView: View {
                             UserDisplayName(profileViewModel: profileViewModel)
                         }
                         
-                        ProfileInformatics(profileViewModel: profileViewModel)
+                        ProfileInformatics(profileViewModel: profileViewModel, navigateToFriends: $navigateToFriends).environmentObject(tabBarState)
                         
                         UserViewOptions(profileViewModel: profileViewModel)
                         
@@ -160,16 +169,17 @@ struct ProfileView: View {
                                             case 0: ForEach(profileViewModel.currentEvents, id: \.self.id) { event in
                                                 if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
                                                     
-                                                    EventCard(event: event, hideTabbar: $hideTabbar, profileViewModel: profileViewModel)
+                                                    EventCard(event: event, navigateToEventDetails: $navigateToEventDetails, selectedEvent: $profileViewModel.selectedEvent).environmentObject(tabBarState)
                                                 }
                                             }
                                             case 1: ForEach(profileViewModel.invitedEvents, id: \.self.id) { event in
                                                 if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
                                                     
-                                                    EventCard(event: event, hideTabbar: $hideTabbar, profileViewModel: profileViewModel)
+                                                    EventCard(event: event, navigateToEventDetails: $navigateToEventDetails, selectedEvent: $profileViewModel.selectedEvent).environmentObject(tabBarState)
                                                 }
                                             }
-                                            case 2: ForEach(profileViewModel.pastEvents, id: \.self.id) { EventCard(event: $0, hideTabbar: $hideTabbar, profileViewModel: profileViewModel) }
+                                            case 2: ForEach(profileViewModel.pastEvents, id: \.self.id) { event in
+                                                EventCard(event: event, navigateToEventDetails: $navigateToEventDetails, selectedEvent: $profileViewModel.selectedEvent).environmentObject(tabBarState)}
                                             default: EmptyView()
                                             }
                                         }
@@ -222,13 +232,30 @@ struct ProfileView: View {
                 .allowsHitTesting(profileViewModel.showSaveChangesModal)
             }
         }
+        .onAppear {
+            tabBarState.hideTabbar = false
+        }
         .navigationBarBackButtonHidden(true)
         .task {
             if profileViewModel.shouldReloadData {
                 await profileViewModel.loadProfileData()
             }
         }
-        .toolbar(profileViewModel.showSaveChangesModal || profileViewModel.showAddFriendModal || hideTabbar || isActive ? .hidden : .visible, for: .tabBar)
+        .toolbar(profileViewModel.showSaveChangesModal || profileViewModel.showAddFriendModal || tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
+        .navigationDestination(isPresented: $navigateToSettings) {
+            SettingsView(profileViewModel: profileViewModel)
+                .environmentObject(authViewModel)
+                .environmentObject(tabBarState)
+        }
+        .navigationDestination(isPresented: $navigateToEventDetails) {
+            if let event = profileViewModel.selectedEvent {
+                EventDetailsView(event: event, currentUser: profileViewModel.currentUser, shouldReloadData: $profileViewModel.shouldReloadData)
+            }
+        }
+        .navigationDestination(isPresented: $navigateToFriends) {
+            FriendsView(profileViewModel: profileViewModel)
+                .environmentObject(tabBarState)
+        }
     }
 }
 
@@ -334,13 +361,13 @@ struct UserProfileImage: View {
                 .frame(width: 125, height: 112.5, alignment: .topTrailing)
             }
         }
-//        .onChange(of: pickerItem) {
-//            Task {
-//                if let imageData = try await pickerItem?.loadTransferable(type: Data.self) {
-//                    profileViewModel.selectedImage = UIImage(data: imageData)
-//                }
-//            }
-//        }
+        .onChange(of: pickerItem) {
+            Task {
+                if let imageData = try await pickerItem?.loadTransferable(type: Data.self) {
+                    profileViewModel.selectedImage = UIImage(data: imageData)
+                }
+            }
+        }
     }
 }
 

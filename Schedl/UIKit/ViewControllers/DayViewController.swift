@@ -55,6 +55,8 @@ class DayViewController: UIViewController {
             }
         }
     }
+    var createEventButtonWidthConstraint: NSLayoutConstraint?
+    var createEventButtonHeightConstraint: NSLayoutConstraint?
     
     var positionScroll: CGPoint = .zero
     let buttonColors: ButtonColors = [ButtonColors.palette1, ButtonColors.palette2, ButtonColors.palette3, ButtonColors.palette4].randomElement()!
@@ -89,6 +91,7 @@ class DayViewController: UIViewController {
         cell.configureUI()
     }
     
+    
 //    lazy var eventContainerScrollView: PassthroughView  = {
 //        let scrollView = PassthroughView()
 //        scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -102,6 +105,8 @@ class DayViewController: UIViewController {
 //    }()
     
 //    let eventContainer = EventCellsContainer()
+    
+    var isExpanded: Bool = true
                 
     let overlayView = UIView()
     
@@ -112,6 +117,12 @@ class DayViewController: UIViewController {
     let exampleEvent = UIView()
     
     let createEventButton = UIButton()
+    
+    let createBlendButton = UIButton()
+    let createBlendLabel = UILabel()
+    
+    let createScheduleEventButton = UIButton()
+    let createScheduleEventLabel = UILabel()
     
 //    let dayHeader = CollectionViewDaysHeader()
     let timeColumn = CollectionViewTimesColumn()
@@ -145,6 +156,12 @@ class DayViewController: UIViewController {
                     
         view.addSubview(displayedMonthLabel)
         view.addSubview(displayedYearLabel)
+        
+//        collectionView.register(
+//            .self,
+//            forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
+//            withReuseIdentifier: "MyHeaderView"
+//        )
         
         collectionView.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
         
@@ -185,9 +202,46 @@ class DayViewController: UIViewController {
         createEventButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 24, weight: .medium)
         createEventButton.configuration?.baseForegroundColor = buttonColors.foregroundColor
         createEventButton.translatesAutoresizingMaskIntoConstraints = false
-        createEventButton.addTarget(self, action: #selector(showCreateEvent), for: .touchUpInside)
+        createEventButton.addTarget(self, action: #selector(showCreateOptions), for: .touchUpInside)
         
-        view.addSubview(createEventButton)
+        createBlendButton.configuration = .filled()
+        createBlendButton.configuration?.cornerStyle = .capsule
+        createBlendButton.configuration?.baseBackgroundColor = buttonColors.backgroundColor
+        createBlendButton.configuration?.image = UIImage(systemName: "person.2.badge.plus")
+        createBlendButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+        createBlendButton.configuration?.baseForegroundColor = buttonColors.foregroundColor
+        createBlendButton.translatesAutoresizingMaskIntoConstraints = false
+        createBlendButton.addTarget(self, action: #selector(showCreateBlend), for: .touchUpInside)
+        createBlendButton.isHidden = true
+        createBlendButton.alpha = 0
+        
+        createBlendLabel.text = "Create Blend"
+        createBlendLabel.font = .systemFont(ofSize: 12, weight: .bold)
+        createBlendLabel.translatesAutoresizingMaskIntoConstraints = false
+        createBlendLabel.textColor = UIColor(Color(hex: 0x544F47))
+        createBlendLabel.isHidden = true
+        createBlendLabel.alpha = 0
+        
+        createScheduleEventButton.configuration = .filled()
+        createScheduleEventButton.configuration?.cornerStyle = .capsule
+        createScheduleEventButton.configuration?.baseBackgroundColor = buttonColors.backgroundColor
+        createScheduleEventButton.configuration?.image = UIImage(systemName: "calendar.badge.plus")
+        createScheduleEventButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+        createScheduleEventButton.configuration?.baseForegroundColor = buttonColors.foregroundColor
+        createScheduleEventButton.translatesAutoresizingMaskIntoConstraints = false
+        createScheduleEventButton.addTarget(self, action: #selector(showCreateEvent), for: .touchUpInside)
+        createScheduleEventButton.isHidden = true
+        createScheduleEventButton.alpha = 0
+        
+        
+        createScheduleEventLabel.text = "Create Event"
+        createScheduleEventLabel.font = .systemFont(ofSize: 12, weight: .bold)
+        createScheduleEventLabel.translatesAutoresizingMaskIntoConstraints = false
+        createScheduleEventLabel.textColor = UIColor(Color(hex: 0x544F47))
+        createScheduleEventLabel.isHidden = true
+        createScheduleEventLabel.alpha = 0
+        
+        
         // Add the scroll views first
 //        view.addSubview(dayHeaderScrollView)
         view.addSubview(timeColumnScrollView)
@@ -208,7 +262,17 @@ class DayViewController: UIViewController {
         
 //        view.addSubview(eventContainerScrollView)
         
-        view.bringSubviewToFront(createEventButton)
+        view.addSubview(createEventButton)
+        view.addSubview(createBlendButton)
+        view.addSubview(createBlendLabel)
+        view.addSubview(createScheduleEventButton)
+        view.addSubview(createScheduleEventLabel)
+        
+        // constraints for our collection view
+        let widthConstraint = createEventButton.widthAnchor.constraint(equalToConstant: 60)
+        let heightConstraint = createEventButton.heightAnchor.constraint(equalToConstant: 60)
+        createEventButtonWidthConstraint = widthConstraint
+        createEventButtonHeightConstraint = heightConstraint
         
         // constraints for our collection view
         NSLayoutConstraint.activate([
@@ -222,6 +286,11 @@ class DayViewController: UIViewController {
             searchButton.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             searchButton.bottomAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor),
             
+            overlayView.topAnchor.constraint(equalTo: displayedMonthLabel.layoutMarginsGuide.bottomAnchor),
+            overlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            overlayView.widthAnchor.constraint(equalToConstant: 48),
+            overlayView.heightAnchor.constraint(equalToConstant: 60),
+            
 //            dayHeaderScrollView.topAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor),
 //            dayHeaderScrollView.leadingAnchor.constraint(equalTo: overlayView.trailingAnchor),
 //            dayHeaderScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -231,7 +300,7 @@ class DayViewController: UIViewController {
             timeColumnScrollView.topAnchor.constraint(equalTo: overlayView.bottomAnchor),
             timeColumnScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             timeColumnScrollView.widthAnchor.constraint(equalToConstant: 48),
-            timeColumnScrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            timeColumnScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
 //            // Headers inside scroll views (position at 0,0)
 //            dayHeader.topAnchor.constraint(equalTo: dayHeaderScrollView.contentLayoutGuide.topAnchor),
@@ -244,10 +313,10 @@ class DayViewController: UIViewController {
             timeColumn.widthAnchor.constraint(equalToConstant: 48),
             timeColumn.heightAnchor.constraint(equalToConstant: singleDayGroupHeight),
             
-            collectionView.topAnchor.constraint(equalTo: overlayView.bottomAnchor),
+            collectionView.topAnchor.constraint(equalTo: timeColumnScrollView.topAnchor),
             collectionView.leadingAnchor.constraint(equalTo: timeColumnScrollView.trailingAnchor),
             collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
 //            eventContainerScrollView.topAnchor.constraint(equalTo: dayHeaderScrollView.bottomAnchor),
 //            eventContainerScrollView.leadingAnchor.constraint(equalTo: timeColumnScrollView.trailingAnchor),
@@ -259,15 +328,26 @@ class DayViewController: UIViewController {
 //            eventContainer.widthAnchor.constraint(equalToConstant: horizontalGroupWidth),
 //            eventContainer.heightAnchor.constraint(equalToConstant: horizontalGroupHeight),
             
-            overlayView.topAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor),
-            overlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            overlayView.widthAnchor.constraint(equalToConstant: 48),
-            overlayView.heightAnchor.constraint(equalToConstant: 60),
+            createEventButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            createEventButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
+            widthConstraint,
+            heightConstraint,
             
-            createEventButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
-            createEventButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -15),
-            createEventButton.widthAnchor.constraint(equalToConstant: 60),
-            createEventButton.heightAnchor.constraint(equalToConstant: 60),
+            createBlendButton.bottomAnchor.constraint(equalTo: createBlendLabel.topAnchor, constant: -5),
+            createBlendButton.centerXAnchor.constraint(equalTo: createBlendLabel.centerXAnchor),
+            createBlendButton.widthAnchor.constraint(equalToConstant: 50),
+            createBlendButton.heightAnchor.constraint(equalToConstant: 50),
+            
+            createBlendLabel.bottomAnchor.constraint(equalTo: createEventButton.topAnchor),
+            createBlendLabel.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
+            
+            createScheduleEventButton.trailingAnchor.constraint(equalTo: createEventButton.leadingAnchor),
+            createScheduleEventButton.centerYAnchor.constraint(equalTo: createEventButton.centerYAnchor),
+            createScheduleEventButton.widthAnchor.constraint(equalToConstant: 50),
+            createScheduleEventButton.heightAnchor.constraint(equalToConstant: 50),
+            
+            createScheduleEventLabel.topAnchor.constraint(equalTo: createScheduleEventButton.bottomAnchor, constant: 5),
+            createScheduleEventLabel.centerXAnchor.constraint(equalTo: createScheduleEventButton.centerXAnchor),
         ])
         
         setDisplayedDates(centerDate: currentDate)
@@ -304,7 +384,17 @@ class DayViewController: UIViewController {
     
     @objc
     func showEventSearchMenu() {
-        let eventSearchSheet = EventSearchView()
+        guard let scheduleViewModel = coordinator?.scheduleViewModel else { return }
+        guard let tabBarState = coordinator?.tabBarState else { return }
+        let shouldReloadDataBinding = Binding<Bool>(
+            get: { scheduleViewModel.shouldReloadData },
+            set: { newValue in
+                scheduleViewModel.shouldReloadData = newValue
+            }
+        )
+        
+        
+        let eventSearchSheet = EventSearchView(currentUser: scheduleViewModel.currentUser, scheduleEvents: scheduleViewModel.scheduleEvents, shouldReloadData: shouldReloadDataBinding).environmentObject(tabBarState)
         
         let eventSearchSheetViewController = UIHostingController(rootView: eventSearchSheet)
         
@@ -334,10 +424,62 @@ class DayViewController: UIViewController {
         }
     }
     
+    @objc func showCreateOptions() {
+        self.isExpanded.toggle()
+        
+        if !isExpanded {
+            self.navigationController?.tabBarController?.setTabBarHidden(true, animated: true)
+        } else {
+            self.navigationController?.tabBarController?.setTabBarHidden(false, animated: true)
+        }
+        
+        let blendOffset: CGFloat = -20 // Move up
+        let scheduleOffset: CGFloat = -25 // Move left
+        let secondaryAlpha: CGFloat = isExpanded ? 0 : 1
+        let blendTransform = isExpanded ? .identity : CGAffineTransform(translationX: -5, y: blendOffset)
+        let scheduleTransform = isExpanded ? .identity : CGAffineTransform(translationX: scheduleOffset, y: 0)
+        
+        UIView.animate(withDuration: 0.4, delay: 0, options: [.curveEaseInOut], animations: {
+            // Animate main button rotation and size
+            self.createEventButton.transform = self.isExpanded ? .identity : CGAffineTransform(rotationAngle: CGFloat.pi/4)
+            self.createEventButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: self.isExpanded ? 24 : 18, weight: .medium)
+            self.createEventButtonWidthConstraint?.constant = self.isExpanded ? 60 : 45
+            self.createEventButtonHeightConstraint?.constant = self.isExpanded ? 60 : 45
+            self.view.layoutIfNeeded()
+
+            // Animate Blend button and label (move up)
+            self.createBlendButton.transform = blendTransform
+            self.createBlendButton.alpha = secondaryAlpha
+            self.createBlendButton.isHidden = false
+            self.createBlendLabel.transform = blendTransform
+            self.createBlendLabel.alpha = secondaryAlpha
+            self.createBlendLabel.isHidden = false
+
+            // Animate Schedule Event button and label (move left)
+            self.createScheduleEventButton.transform = scheduleTransform
+            self.createScheduleEventButton.alpha = secondaryAlpha
+            self.createScheduleEventButton.isHidden = false
+            self.createScheduleEventLabel.transform = scheduleTransform
+            self.createScheduleEventLabel.alpha = secondaryAlpha
+            self.createScheduleEventLabel.isHidden = false
+        }, completion: { [weak self] _ in
+            guard let self = self else { return }
+            if isExpanded {
+                self.createBlendButton.isHidden = true
+                self.createBlendLabel.isHidden = true
+                self.createScheduleEventButton.isHidden = true
+                self.createScheduleEventLabel.isHidden = true
+            }
+        })
+    }
+    
     @objc
     func showCreateEvent() {
         
         if let scheduleViewModel = coordinator?.scheduleViewModel {
+            
+//            self.createEventButton.alpha = 0
+//            self.createEventButton.isHidden = true
             
             // since event details view expects a Binding type, and we can't explicity
             // use the $ binding syntax within a view controller, we can create a
@@ -356,6 +498,44 @@ class DayViewController: UIViewController {
             )
             
             navigationController?.pushViewController(hostingController, animated: true)
+            navigationController?.tabBarController?.isTabBarHidden = true
+            navigationController?.toolbar.isHidden = true
+            navigationController?.toolbar.isTranslucent = true
+            
+            showCreateOptions()
+        }
+    }
+    
+    @objc func showCreateBlend() {
+        if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState {
+            
+//            self.createEventButton.alpha = 0
+//            self.createEventButton.isHidden = true
+            
+            // since event details view expects a Binding type, and we can't explicity
+            // use the $ binding syntax within a view controller, we can create a
+            // binding type manually
+            let shouldReloadDataBinding = Binding<Bool>(
+                get: { scheduleViewModel.shouldReloadData },
+                set: { newValue in
+                    scheduleViewModel.shouldReloadData = newValue
+                }
+            )
+            
+            tabBarState.hideTabbar = true
+                        
+            // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
+            // inject our viewModel explicitly as an environment object
+            let hostingController = UIHostingController(
+                rootView: CreateBlendView(currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding).environmentObject(tabBarState)
+            )
+            
+            navigationController?.pushViewController(hostingController, animated: true)
+            navigationController?.tabBarController?.isTabBarHidden = true
+            navigationController?.toolbar.isHidden = true
+            navigationController?.toolbar.isTranslucent = true
+            
+            showCreateOptions()
         }
     }
     
@@ -430,7 +610,10 @@ class DayViewController: UIViewController {
         let horizontalGroupContainer = NSCollectionLayoutGroup.horizontal(layoutSize: horizontalGroupContainerSize,
                                                                           subitems: [singleDayGroup])
         
+        let dayHeader = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(60)), elementKind: UICollectionView.elementKindSectionHeader, alignment: .top)
+        
         let section = NSCollectionLayoutSection(group: horizontalGroupContainer)
+        section.boundarySupplementaryItems = [dayHeader]
         section.orthogonalScrollingBehavior = .groupPaging
         return UICollectionViewCompositionalLayout(section: section)
     }
@@ -665,6 +848,9 @@ extension DayViewController: UICollectionViewDelegate {
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         positionScroll = scrollView.contentOffset
         hideCreateEventButton()
+        if !isExpanded {
+            showCreateOptions()
+        }
         
         if !hasUserScrolled {
             hasUserScrolled = true

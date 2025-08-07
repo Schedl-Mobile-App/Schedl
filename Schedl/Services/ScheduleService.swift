@@ -9,7 +9,6 @@ import FirebaseDatabase
 import FirebaseCore
 
 class ScheduleService: ScheduleServiceProtocol {
-    
     static let shared = ScheduleService()
     let ref: DatabaseReference
     
@@ -17,14 +16,34 @@ class ScheduleService: ScheduleServiceProtocol {
         ref = Database.database().reference()
     }
     
-    func fetchSchedule(userId: String) async throws -> Schedule {
-        
-        let userScheduleRef = ref.child("users").child(userId).child("schedule")
+    func fetchAllSchedules(userId: String) async throws -> [Schedule] {
+        let userScheduleRef = ref.child("users").child(userId).child("scheduleIds")
         let userSnapshot = try await userScheduleRef.getData()
         
-        guard let scheduleId = userSnapshot.value as? String else {
-            throw ScheduleServiceError.failedToFindScheduleId
+        guard let scheduleIdsDict = userSnapshot.value as? [String: Any] else {
+            return []
         }
+        
+        let scheduleIds = Array(scheduleIdsDict.keys)
+        
+        var schedules: [Schedule] = []
+        
+        try await withThrowingTaskGroup(of: Schedule.self) { group in
+            for id in scheduleIds {
+                group.addTask {
+                    try await self.fetchSchedule(scheduleId: id)
+                }
+            }
+            
+            for try await schedule in group {
+                schedules.append(schedule)
+            }
+        }
+        
+        return schedules
+    }
+    
+    func fetchSchedule(scheduleId: String) async throws -> Schedule {
         
         // Store a reference to the child node of the schedules node in the Firebase DB
         let scheduleRef = ref.child("schedules").child(scheduleId)
@@ -53,14 +72,14 @@ class ScheduleService: ScheduleServiceProtocol {
     }
     
     func fetchScheduleId(userId: String) async throws -> String {
-        let userRef = ref.child("users").child(userId).child("schedule")
+        let userRef = ref.child("users").child(userId).child("scheduleIds")
         let snapshot = try await userRef.getData()
         
-        guard let scheduleId = snapshot.value as? String else {
+        guard let scheduleIds = snapshot.value as? [String: Any] else {
             throw ScheduleServiceError.failedToFetchScheduleFromUser
         }
         
-        return scheduleId
+        return scheduleIds.keys.first!
     }
     
     func fetchScheduleIds(userIds: [String]) async throws -> [String] {
@@ -101,7 +120,7 @@ class ScheduleService: ScheduleServiceProtocol {
             
             let updates: [String: Any] = [
                 "/schedules/\(id)" : jsonDictionary,
-                "/users/\(userId)/schedule" : id
+                "/users/\(userId)/scheduleIds/\(id)" : true
             ]
             
             try await ref.updateChildValues(updates)
@@ -123,13 +142,98 @@ class ScheduleService: ScheduleServiceProtocol {
     
     func deleteSchedule(scheduleId: String, userId: String) async throws -> Void {
         let scheduleRef = ref.child("schedules").child(scheduleId)
-        let userRef = ref.child("users").child(userId).child("schedule")
+        let userRef = ref.child("users").child(userId).child("scheduleIds").child(scheduleId)
         
         do {
             try await scheduleRef.removeValue()
             try await userRef.removeValue()
         } catch {
             throw ScheduleServiceError.failedToDeleteSchedule
+        }
+    }
+    
+    func createBlendSchedule(ownerId: String, title: String, invitedUsers: [String], scheduleIds: [String], colors: [String: String]) async throws -> Void {
+        let blendId = ref.child("blends").childByAutoId().key ?? UUID().uuidString
+        
+        var invitedUsersDict: [String: Bool] = [:]
+        for id in invitedUsers {
+            invitedUsersDict[id] = true
+        }
+        
+        var scheduleDict: [String: Bool] = [:]
+        for id in scheduleIds {
+            scheduleDict[id] = true
+        }
+        
+        let blendDict: [String: Any] = [
+            "id": blendId,
+            "ownerId": ownerId,
+            "title": title,
+            "scheduleIds": scheduleDict,
+            "invitedUsers": invitedUsersDict,
+            "blendColors": colors,
+        ]
+        
+        do {
+            
+            var updates: [String: Any] = [
+                "/blends/\(blendId)" : blendDict,
+                "/users/\(ownerId)/blendIds/\(blendId)": true,
+            ]
+            
+            for id in invitedUsers {
+                updates["/users/\(id)/blendIds/\(blendId)"] = true
+            }
+            
+            try await ref.updateChildValues(updates)
+        } catch {
+            throw FirebaseError.failedToCreateSchedule
+        }
+    }
+    
+    func fetchAllBlendSchedules(userId: String) async throws -> [Blend] {
+        
+        var blends: [Blend] = []
+        
+        let userRef = ref.child("users").child(userId).child("blendIds")
+        let snapshot = try await userRef.getData()
+        
+        guard let blendDict = snapshot.value as? [String: Any] else {
+            return blends
+        }
+        
+        let blendIds = Array(blendDict.keys)
+        
+        try await withThrowingTaskGroup(of: Blend.self) { group in
+            for id in blendIds {
+                group.addTask { [self] in
+                    try await fetchBlendSchedule(blendId: id)
+                }
+            }
+            for try await blend in group {
+                blends.append(blend)
+            }
+        }
+        return blends
+    }
+    
+    func fetchBlendSchedule(blendId: String) async throws -> Blend {
+        let blendRef = ref.child("blends").child(blendId)
+        let snapshot = try await blendRef.getData()
+        
+        guard let blendDict = snapshot.value as? [String: Any] else {
+            throw ScheduleServiceError.failedToFetchScheduleEvents
+        }
+        
+        if let blendId = blendDict["id"] as? String,
+           let title = blendDict["title"] as? String,
+           let invitedUsers = blendDict["invitedUsers"] as? [String: Bool],
+           let scheduleIds = blendDict["scheduleIds"] as? [String: Bool],
+           let colors = blendDict["blendColors"] as? [String: String] {
+            
+            return Blend(id: blendId, title: title, invitedUsers: Array(invitedUsers.keys), scheduleIds: Array(scheduleIds.keys), colors: colors)
+        } else {
+            throw ScheduleServiceError.failedToFetchScheduleEvents
         }
     }
     

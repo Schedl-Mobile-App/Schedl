@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "custom_bakcgroundv81x.png",
+      "filename" : "custom_bakcgroundv91x.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "custom_bakcgroundv82x.png",
+      "filename" : "custom_bakcgroundv92x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "custom_bakcgroundv83x.png",
+      "filename" : "custom_bakcgroundv93x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

@@ -16,8 +16,7 @@ class SearchService: SearchServiceProtocol {
         ref = Database.database().reference()
     }
     
-    func fetchUserSearchInfo(username: String) async throws -> [String] {
-        
+    func fetchMatchingUsers(username: String) async throws -> [String] {
         let userRef = ref.child("usernames").queryOrderedByKey()
             .queryStarting(atValue: username)
             .queryEnding(atValue: username + "\u{f8ff}")
@@ -25,10 +24,56 @@ class SearchService: SearchServiceProtocol {
         
         // fetches entire usernames node so that we can filter cloest matched results
         let snapshot = try await userRef.getData()
-        guard let DBUserNames = snapshot.value as? [String: String] else {
+        guard let matchedUsers = snapshot.value as? [String: String] else {
+            return []
+        }
+        
+        return Array(matchedUsers.values)
+    }
+    
+    func fetchUserSearchInfo(currentUserId: String, username: String) async throws -> [SearchInfo] {
+        
+        let matchedUserIds = try await fetchMatchingUsers(username: username)
+        
+        var mappedSearchData: [SearchInfo] = []
+        
+        try await withThrowingTaskGroup(of: SearchInfo.self) { group in
+            for id in matchedUserIds {
+                group.addTask {
+                    try await self.fetchUserInfo(currentUserId: currentUserId, userId: id)
+                }
+            }
+            for try await result in group {
+                mappedSearchData.append(result)
+            }
+        }
+        
+        return mappedSearchData
+    }
+    
+    func fetchUserInfo(currentUserId: String, userId: String) async throws -> SearchInfo {
+        let userRef = ref.child("users").child(userId)
+        
+        let snapshot = try await userRef.getData()
+        guard let userData = snapshot.value as? [String: Any] else {
             throw FirebaseError.failedToFetchUserById
         }
         
-        return Array(DBUserNames.values)
+        let friends = userData["friends"] as? [String: Bool] ?? [:]
+        let posts = userData["posts"] as? [String: Bool] ?? [:]
+        
+        if
+            let id = userData["id"] as? String,
+            let username = userData["username"] as? String,
+            let displayName = userData["displayName"] as? String,
+            let email = userData["email"] as? String,
+            let profileImage = userData["profileImage"] as? String,
+            let createdAt = userData["creationDate"] as? Double {
+            
+            let user = User(id: id, username: username, email: email, displayName: displayName, profileImage: profileImage, creationDate: createdAt)
+            return SearchInfo(id: user.id, user: user, numOfFriends: friends.keys.count, numOfPosts: posts.keys.count, isFriend: friends.keys.contains(currentUserId))
+        } else {
+            throw UserServiceError.invalidData
+        }
     }
 }

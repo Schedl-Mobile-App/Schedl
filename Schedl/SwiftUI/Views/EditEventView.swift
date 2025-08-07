@@ -51,8 +51,9 @@ struct EditEventView: View {
                             }
                         }, label: {
                             Image(systemName: "trash")
-                                .font(.system(size: 26))
-                                .fontWeight(.semibold)
+                                .fontWeight(.bold)
+                                .font(.system(size: 24))
+                                .labelStyle(.iconOnly)
                                 .foregroundStyle(Color(hex: 0x333333))
                         })
                     }
@@ -61,7 +62,7 @@ struct EditEventView: View {
                 .frame(maxWidth: .infinity)
                 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .center, spacing: 30) {
+                    VStack(alignment: .center, spacing: 10) {
                         
                         // view for event title input
                         EventTitleView(title: $eventViewModel.title, isFocused: $isFocused, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, titleError: $eventViewModel.titleError)
@@ -85,39 +86,37 @@ struct EditEventView: View {
                             }
                         
                         // view for event notes input
-                        EventNotesView(notes: $eventViewModel.notes, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
+                        EventNotesView(notes: $eventViewModel.notes, notesError: $eventViewModel.notesError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
                         
-                        VStack(spacing: 12) {
-                            // view for event color selection
-                            EventColorView(eventColor: $eventViewModel.eventColor)
+                        EventColorView(eventColor: $eventViewModel.eventColor)
+                        
+                        VStack(spacing: 6) {
+                            Text(eventViewModel.submitError)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                                .opacity(eventViewModel.hasTriedSubmitting && !eventViewModel.submitError.isEmpty ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.2), value: eventViewModel.hasTriedSubmitting)
                             
-                            VStack(spacing: 6) {
-                                Text(eventViewModel.submitError)
-                                    .font(.footnote)
-                                    .foregroundStyle(.red)
-                                    .opacity(eventViewModel.hasTriedSubmitting && !eventViewModel.submitError.isEmpty ? 1 : 0)
-                                    .animation(.easeInOut(duration: 0.2), value: eventViewModel.hasTriedSubmitting)
-                                
-                                Button(action: {
-                                    Task {
-                                        await eventViewModel.updateEvent()
-                                        if eventViewModel.shouldDismiss {
-                                            dismiss()
-                                        }
+                            Button(action: {
+                                Task {
+                                    await eventViewModel.updateEvent()
+                                    if eventViewModel.shouldDismiss {
+                                        dismiss()
                                     }
-                                }) {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .overlay {
-                                            Text("Save Changes")
-                                                .foregroundColor(Color(hex: 0xf7f4f2))
-                                                .font(.system(size: 18, weight: .bold, design: .monospaced))
-                                                .tracking(0.1)
-                                        }
                                 }
-                                .frame(maxWidth: .infinity, minHeight: 50)
-                                .foregroundStyle(Color(hex: 0x3C859E))
-                            }
-                            .padding(.bottom)
+                            }, label: {
+                                Text("Save Changes")
+                                    .foregroundColor(Color(hex: 0xf7f4f2))
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .fontDesign(.monospaced)
+                                    .tracking(0.1)
+                            })
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color(hex: 0x3C859E))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .padding(.vertical, 8)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -17,15 +17,20 @@ class SearchViewModel: ObservableObject {
     @Published var showPopUp = false
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
-    @Published var searchResults: [User] = []
-    @Published var userInfo: [String : SearchInfo] = [:]
+    @Published var searchResults: [SearchInfo]? = nil
+    
+    @Published var matchedUsers: [String] = []
+    
     private var searchService: SearchServiceProtocol
     private var userService: UserServiceProtocol
     private var postService: PostServiceProtocol
     
+    @Published var searchText: String = ""
+    
+    @Published var selectedUser: User?
+    
     var searchTask: Task<Void, Never>?
         
-    @ObservationIgnored var searchTextSubject = CurrentValueSubject<String, Never>("")
     @ObservationIgnored var cancellables: Set<AnyCancellable> = []
     
     @MainActor
@@ -34,93 +39,65 @@ class SearchViewModel: ObservableObject {
         self.userService = userService
         self.postService = postService
         self.currentUser = currentUser
-        
-        searchTextSubject
-            .filter { $0.isEmpty }
-            .sink { [weak self] _ in
-                guard let self else { return }
-                self.searchTask?.cancel()
-                self.searchResults.removeAll()
-                self.errorMessage = nil
-                self.isLoading = false
-            }.store(in: &cancellables)
-            
-        
-        searchTextSubject
-            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            .sink { [weak self] text in
-                guard let self else { return }
-                self.searchTask?.cancel()
-                self.searchTask = createSearchTask(text)
-            }
-            .store(in: &cancellables)
     }
     
-    var searchText = "" {
-        didSet {
-            searchTextSubject.send(searchText)
+    func debounceSearch() {
+        // Cancel any ongoing search task
+        searchTask?.cancel()
+        // Start a new debounced task
+        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            // clear results
+            searchResults = nil
+            return
+        }
+        searchTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000) // 300ms
+            await self?.performSearch()
         }
     }
-    
-    var isSearchNotFound: Bool {
-        let isDataEmpty = self.searchResults.isEmpty
-        return isDataEmpty && searchText.count > 0
-    }
-    
+
     @MainActor
-    func createSearchTask(_ text: String) -> Task<Void, Never> {
-        Task { [weak self] in
-            guard let self else { return }
-            self.isLoading = true
-            self.errorMessage = nil
-            do {
-                let matchedUserIds = try await searchService.fetchUserSearchInfo(username: text)
-                let searchData = try await self.userService.fetchUsers(userIds: matchedUserIds)
-                await fetchSearchResults(searchData: searchData)
-                try Task.checkCancellation()
-                self.searchResults = searchData
-                self.isLoading = false
-            } catch {
-                if error is CancellationError {
-                    searchResults.removeAll()
-                    self.isLoading = false
-                } else {
-                    self.errorMessage = "Oops, there are no users with that username."
-                    self.isLoading = false
-                }
-            }
-        }
-    }
-    
-    @MainActor
-    func fetchSearchResults(searchData: [User]) async {
-        self.isLoading = true
-        self.errorMessage = nil
+    private func performSearch() async {
+        // perform your search logic here
+        isLoading = true
+        errorMessage = nil
         do {
-            for user in searchData {
-                let numOfFriends: Int
-                let numOfPosts: Int
-                do {
-                    numOfFriends = try await userService.fetchNumberOfFriends(userId: user.id)
-                } catch UserServiceError.failedToFetchFriends {
-                    numOfFriends = 0
-                }
-                do {
-                    numOfPosts = try await postService.fetchNumOfPosts(userId: user.id)
-                } catch PostServiceError.failedToReturnNumberOfPosts {
-                    numOfPosts = 0
-                }
-                let isFriend = try await userService.isFriend(userId: currentUser.id, otherUserId: user.id)
-                self.userInfo[user.id] = SearchInfo(
-                    numOfFriends: numOfFriends,
-                    numOfPosts: numOfPosts,
-                    isFriend: isFriend
-                )
-            }
-            self.isLoading = false
+            searchResults = try await searchService.fetchUserSearchInfo(currentUserId: currentUser.id, username: searchText)
+            isLoading = false
         } catch {
-            self.errorMessage = error.localizedDescription
+            errorMessage = error.localizedDescription
+            isLoading = false
         }
     }
+    
+    func debounceEventSearch() {
+        // Cancel any ongoing search task
+        searchTask?.cancel()
+        // Start a new debounced task
+        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            // clear results
+            searchResults = nil
+            return
+        }
+        searchTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000) // 300ms
+            await self?.performEventSearch()
+        }
+    }
+
+    @MainActor
+    private func performEventSearch() async {
+        // perform your search logic here
+        isLoading = true
+        errorMessage = nil
+        do {
+            matchedUsers = try await searchService.fetchMatchingUsers(username: searchText)
+            isLoading = false
+        } catch {
+            errorMessage = error.localizedDescription
+            isLoading = false
+        }
+    }
+    
+    
 }

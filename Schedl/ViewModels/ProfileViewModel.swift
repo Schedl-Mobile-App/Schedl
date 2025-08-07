@@ -30,6 +30,9 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     @Published var numberOfFriends: Int = 0
     @Published var cachedProfileImage: UIImage?
     @Published var showLogoutModal = false
+    
+    @Published var selectedEvent: RecurringEvents?
+    
     var profileUser: User
     @Published var isViewingFriend: Bool = false
     @Published var isShowingFriendRequest: Bool = false
@@ -333,6 +336,8 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
                     numOfPosts = 0
                 }
                 self.friendsInfoDict[user.id] = SearchInfo(
+                    id: user.id,
+                    user: user,
                     numOfFriends: numOfFriends,
                     numOfPosts: numOfPosts,
                     isFriend: true

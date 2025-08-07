@@ -9,11 +9,20 @@ import SwiftUI
 
 struct FriendCell: View {
     
+    @EnvironmentObject var tabBarState: TabBarState
+    
     @ObservedObject var profileViewModel: ProfileViewModel
     let userToDisplay: User
     
+    @Binding var selectedUser: User?
+    @Binding var shouldNavigate: Bool
+    
     var body: some View {
-        NavigationLink(destination: ProfileView(currentUser: profileViewModel.currentUser, profileUser: userToDisplay)) {
+        Button(action: {
+            tabBarState.hideTabbar = false
+            selectedUser = userToDisplay
+            shouldNavigate = true
+        }) {
             HStack(spacing: 15) {
                 Circle()
                     .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
@@ -87,10 +96,16 @@ struct FriendCell: View {
 
 struct FriendsView: View {
     
+    @EnvironmentObject var tabBarState: TabBarState
+    
     @ObservedObject var profileViewModel: ProfileViewModel
     @Environment(\.dismiss) var dismiss
     @State private var searchText = ""
     @FocusState var isSearching: Bool?
+    
+    @State var shouldNavigate = false
+    @State var selectedUser: User?
+    
     private var filteredUsers: [User] {
         if searchText.isEmpty {
             return profileViewModel.friends
@@ -114,6 +129,7 @@ struct FriendsView: View {
             VStack {
                 ZStack(alignment: .leading) {
                     Button(action: {
+                        tabBarState.hideTabbar = false
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
@@ -188,7 +204,7 @@ struct FriendsView: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         LazyVStack(spacing: 25) {
                             ForEach(filteredUsers, id: \.id) { user in
-                                FriendCell(profileViewModel: profileViewModel, userToDisplay: user)
+                                FriendCell(profileViewModel: profileViewModel, userToDisplay: user, selectedUser: $selectedUser, shouldNavigate: $shouldNavigate)
                             }
                         }
                         .padding(.vertical)
@@ -218,11 +234,19 @@ struct FriendsView: View {
             await profileViewModel.loadFriendsData()
         }
         .onAppear {
+            tabBarState.hideTabbar = true
             profileViewModel.shouldReloadData = false
         }
         .onDisappear {
             profileViewModel.shouldReloadData = true
         }
+        .toolbar(tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
         .navigationBarBackButtonHidden(true)
+        .navigationDestination(isPresented: $shouldNavigate) {
+            if let user = selectedUser {
+                ProfileView(currentUser: profileViewModel.currentUser, profileUser: user)
+                    .environmentObject(tabBarState)
+            }
+        }
     }
 }

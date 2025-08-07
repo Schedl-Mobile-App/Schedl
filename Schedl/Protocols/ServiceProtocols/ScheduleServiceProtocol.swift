@@ -8,7 +8,8 @@
 import FirebaseDatabase
 
 protocol ScheduleServiceProtocol {
-    func fetchSchedule(userId: String) async throws -> Schedule
+    func fetchAllSchedules(userId: String) async throws -> [Schedule]
+    func fetchSchedule(scheduleId: String) async throws -> Schedule
     func fetchScheduleId(userId: String) async throws -> String
     func fetchScheduleIds(userIds: [String]) async throws -> [String]
     func createSchedule(userId: String, title: String) async throws -> Schedule
@@ -20,4 +21,9 @@ protocol ScheduleServiceProtocol {
     func observeUpdatedEvents(scheduleId: String, completion: @escaping (
         String) -> Void) -> DatabaseHandle
     func removeScheduleObserver(handle: DatabaseHandle, scheduleId: String)
+    func createBlendSchedule(ownerId: String, title: String, invitedUsers: [String], scheduleIds: [String], colors: [String: String]) async throws -> Void
+    
+    func fetchAllBlendSchedules(userId: String) async throws -> [Blend]
+    
+    func fetchBlendSchedule(blendId: String) async throws -> Blend
 }
