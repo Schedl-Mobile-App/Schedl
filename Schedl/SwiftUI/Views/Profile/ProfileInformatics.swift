@@ -9,7 +9,10 @@ import SwiftUI
 
 struct ProfileInformatics: View {
     
+    @EnvironmentObject var tabBarState: TabBarState
+    
     @ObservedObject var profileViewModel: ProfileViewModel
+    @Binding var navigateToFriends: Bool
     
     var body: some View {
         Rectangle()
@@ -17,7 +20,10 @@ struct ProfileInformatics: View {
             .cornerRadius(15)
             .overlay {
                 HStack {
-                    NavigationLink(destination: FriendsView(profileViewModel: profileViewModel)) {
+                    Button(action: {
+                        tabBarState.hideTabbar = true
+                        navigateToFriends = true
+                    }) {
                         VStack(alignment: .center, spacing: 6) {
                             Text("\(profileViewModel.friends.count)")
                                 .font(.system(size: 18, weight: .bold, design: .monospaced))

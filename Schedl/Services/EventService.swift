@@ -68,18 +68,23 @@ class EventService: EventServiceProtocol {
     
     func fetchEventsByUserId(userId: String) async throws -> [Event] {
         
-        let userRef = ref.child("users").child(userId).child("schedule")
+        let userRef = ref.child("users").child(userId).child("scheduleIds")
         let userSnapshot = try await userRef.getData()
         
-        guard let scheduleId = userSnapshot.value as? String else {
-            throw EventServiceError.failedToGetScheduleId
+        guard let scheduleIds = userSnapshot.value as? [String: Any] else {
+            // must mean that the user has no schedules
+            return []
+        }
+        
+        guard let scheduleId = scheduleIds.keys.first else {
+            return []
         }
                 
         let scheduleEventsRef = ref.child("scheduleEvents").child(scheduleId)
         let snapshot = try await scheduleEventsRef.getData()
         
         guard let data = snapshot.value as? [String: Any] else {
-            throw EventServiceError.invalidEventData
+            return []
         }
         
         let eventIds = Array(data.keys)
@@ -93,7 +98,7 @@ class EventService: EventServiceProtocol {
         let snapshot = try await scheduleEventsRef.getData()
         
         guard let data = snapshot.value as? [String: Any] else {
-            throw EventServiceError.invalidEventData
+            return []
         }
 
         let eventIds = Array(data.keys)
@@ -133,10 +138,12 @@ class EventService: EventServiceProtocol {
         guard let id = ref.child("events").childByAutoId().key else { throw EventServiceError.failedToCreateEvent }
         let createdAt = Date().timeIntervalSince1970
         
-        let scheduleRef = ref.child("users").child(userId).child("schedule")
+        let scheduleRef = ref.child("users").child(userId).child("scheduleIds")
         let snapshot = try await scheduleRef.getData()
         
-        guard let scheduleId = snapshot.value as? String else { throw EventServiceError.failedToCreateEvent }
+        guard let scheduleIds = snapshot.value as? [String: Any] else { throw EventServiceError.failedToCreateEvent }
+        
+        let scheduleId = scheduleIds.keys.first!
         
         let eventObj = Event(id: id, userId: userId, scheduleId: scheduleId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: location.name, locationAddress: location.address, latitude: location.latitude, longitude: location.longitude, taggedUsers: [], color: color, notes: notes, endDate: endDate, repeatingDays: repeatedDays)
                 
@@ -264,12 +271,14 @@ class EventService: EventServiceProtocol {
     
     func deleteEvent(eventId: String, userId: String) async throws -> Void {
         
-        let userRef = ref.child("users").child(userId).child("schedule")
+        let userRef = ref.child("users").child(userId).child("schedules")
         let userSnapshot = try await userRef.getData()
         
-        guard let scheduleId = userSnapshot.value as? String else {
+        guard let scheduleIds = userSnapshot.value as? [String: Any] else {
             throw EventServiceError.failedToGetScheduleId
         }
+        
+        let scheduleId = scheduleIds.keys.first!
         
         // we need to remove any event invites that the owner of the event has sent that might still be pending
         let eventInviteRef = ref.child("eventInvites").child(userId)
@@ -278,7 +287,7 @@ class EventService: EventServiceProtocol {
         var updates: [String: Any] = [
             "/events/\(eventId)": NSNull(),
             "/scheduleEvents/\(scheduleId)/\(eventId)": NSNull(),
-            "/schedules/\(scheduleId)/eventIds/\(eventId)": NSNull()
+            "/schedules/\(scheduleId)!/eventIds/\(eventId)": NSNull()
         ]
         
         // this might return an array of all the invites the current user has sent out

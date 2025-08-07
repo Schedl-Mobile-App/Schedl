@@ -1,125 +1,85 @@
-//
-//  ContentView.swift
-//  Schedl
-//
-//  Created by David Medina on 7/23/25.
-//
-
-
 import SwiftUI
 
-struct CutoutShape: Shape {
-    var cornerRadius: CGFloat = 20
-    var cutoutWidth: CGFloat = 80
-    var cutoutHeight: CGFloat = 40
-    
+struct CustomBlobShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         
-        // Start at the point where the cutout begins on the top edge
-        let cutoutStartX = rect.minX + cutoutWidth
-        let cutoutStartY = rect.minY
+        let width = rect.width
+        let height = rect.height
         
-        // Start the path at the cutout start point
-        path.move(to: CGPoint(x: cutoutStartX, y: cutoutStartY))
+        // Starting from top center, moving clockwise
+        path.move(to: CGPoint(x: width * 0.5, y: height * 0.1))
         
-        // Top edge to top-right corner
-        path.addLine(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.minY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX, y: rect.minY + cornerRadius),
-            control: CGPoint(x: rect.maxX, y: rect.minY)
-        )
-        
-        // Right edge
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - cornerRadius))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY),
-            control: CGPoint(x: rect.maxX, y: rect.maxY)
-        )
-        
-        // Bottom edge
-        path.addLine(to: CGPoint(x: rect.minX + cornerRadius, y: rect.maxY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.minX, y: rect.maxY - cornerRadius),
-            control: CGPoint(x: rect.minX, y: rect.maxY)
-        )
-        
-        // Left edge up to where the cutout begins
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + cutoutHeight + cornerRadius))
-        
-        // Create the complex curved cutout section that slopes down and back up
-        // This creates a smooth "scoop" or "U" shape
-        
-        // First control point - creates the initial downward slope (gentler)
-        let controlPoint1 = CGPoint(
-            x: rect.minX + cutoutWidth * 0.3,
-            y: rect.minY + cutoutHeight * 1
-        )
-        
-        // Midpoint of the curve - the deepest part of the scoop (less deep, more rounded)
-        let midPoint = CGPoint(
-            x: rect.minX + cutoutWidth * 0.9,
-            y: rect.minY + cutoutHeight * 1.3
-        )
-        
-        // Second control point - creates the upward slope back to the top edge (gentler)
-        let controlPoint2 = CGPoint(
-            x: rect.minX + cutoutWidth * 0.3,
-            y: rect.minY + cutoutHeight * 1.1
-        )
-        
-        // Create the smooth scoop using cubic curves with gentler slopes
+        // Top right curve
         path.addCurve(
-            to: midPoint,
-            control1: controlPoint1,
-            control2: CGPoint(
-                x: rect.minX + cutoutWidth * 0.9,
-                y: rect.minY + cutoutHeight * 1.5
-            )
+            to: CGPoint(x: width * 0.85, y: height * 0.3),
+            control1: CGPoint(x: width * 0.7, y: height * 0.1),
+            control2: CGPoint(x: width * 0.85, y: height * 0.2)
         )
         
+        // Right side curve
         path.addCurve(
-            to: CGPoint(x: cutoutStartX, y: cutoutStartY),
-            control1: CGPoint(
-                x: rect.minX + cutoutWidth * 0.55,
-                y: rect.minY + cutoutHeight * 1.25
-            ),
-            control2: controlPoint2
+            to: CGPoint(x: width * 0.8, y: height * 0.6),
+            control1: CGPoint(x: width * 0.9, y: height * 0.4),
+            control2: CGPoint(x: width * 0.85, y: height * 0.5)
         )
         
+        // Bottom right curve
+        path.addCurve(
+            to: CGPoint(x: width * 0.6, y: height * 0.85),
+            control1: CGPoint(x: width * 0.8, y: height * 0.75),
+            control2: CGPoint(x: width * 0.7, y: height * 0.85)
+        )
+        
+        // Bottom center curve
+        path.addCurve(
+            to: CGPoint(x: width * 0.35, y: height * 0.9),
+            control1: CGPoint(x: width * 0.5, y: height * 0.9),
+            control2: CGPoint(x: width * 0.42, y: height * 0.92)
+        )
+        
+        // Bottom left curve
+        path.addCurve(
+            to: CGPoint(x: width * 0.15, y: height * 0.65),
+            control1: CGPoint(x: width * 0.25, y: height * 0.85),
+            control2: CGPoint(x: width * 0.1, y: height * 0.75)
+        )
+        
+        // Left side curve
+        path.addCurve(
+            to: CGPoint(x: width * 0.2, y: height * 0.35),
+            control1: CGPoint(x: width * 0.1, y: height * 0.5),
+            control2: CGPoint(x: width * 0.15, y: height * 0.42)
+        )
+        
+        // Top left curve back to start
+        path.addCurve(
+            to: CGPoint(x: width * 0.5, y: height * 0.1),
+            control1: CGPoint(x: width * 0.2, y: height * 0.25),
+            control2: CGPoint(x: width * 0.32, y: height * 0.1)
+        )
+        
+        path.closeSubpath()
         return path
     }
 }
 
-// Example usage with preview
 struct ContentView: View {
     var body: some View {
-        VStack(spacing: 30) {
-            // Basic cutout shape matching the image
-            CutoutShape(cornerRadius: 15, cutoutWidth: 100, cutoutHeight: 60)
-                .fill(Color.blue)
-                .frame(width: 200, height: 150)
-            
-            // Smaller cutout
-            CutoutShape(cornerRadius: 20, cutoutWidth: 80, cutoutHeight: 50)
-                .fill(LinearGradient(
-                    gradient: Gradient(colors: [Color.purple, Color.pink]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-                .frame(width: 250, height: 180)
-            
-            // With stroke to see the shape clearly
-            CutoutShape(cornerRadius: 12, cutoutWidth: 70, cutoutHeight: 45)
-                .stroke(Color.green, lineWidth: 3)
-                .frame(width: 180, height: 120)
-            
-            // Larger cutout
-            CutoutShape(cornerRadius: 18, cutoutWidth: 120, cutoutHeight: 70)
-                .fill(Color.orange)
-                .frame(width: 220, height: 160)
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Custom blob shape taking up half the screen height
+                CustomBlobShape()
+                    .fill(Color(red: 0.95, green: 0.94, blue: 0.92))
+                    .frame(height: geometry.size.height / 2)
+                    .shadow(color: .gray.opacity(0.3), radius: 8, x: 0, y: 4)
+                
+                // Remaining space
+                Color.white
+                    .frame(height: geometry.size.height / 2)
+            }
         }
-        .padding()
+        .ignoresSafeArea()
     }
 }
 

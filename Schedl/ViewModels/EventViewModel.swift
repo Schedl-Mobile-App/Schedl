@@ -42,6 +42,7 @@ class EventViewModel: ObservableObject {
     @Published var startTimeError: String = ""
     @Published var endTimeError: String = ""
     @Published var locationError: String = ""
+    @Published var notesError: String = ""
     @Published var submitError: String = ""
     
     // Binding values to trigger/dismiss sheets/pickers
@@ -145,7 +146,9 @@ class EventViewModel: ObservableObject {
                                     
             let eventId = try await eventService.createEvent(userId: currentUser.id, title: title!, startDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!), location: selectedPlacemark!, color: selectedColor, notes: eventNotes, endDate: endDateAsDouble, repeatedDays: repeatedDays)
             
-            try await notificationService.sendEventInvites(senderId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserIds: userIds, eventId: eventId)
+            if !userIds.isEmpty {
+                try await notificationService.sendEventInvites(senderId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserIds: userIds, eventId: eventId)
+            }
             shouldDismiss = true
             
             self.isLoading = false
@@ -211,9 +214,7 @@ class EventViewModel: ObservableObject {
             guard let endTime = endTime else { return }
             
             self.userFriends = try await userService.fetchUserFriends(userId: currentUser.id)
-            print(userFriends)
             self.availabilityList = try await eventService.checkAvailability(userIds: self.userFriends.map { $0.id }, eventDate: Int(eventDate.timeIntervalSince1970), startTime: Int(Date.computeTimeSinceStartOfDay(date: startTime)), endTime: Int(Date.computeTimeSinceStartOfDay(date: endTime)))
-            print(availabilityList)
             
             self.isLoading = false
         } catch {
@@ -281,6 +282,13 @@ class EventViewModel: ObservableObject {
             isValid = false
         }
         
+        if let notes = notes {
+            if notes.count > 255 {
+                notesError = "Notes cannot exceed 255 characters"
+                isValid = false
+            }
+        }
+        
         if !isValid {
             hasTriedSubmitting = true
             return isValid
@@ -304,3 +312,4 @@ class EventViewModel: ObservableObject {
         self.repeatedDays = event.event.repeatingDays
     }
 }
+

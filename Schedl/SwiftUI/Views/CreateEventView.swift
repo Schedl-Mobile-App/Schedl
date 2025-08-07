@@ -7,6 +7,15 @@
 
 import SwiftUI
 
+private let mockUser = User(
+    id: "mock-id",
+    username: "mockuser",
+    email: "mock@email.com",
+    displayName: "Mock User",
+    profileImage: "https://example.com/mock-profile.png",
+    creationDate: Date().timeIntervalSince1970
+)
+
 struct CreateEventView: View {
     
     @StateObject var eventViewModel: EventViewModel
@@ -26,7 +35,7 @@ struct CreateEventView: View {
             Color(hex: 0xf7f4f2)
                 .ignoresSafeArea()
             
-            VStack(spacing: 15) {
+            VStack(spacing: 10) {
                 ZStack(alignment: .leading) {
                     Button(action: {
                         hideTabbar = false
@@ -52,12 +61,15 @@ struct CreateEventView: View {
                 .frame(maxWidth: .infinity)
                 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .center, spacing: 30) {
+                    VStack(alignment: .center, spacing: 10) {
                         Text("Fill out the details below to create your event!")
-                            .font(.system(size: 18, weight: .medium, design: .monospaced))
-                            .tracking(0.1)
+                            .font(.body)
+                            .fontWeight(.medium)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
                             .multilineTextAlignment(.center)
                             .foregroundStyle(Color(hex: 0x333333))
+                            .padding(.vertical, 8)
                         
                         // view for event title input
                         EventTitleView(title: $eventViewModel.title, isFocused: $isFocused, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, titleError: $eventViewModel.titleError)
@@ -81,7 +93,7 @@ struct CreateEventView: View {
                             }
                         
                         // view for event notes input
-                        EventNotesView(notes: $eventViewModel.notes, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
+                        EventNotesView(notes: $eventViewModel.notes, notesError: $eventViewModel.notesError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
                         
                         // view for event color selection
                         EventColorView(eventColor: $eventViewModel.eventColor)
@@ -93,22 +105,26 @@ struct CreateEventView: View {
                                     dismiss()
                                 }
                             }
-                        }) {
-                            RoundedRectangle(cornerRadius: 10)
-                                .overlay {
-                                    Text("Create Event")
-                                        .foregroundColor(Color(hex: 0xf7f4f2))
-                                        .font(.system(size: 18, weight: .bold, design: .monospaced))
-                                        .tracking(0.1)
-                                }
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 50)
-                        .foregroundStyle(Color(hex: 0x3C859E))
+                        }, label: {
+                            Text("Create Event")
+                                .foregroundColor(Color(hex: 0xf7f4f2))
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .fontDesign(.monospaced)
+                                .tracking(0.1)
+                        })
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color(hex: 0x3C859E))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .padding(.vertical, 8)
+                        
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.vertical)
                     .padding(.horizontal, 25)
                     .simultaneousGesture(TapGesture().onEnded {
+                        isFocused = nil
                         if eventViewModel.hasTriedSubmitting {
                             eventViewModel.hasTriedSubmitting = false
                         }
@@ -198,7 +214,7 @@ struct AddInvitedUsers: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 20) {
                         ForEach(filteredUsers, id: \.self.id) { friend in
-                            InvitedUserCell(friend: friend, selectedFriends: $eventViewModel.selectedFriends, availableFriends: $eventViewModel.availabilityList)
+                            InvitedUserCell(friend: friend, selectedFriends: $eventViewModel.selectedFriends, availableFriends: eventViewModel.availabilityList)
                         }
                     }
                     .padding(.vertical)
@@ -243,58 +259,66 @@ struct EventTitleView: View {
     
     var body: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 10)
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .foregroundStyle(.clear)
-                .overlay {
-                    HStack() {
-                        TextField("Event Title", text: titleBinding)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 15, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x333333))
-                            .tracking(0.1)
-                            .focused(isFocused, equals: .title)
-                            .autocorrectionDisabled(true)
-                        Spacer()
-                        Button(action: {
-                            title = nil
-                        }) {
-                            Image(systemName: "xmark")
-                                .imageScale(.small)
-                                .foregroundStyle(Color(hex: 0x333333))
-                        }
-                        .hidden(title == nil)
-                    }
-                    .padding(.horizontal, 20)
+            HStack(alignment: .top, spacing: 0) {
+            
+                TextField("Event Title", text: titleBinding, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.subheadline)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(Color(hex: 0x333333))
+                    .tracking(0.1)
+                    .focused(isFocused, equals: .title)
+                    .autocorrectionDisabled(true)
+                
+                Spacer()
+                Button(action: {
+                    title = nil
+                }) {
+                    Image(systemName: "xmark")
+                        .imageScale(.small)
+                        .foregroundStyle(Color(hex: 0x333333))
+                }
+                .hidden(title == nil)
+            }
+            .padding(.vertical, 16)
+            .padding(.horizontal, 20)
+            .background {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.clear)
+                    .stroke(hasTriedSubmitting && title == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+            }
+            
+            
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    Spacer()
+                        .frame(width: 4)
+                    Text("Event Title")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                    Spacer()
+                        .frame(width: 4)
                 }
                 .background {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(hasTriedSubmitting && title == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    Color(hex: 0xf7f4f2)
                 }
-            
-            HStack {
-                Spacer(minLength: 8)
-                Text("Event Title")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                Spacer(minLength: 8)
+                .padding(.leading)
+                .offset(y: -10)
+                .opacity(isFocused.wrappedValue == .title || title != nil ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue)
+                
+                Text(titleError)
+                    .font(.footnote)
+                    .padding(.leading)
+                    .offset(y: geometry.size.height * CGFloat(1.05))
+                    .foregroundStyle(.red)
+                    .opacity(hasTriedSubmitting && !titleError.isEmpty ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
             }
-            .background(
-                Rectangle()
-                    .fill(Color(hex: 0xf7f4f2))
-                    .frame(height: 12)
-            )
-            .fixedSize()
-            .offset(x: 12, y: -7)
-            .opacity(isFocused.wrappedValue == .title || title != nil ? 1 : 0)
-            .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue)
-            
-            Text(titleError)
-                .font(.footnote)
-                .offset(x: 12, y: 53)
-                .foregroundStyle(.red)
-                .opacity(hasTriedSubmitting && !titleError.isEmpty ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
         }
+        .padding(.vertical, 8)
+        .padding(.bottom, hasTriedSubmitting && !titleError.isEmpty ? 4 : 0)
     }
 }
 
@@ -343,101 +367,109 @@ struct EventDateView: View {
     
     var body: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 10)
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .foregroundStyle(.clear)
-                .overlay {
-                    HStack {
-                        Text(eventDateText)
-                            .fontWeight(eventDate == nil ? .light : .medium)
-                            .font(.system(size: 15, design: .monospaced))
-                            .foregroundStyle(eventDate == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
-                            .tracking(0.1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        Spacer()
-                        
-                        ZStack(alignment: .trailing) {
-                            Button("Edit", action: {
-                                showDatePicker.toggle()
-                            })
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x3C859E))
-                            .hidden(eventDate == nil)
-                            
-                            Button(action: {
-                                showDatePicker.toggle()
-                            }) {
-                                Image(systemName: "calendar")
-                                    .imageScale(.large)
-                                    .foregroundStyle(Color(hex: 0x333333))
-                            }
-                            .hidden(eventDate != nil)
-                        }
+            HStack(spacing: 0) {
+                Text(eventDateText)
+                    .fontWeight(eventDate == nil ? .bold : .medium)
+                    .font(.subheadline)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(eventDate == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                    .tracking(0.1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Spacer()
+                
+                ZStack(alignment: .trailing) {
+                    Button("Edit", action: {
+                        showDatePicker.toggle()
+                    })
+                    .font(.footnote)
+                    .fontWeight(.bold)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(Color(hex: 0x3C859E))
+                    .hidden(eventDate == nil)
+                    
+                    Button(action: {
+                        showDatePicker.toggle()
+                    }) {
+                        Image(systemName: "calendar")
+                            .imageScale(.large)
+                            .foregroundStyle(Color(hex: 0x333333))
                     }
-                    .padding(.horizontal, 20)
+                    .hidden(eventDate != nil)
                 }
-                .onTapGesture {
-                    showDatePicker.toggle()
-                }
-                .sheet(isPresented: $showDatePicker) {
-                    NavigationView {
-                        DatePicker("Select Event Date",
-                                  selection: eventDateBinding,
-                                  displayedComponents: [.date])
-                            .datePickerStyle(.graphical)
-                            .navigationTitle("Select Date")
-                            .navigationBarTitleDisplayMode(.inline)
-                            .toolbar {
-                                ToolbarItem(placement: .navigationBarLeading) {
-                                    Button("Clear") {
-                                        eventDate = nil
-                                        showDatePicker = false
-                                    }
-                                }
-                                
-                                ToolbarItem(placement: .navigationBarTrailing) {
-                                    Button("Done") {
-                                        showDatePicker = false
-                                    }
-                                }
-                            }
-                    }
-                    .presentationDetents([.medium])
-                    .onAppear {
-                        if eventDate == nil {
-                            eventDate = Calendar.current.startOfDay(for: Date())
-                        }
-                    }
-                }
-                .background {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(hasTriedSubmitting && eventDate == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
-                }
-            
-            HStack {
-                Spacer(minLength: 8)
-                Text("Event Date")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                Spacer(minLength: 8)
             }
-            .background(
-                Rectangle()
-                    .fill(Color(hex: 0xf7f4f2))
-                    .frame(height: 12)
-            )
-            .fixedSize()
-            .offset(x: 12, y: -7)
-            .opacity(eventDate != nil ? 1 : 0)
-            .animation(.easeInOut(duration: 0.2), value: eventDate)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 20)
+            .background {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.clear)
+                    .stroke(hasTriedSubmitting && eventDate == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+            }
+            .onTapGesture {
+                showDatePicker.toggle()
+            }
+            .sheet(isPresented: $showDatePicker) {
+                NavigationView {
+                    DatePicker("Select Event Date",
+                               selection: eventDateBinding,
+                               displayedComponents: [.date])
+                    .datePickerStyle(.graphical)
+                    .navigationTitle("Select Date")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Clear") {
+                                eventDate = nil
+                                showDatePicker = false
+                            }
+                        }
+                        
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                showDatePicker = false
+                            }
+                        }
+                    }
+                }
+                .presentationDetents([.medium])
+                .onAppear {
+                    if eventDate == nil {
+                        eventDate = Calendar.current.startOfDay(for: Date())
+                    }
+                }
+            }
             
-            Text(startDateError)
-                .font(.footnote)
-                .offset(x: 12, y: 53)
-                .foregroundStyle(.red)
-                .opacity(hasTriedSubmitting && !startDateError.isEmpty ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+            GeometryReader { geometry in
+                HStack {
+                    Spacer()
+                        .frame(width: 4)
+                    Text("Event Date")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                    Spacer()
+                        .frame(width: 4)
+                }
+                .opacity(eventDate != nil ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: eventDate)
+                .background {
+                    Color(hex: 0xf7f4f2)
+                }
+                .padding(.leading)
+                .offset(y: -geometry.size.height * CGFloat(0.15))
+                .hidden(eventDate == nil)
+                
+                Text(startDateError)
+                    .font(.footnote)
+                    .padding(.leading)
+                    .offset(y: geometry.size.height * CGFloat(1.05))
+                    .foregroundStyle(.red)
+                    .opacity(hasTriedSubmitting && !startDateError.isEmpty ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+            }
         }
+        .padding(.vertical, 8)
+        .padding(.bottom, hasTriedSubmitting && !startDateError.isEmpty ? 4 : 0)
         
         if eventDate != nil {
             ZStack(alignment: .topLeading) {
@@ -512,25 +544,25 @@ struct EventDateView: View {
                     .sheet(isPresented: $showEndDatePicker) {
                         NavigationView {
                             DatePicker("Select End Date",
-                                      selection: eventEndDateBinding,
-                                      displayedComponents: [.date])
-                                .datePickerStyle(.graphical)
-                                .navigationTitle("Select End Date")
-                                .navigationBarTitleDisplayMode(.inline)
-                                .toolbar {
-                                    ToolbarItem(placement: .navigationBarLeading) {
-                                        Button("Clear") {
-                                            eventEndDate = nil
-                                            showEndDatePicker = false
-                                        }
-                                    }
-                                    
-                                    ToolbarItem(placement: .navigationBarTrailing) {
-                                        Button("Done") {
-                                            showEndDatePicker = false
-                                        }
+                                       selection: eventEndDateBinding,
+                                       displayedComponents: [.date])
+                            .datePickerStyle(.graphical)
+                            .navigationTitle("Select End Date")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .navigationBarLeading) {
+                                    Button("Clear") {
+                                        eventEndDate = nil
+                                        showEndDatePicker = false
                                     }
                                 }
+                                
+                                ToolbarItem(placement: .navigationBarTrailing) {
+                                    Button("Done") {
+                                        showEndDatePicker = false
+                                    }
+                                }
+                            }
                         }
                         .presentationDetents([.medium])
                         .onAppear {
@@ -568,6 +600,8 @@ struct EventDateView: View {
                     .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
             }
             .transition(.move(edge: .top).combined(with: .opacity))
+            .padding(.vertical, 8)
+            .padding(.bottom, hasTriedSubmitting && !endDateError.isEmpty ? 4 : 0)
         }
     }
 }
@@ -596,102 +630,110 @@ struct EventStartTimeView: View {
     
     var body: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 10)
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .foregroundStyle(.clear)
-                .overlay {
-                    HStack {
-                        Text(startTimeText)
-                            .fontWeight(startTime == nil ? .light : .medium)
-                            .font(.system(size: 15, design: .monospaced))
-                            .foregroundStyle(startTime == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
-                            .tracking(0.1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        Spacer()
-                        
-                        ZStack(alignment: .trailing) {
-                            Button("Edit", action: {
-                                showStartTimePicker.toggle()
-                            })
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x3C859E))
-                            .hidden(startTime == nil)
-                            
-                            Button(action: {
-                                showStartTimePicker.toggle()
-                            }) {
-                                Image(systemName: "clock.badge")
-                                    .imageScale(.large)
-                                    .foregroundStyle(Color(hex: 0x333333))
-                            }
-                            .hidden(startTime != nil)
-                        }
+            HStack(spacing: 0) {
+                Text(startTimeText)
+                    .fontWeight(startTime == nil ? .bold : .medium)
+                    .font(.subheadline)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(startTime == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                    .tracking(-0.25)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Spacer()
+                
+                ZStack(alignment: .trailing) {
+                    Button("Edit", action: {
+                        showStartTimePicker.toggle()
+                    })
+                    .font(.footnote)
+                    .fontWeight(.bold)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(Color(hex: 0x3C859E))
+                    .hidden(startTime == nil)
+                    
+                    Button(action: {
+                        showStartTimePicker.toggle()
+                    }) {
+                        Image(systemName: "clock.badge")
+                            .imageScale(.large)
+                            .foregroundStyle(Color(hex: 0x333333))
                     }
-                    .padding(.horizontal, 20)
+                    .hidden(startTime != nil)
                 }
-                .onTapGesture {
-                    showStartTimePicker.toggle()
-                }
-                .sheet(isPresented: $showStartTimePicker) {
-                    NavigationView {
-                        DatePicker("",
-                                  selection: startTimeBinding,
-                                  displayedComponents: [.hourAndMinute])
-                            .datePickerStyle(.wheel)
-                            .navigationTitle("Select Start Time")
-                            .navigationBarTitleDisplayMode(.inline)
-                            .labelsHidden()
-                            .toolbar {
-                                ToolbarItem(placement: .navigationBarLeading) {
-                                    Button("Clear") {
-                                        startTime = nil
-                                        showStartTimePicker = false
-                                    }
-                                }
-
-                                ToolbarItem(placement: .navigationBarTrailing) {
-                                    Button("Done") {
-                                        showStartTimePicker = false
-                                    }
-                                }
-                            }
-                    }
-                    .presentationDetents([.medium])
-                    .onAppear {
-                        if startTime == nil {
-                            startTime = Date.now
-                        }
-                    }
-                }
-                .background {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(hasTriedSubmitting && !startTimeError.isEmpty ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
-                }
-            
-            HStack {
-                Spacer(minLength: 8)
-                Text("Start Time")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                Spacer(minLength: 8)
             }
-            .background(
-                Rectangle()
-                    .fill(Color(hex: 0xf7f4f2))
-                    .frame(height: 12)
-            )
-            .fixedSize()
-            .offset(x: 12, y: -7)
-            .opacity(startTime != nil ? 1 : 0)
-            .animation(.easeInOut(duration: 0.2), value: startTime)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 20)
+            .background {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.clear)
+                    .stroke(hasTriedSubmitting && startTime == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+            }
+            .onTapGesture {
+                showStartTimePicker.toggle()
+            }
+            .sheet(isPresented: $showStartTimePicker) {
+                NavigationView {
+                    DatePicker("",
+                              selection: startTimeBinding,
+                              displayedComponents: [.hourAndMinute])
+                        .datePickerStyle(.wheel)
+                        .navigationTitle("Select Start Time")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .labelsHidden()
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Clear") {
+                                    startTime = nil
+                                    showStartTimePicker = false
+                                }
+                            }
+
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showStartTimePicker = false
+                                }
+                            }
+                        }
+                }
+                .presentationDetents([.medium])
+                .onAppear {
+                    if startTime == nil {
+                        startTime = Date.now
+                    }
+                }
+            }
             
-            Text(startTimeError)
-                .font(.footnote)
-                .offset(x: 12, y: 53)
-                .foregroundStyle(.red)
-                .opacity(hasTriedSubmitting && !startTimeError.isEmpty ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+            GeometryReader { geometry in
+                HStack {
+                    Spacer()
+                        .frame(width: 4)
+                    Text("Start Time")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                    Spacer()
+                        .frame(width: 4)
+                }
+                .opacity(startTime != nil ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: startTime)
+                .background {
+                    Color(hex: 0xf7f4f2)
+                }
+                .padding(.leading)
+                .offset(y: -geometry.size.height * CGFloat(0.15))
+                .hidden(startTime == nil)
+                
+                Text(startTimeError)
+                    .font(.footnote)
+                    .padding(.leading)
+                    .offset(y: geometry.size.height * CGFloat(1.05))
+                    .foregroundStyle(.red)
+                    .opacity(hasTriedSubmitting && !startTimeError.isEmpty ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+            }
         }
+        .padding(.vertical, 8)
+        .padding(.bottom, hasTriedSubmitting && !startTimeError.isEmpty ? 8 : 0)
     }
 }
 
@@ -719,102 +761,110 @@ struct EventEndTimeView: View {
     
     var body: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 10)
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .foregroundStyle(.clear)
-                .overlay {
-                    HStack {
-                        Text(endTimeText)
-                            .fontWeight(endTime == nil ? .light : .medium)
-                            .font(.system(size: 15, design: .monospaced))
-                            .foregroundStyle(endTime == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
-                            .tracking(0.1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        Spacer()
-                        
-                        ZStack(alignment: .trailing) {
-                            Button("Edit", action: {
-                                showEndTimePicker.toggle()
-                            })
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x3C859E))
-                            .hidden(endTime == nil)
-                            
-                            Button(action: {
-                                showEndTimePicker.toggle()
-                            }) {
-                                Image(systemName: "clock.badge")
-                                    .imageScale(.large)
-                                    .foregroundStyle(Color(hex: 0x333333))
-                            }
-                            .hidden(endTime != nil)
-                        }
+            HStack(spacing: 0) {
+                Text(endTimeText)
+                    .fontWeight(endTime == nil ? .bold : .medium)
+                    .font(.subheadline)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(endTime == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                    .tracking(-0.25)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Spacer()
+                
+                ZStack(alignment: .trailing) {
+                    Button("Edit", action: {
+                        showEndTimePicker.toggle()
+                    })
+                    .font(.footnote)
+                    .fontWeight(.bold)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(Color(hex: 0x3C859E))
+                    .hidden(endTime == nil)
+                    
+                    Button(action: {
+                        showEndTimePicker.toggle()
+                    }) {
+                        Image(systemName: "clock.badge")
+                            .imageScale(.large)
+                            .foregroundStyle(Color(hex: 0x333333))
                     }
-                    .padding(.horizontal, 20)
+                    .hidden(endTime != nil)
                 }
-                .onTapGesture {
-                    showEndTimePicker.toggle()
-                }
-                .sheet(isPresented: $showEndTimePicker) {
-                    NavigationView {
-                        DatePicker("",
-                                  selection: endTimeBinding,
-                                  displayedComponents: [.hourAndMinute])
-                            .datePickerStyle(.wheel)
-                            .navigationTitle("Select End Time")
-                            .navigationBarTitleDisplayMode(.inline)
-                            .labelsHidden()
-                            .toolbar {
-                                ToolbarItem(placement: .topBarLeading) {
-                                    Button("Clear") {
-                                        endTime = nil
-                                        showEndTimePicker = false
-                                    }
-                                }
-                                
-                                ToolbarItem(placement: .topBarTrailing) {
-                                    Button("Done") {
-                                        showEndTimePicker = false
-                                    }
-                                }
-                            }
-                    }
-                    .presentationDetents([.medium])
-                    .onAppear {
-                        if endTime == nil {
-                            endTime = Date.now
-                        }
-                    }
-                }
-                .background {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(hasTriedSubmitting && !endTimeError.isEmpty ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
-                }
-            
-            HStack {
-                Spacer(minLength: 8)
-                Text("End Time")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                Spacer(minLength: 8)
             }
-            .background(
-                Rectangle()
-                    .fill(Color(hex: 0xf7f4f2))
-                    .frame(height: 12)
-            )
-            .fixedSize()
-            .offset(x: 12, y: -7)
-            .opacity(endTime != nil ? 1 : 0)
-            .animation(.easeInOut(duration: 0.2), value: endTime)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 20)
+            .background {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.clear)
+                    .stroke(hasTriedSubmitting && endTime == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+            }
+            .onTapGesture {
+                showEndTimePicker.toggle()
+            }
+            .sheet(isPresented: $showEndTimePicker) {
+                NavigationView {
+                    DatePicker("",
+                              selection: endTimeBinding,
+                              displayedComponents: [.hourAndMinute])
+                        .datePickerStyle(.wheel)
+                        .navigationTitle("Select Start Time")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .labelsHidden()
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Clear") {
+                                    endTime = nil
+                                    showEndTimePicker = false
+                                }
+                            }
+
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showEndTimePicker = false
+                                }
+                            }
+                        }
+                }
+                .presentationDetents([.medium])
+                .onAppear {
+                    if endTime == nil {
+                        endTime = Date.now
+                    }
+                }
+            }
             
-            Text(endTimeError)
-                .font(.footnote)
-                .offset(x: 12, y: 53)
-                .foregroundStyle(.red)
-                .opacity(hasTriedSubmitting && !endTimeError.isEmpty ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+            GeometryReader { geometry in
+                HStack {
+                    Spacer()
+                        .frame(width: 4)
+                    Text("End Time")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                    Spacer()
+                        .frame(width: 4)
+                }
+                .opacity(endTime != nil ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: endTime)
+                .background {
+                    Color(hex: 0xf7f4f2)
+                }
+                .padding(.leading)
+                .offset(y: -geometry.size.height * CGFloat(0.15))
+                .hidden(endTime == nil)
+                
+                Text(endTimeError)
+                    .font(.footnote)
+                    .padding(.leading)
+                    .offset(y: geometry.size.height * CGFloat(1.05))
+                    .foregroundStyle(.red)
+                    .opacity(hasTriedSubmitting && !endTimeError.isEmpty ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+            }
         }
+        .padding(.vertical, 8)
+        .padding(.bottom, hasTriedSubmitting && !endTimeError.isEmpty ? 8 : 0)
     }
 }
 
@@ -834,93 +884,85 @@ struct EventLocationView: View {
     
     var body: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 10)
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .foregroundStyle(.clear)
-                .overlay {
-                    HStack {
-                        Text(selectedLocationText)
-                            .fontWeight(.medium)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .font(.system(size: 15, design: .monospaced))
-                            .tracking(0.1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundStyle(selectedPlacemark == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
-                        
-                        Spacer()
-                        
-                        ZStack(alignment: .trailing) {
-                            Button("Edit", action: {
-                                showMapSheet.toggle()
-                            })
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x3C859E))
-                            .hidden(selectedPlacemark == nil)
-                            
-                            Button(action: {
-                                showMapSheet.toggle()
-                            }) {
-                                Image(systemName: "mappin")
-                                    .imageScale(.large)
-                                    .foregroundStyle(Color(hex: 0x333333))
-                            }
-                            .hidden(selectedPlacemark != nil)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                }
-                .onTapGesture {
-                    hasTriedSubmitting = false
-                    showMapSheet.toggle()
-                }
-                .fullScreenCover(isPresented: $showMapSheet) {
-                    NavigationView {
-                        LocationView(selectedPlacemark: $selectedPlacemark)
-                            .toolbar {
-                                ToolbarItem(placement: .navigationBarLeading) {
-                                    Button("Cancel") {
-                                        selectedPlacemark = nil
-                                        showMapSheet = false
-                                    }
-                                }
-                                ToolbarItem(placement: .navigationBarTrailing) {
-                                    Button("Done") {
-                                        showMapSheet = false
-                                    }
-                                    .disabled(selectedPlacemark == nil)
-                                }
-                            }
-                    }
-                }
-                .background {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(hasTriedSubmitting && selectedPlacemark == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
-                }
             
-            HStack {
-                Spacer(minLength: 8)
-                Text("Location")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                Spacer(minLength: 8)
+            HStack(spacing: 0) {
+                Text(selectedLocationText)
+                    .fontWeight(selectedPlacemark == nil ? .bold : .medium)
+                    .font(.subheadline)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(selectedPlacemark == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                    .tracking(-0.25)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Spacer()
+                
+                ZStack(alignment: .trailing) {
+                    Button("Edit", action: {
+                        showMapSheet.toggle()
+                    })
+                    .font(.footnote)
+                    .fontWeight(.bold)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(Color(hex: 0x3C859E))
+                    .hidden(selectedPlacemark == nil)
+                    
+                    Button(action: {
+                        showMapSheet.toggle()
+                    }) {
+                        Image(systemName: "mappin")
+                            .imageScale(.large)
+                            .foregroundStyle(Color(hex: 0x333333))
+                    }
+                    .hidden(selectedPlacemark != nil)
+                }
             }
-            .background(
-                Rectangle()
-                    .fill(Color(hex: 0xf7f4f2))
-                    .frame(height: 12)
-            )
-            .fixedSize()
-            .offset(x: 12, y: -7)
-            .opacity(selectedPlacemark != nil ? 1 : 0)
-            .animation(.easeInOut(duration: 0.2), value: selectedPlacemark)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 20)
+            .background {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.clear)
+                    .stroke(hasTriedSubmitting && selectedPlacemark == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+            }
+            .onTapGesture {
+                showMapSheet.toggle()
+            }
+            .fullScreenCover(isPresented: $showMapSheet) {
+                NavigationView {
+                    LocationView(selectedPlacemark: $selectedPlacemark, showMapSheet: $showMapSheet)
+                }
+            }
             
-            Text(locationError)
-                .font(.footnote)
-                .offset(x: 12, y: 53)
-                .foregroundStyle(.red)
-                .opacity(hasTriedSubmitting && !locationError.isEmpty ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+            GeometryReader { geometry in
+                HStack {
+                    Spacer()
+                        .frame(width: 4)
+                    Text("Location")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                    Spacer()
+                        .frame(width: 4)
+                }
+                .opacity(selectedPlacemark != nil ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: selectedPlacemark)
+                .background {
+                    Color(hex: 0xf7f4f2)
+                }
+                .padding(.leading)
+                .offset(y: -geometry.size.height * CGFloat(0.15))
+                .hidden(selectedPlacemark == nil)
+                
+                Text(locationError)
+                    .font(.footnote)
+                    .padding(.leading)
+                    .offset(y: geometry.size.height * CGFloat(1.05))
+                    .foregroundStyle(.red)
+                    .opacity(hasTriedSubmitting && !locationError.isEmpty ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+            }
         }
+        .padding(.vertical, 8)
+        .padding(.bottom, hasTriedSubmitting && !locationError.isEmpty ? 4 : 0)
     }
 }
 
@@ -946,20 +988,21 @@ struct EventInviteesView: View {
                             .foregroundStyle(Color(hex: 0x333333))
                             .tracking(-0.25)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        ZStack(alignment: .trailing) {
-                            Image(systemName: "plus")
-                                .imageScale(.medium)
-                                .foregroundStyle(Color.white)
-                                .background {
-                                    Circle()
-                                        .fill(Color(hex: 0x3C859E))
-                                        .frame(width: 25, height: 25)
-                                }
-                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "plus")
+                            .imageScale(.medium)
+                            .foregroundStyle(Color.white)
+                            .padding(7.5)
+                            .background {
+                                Circle()
+                                    .fill(Color(hex: 0x3C859E))
+                            }
                     }
                 }
-                .padding(.trailing, 20)
-                .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                .padding(.trailing)
+                .padding(.vertical, 8)
             } else {
                 ZStack(alignment: .topLeading) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -968,7 +1011,9 @@ struct EventInviteesView: View {
                             Button("Edit", action: {
                                 showInviteUsersSheet.toggle()
                             })
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                            .font(.footnote)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
                             .foregroundStyle(Color(hex: 0x3C859E))
                         }
                         
@@ -1008,7 +1053,9 @@ struct EventInviteesView: View {
                                           : "chevron.down.circle.fill")
                                     .imageScale(.medium)
                                 }
-                                .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .fontDesign(.monospaced)
                                 .foregroundStyle(Color(hex: 0x3C859E))
                                 .padding(.top, 8)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -1022,25 +1069,30 @@ struct EventInviteesView: View {
                             .stroke(Color.gray, lineWidth: 1)
                     }
                     
-                    HStack {
-                        Spacer(minLength: 8)
-                        Text("Invited Friends")
-                            .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        Spacer(minLength: 8)
+                    GeometryReader { geometry in
+                        HStack {
+                            Spacer()
+                                .frame(width: 4)
+                            Text("Invited Friends")
+                                .font(.footnote)
+                                .fontWeight(.medium)
+                                .fontDesign(.monospaced)
+                            Spacer()
+                                .frame(width: 4)
+                        }
+                        .opacity(!selectedFriends.isEmpty ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.2), value: selectedFriends.isEmpty)
+                        .background {
+                            Color(hex: 0xf7f4f2)
+                        }
+                        .padding(.leading)
+                        .offset(y: -10)
                     }
-                    .background(
-                        Rectangle()
-                            .fill(Color(hex: 0xf7f4f2))
-                            .frame(height: 12)
-                    )
-                    .fixedSize()
-                    .offset(x: 12, y: -7)
-                    .opacity(!selectedFriends.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: selectedFriends.isEmpty)
                 }
             }
         }
         .animation(.easeInOut(duration: 0.4), value: selectedFriends.isEmpty)
+        .padding(.vertical, 8)
     }
 }
 
@@ -1048,7 +1100,7 @@ struct InvitedUserCell: View {
     
     let friend: User
     @Binding var selectedFriends: [User]
-    @Binding var availableFriends: [FriendAvailability]
+    var availableFriends: [FriendAvailability]? = nil
     
     var body: some View {
         HStack(spacing: 15) {
@@ -1107,7 +1159,7 @@ struct InvitedUserCell: View {
             
             Spacer()
             
-            if availableFriends.first(where: { $0.userId == friend.id })?.available == false {
+            if let availableFriends = availableFriends, availableFriends.first(where: { $0.userId == friend.id })?.available == false {
                 Text("Not available")
                     .font(.footnote)
                     .foregroundStyle(.red)
@@ -1145,6 +1197,7 @@ struct InvitedUserCell: View {
 struct EventNotesView: View {
     
     @Binding var notes: String?
+    @Binding var notesError: String
     
     var notesBinding: Binding<String> {
         Binding(
@@ -1166,21 +1219,19 @@ struct EventNotesView: View {
     
     var body: some View {
         ZStack(alignment: .topLeading) {
-            HStack(alignment: .top) {
-                TextField(
-                    "Add Notes",
-                    text: notesBinding,
-                    axis: .vertical,
-                )
-                .fontWeight(.medium)
-                .fontDesign(.monospaced)
-                .font(.system(size: 15))
-                .tracking(0.1)
-                .focused(isFocused, equals: .description)
-                .foregroundStyle(Color(hex: 0x333333))
+            
+            HStack(alignment: .top, spacing: 0) {
+            
+                TextField("Add Notes", text: notesBinding, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.subheadline)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(Color(hex: 0x333333))
+                    .tracking(0.1)
+                    .focused(isFocused, equals: .description)
+                    .autocorrectionDisabled(true)
                 
                 Spacer()
-                
                 Button(action: {
                     notes = nil
                 }) {
@@ -1190,29 +1241,45 @@ struct EventNotesView: View {
                 }
                 .hidden(notes == nil)
             }
-            .padding(.vertical)
+            .padding(.vertical, 16)
             .padding(.horizontal, 20)
             .background {
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.gray, lineWidth: 1)
+                    .fill(Color.clear)
+                    .stroke(hasTriedSubmitting && !notesError.isEmpty ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
             }
             
-            HStack {
-                Spacer(minLength: 8)
-                Text("Event Notes")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                Spacer(minLength: 8)
+            
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    Spacer()
+                        .frame(width: 4)
+                    Text("Event Notes")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                    Spacer()
+                        .frame(width: 4)
+                }
+                .background {
+                    Color(hex: 0xf7f4f2)
+                }
+                .padding(.leading)
+                .offset(y: -10)
+                .opacity(isFocused.wrappedValue == .description || notes != nil ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue)
+                
+                Text(notesError)
+                    .font(.footnote)
+                    .padding(.leading)
+                    .offset(y: geometry.size.height * CGFloat(1.05))
+                    .foregroundStyle(.red)
+                    .opacity(hasTriedSubmitting && !notesError.isEmpty ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
             }
-            .background(
-                Rectangle()
-                    .fill(Color(hex: 0xf7f4f2))
-                    .frame(height: 12)
-            )
-            .fixedSize()
-            .offset(x: 12, y: -7)
-            .opacity(isFocused.wrappedValue == .description || notes != nil ? 1 : 0)
-            .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue)
         }
+        .padding(.vertical, 8)
+        .padding(.bottom, hasTriedSubmitting && !notesError.isEmpty ? 4 : 0)
     }
 }
 
@@ -1234,40 +1301,47 @@ struct EventColorView: View {
         Button(action: {
             showColorPicker.toggle()
         }) {
-            HStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 0) {
                 Text(eventColor == nil ? "Choose a Color For Your Event?" : "Selected Event Color:")
                     .fontWeight(.medium)
                     .fontDesign(.monospaced)
                     .font(.subheadline)
                     .foregroundStyle(Color(hex: 0x333333))
                     .tracking(-0.25)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
-                ZStack(alignment: .trailing) {
+                Spacer()
+                
+                if eventColor == nil {
+                    
                     Image(systemName: "paintbrush")
                         .foregroundColor(Color(hex: 0x333333))
                         .imageScale(.large)
-                        .hidden(eventColor != nil)
+                } else {
                     
-                    HStack(spacing: 3) {
+                    HStack(alignment: .center, spacing: 3) {
                         Image(systemName: "paintbrush")
                             .foregroundColor(Color(hex: 0x333333))
-                            .imageScale(.medium)
+                            .imageScale(.large)
+                        
                         RoundedRectangle(cornerRadius: 10)
                             .fill(eventColor == nil ? Color.clear : eventColor!)
-                            .frame(width: 50, height: 25)
+                            .containerRelativeFrame(.vertical) { height, _ in height * 0.0375 }
+                            .containerRelativeFrame(.horizontal) { width, _ in width * 0.145 }
                     }
-                    .hidden(eventColor == nil)
                 }
             }
-            .padding(.trailing)
-            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
         }
+        .padding(.trailing)
+        .padding(.vertical, 8)
         .sheet(isPresented: $showColorPicker) {
             ColorPickerSheet(selectedColor: eventColorBinding)
         }
     }
 }
 
+
+#Preview {
+    @Previewable @State var reload = false
+    return CreateEventView(currentUser: mockUser, shouldReloadData: .constant(false))
+}

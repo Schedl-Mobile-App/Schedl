@@ -6,7 +6,7 @@ import UIKit
 struct ScheduleView: UIViewControllerRepresentable {
     
     @StateObject var scheduleViewModel: ScheduleViewModel
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var tabBarState: TabBarState
     
     init(currentUser: User) {
         _scheduleViewModel = StateObject(wrappedValue: ScheduleViewModel(currentUser: currentUser))
@@ -14,16 +14,16 @@ struct ScheduleView: UIViewControllerRepresentable {
     
     class Coordinator {
         var scheduleViewModel: ScheduleViewModel
-        var authViewModel: AuthViewModel
+        var tabBarState: TabBarState
         
-        init(scheduleViewModel: ScheduleViewModel, authViewModel: AuthViewModel) {
+        init(scheduleViewModel: ScheduleViewModel, tabBarState: TabBarState) {
             self.scheduleViewModel = scheduleViewModel
-            self.authViewModel = authViewModel
+            self.tabBarState = tabBarState
         }
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(scheduleViewModel: scheduleViewModel, authViewModel: authViewModel)
+        Coordinator(scheduleViewModel: scheduleViewModel, tabBarState: tabBarState)
     }
     
     func makeUIViewController(context: Context) -> UINavigationController {
@@ -36,10 +36,8 @@ struct ScheduleView: UIViewControllerRepresentable {
         
         let navController = UINavigationController(rootViewController: scheduleView)
         
-        navController.navigationBar.isTranslucent = false
         navController.setNavigationBarHidden(true, animated: false)
         navController.hidesBottomBarWhenPushed = true
-        navController.toolbar.isTranslucent = true
         
         return navController
     }

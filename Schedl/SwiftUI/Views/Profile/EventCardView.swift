@@ -9,11 +9,12 @@ import SwiftUI
 
 struct EventCard: View {
     
-    let event: RecurringEvents
-    @Binding var hideTabbar: Bool
-    @State var isActive = false
+    @EnvironmentObject var tabBarState: TabBarState
     
-    @ObservedObject var profileViewModel: ProfileViewModel
+    var event: RecurringEvents
+    @Binding var navigateToEventDetails: Bool
+    @Binding var selectedEvent: RecurringEvents?
+    
     let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     
@@ -38,7 +39,11 @@ struct EventCard: View {
         let monthName = months[monthIdx]
         let dayOfMonth = Calendar.current.component(.day, from: blockDate)
 
-        NavigationLink(destination: EventDetailsView(event: event, currentUser: profileViewModel.currentUser, shouldReloadData: $profileViewModel.shouldReloadData), isActive: $isActive) {
+        Button(action: {
+            tabBarState.hideTabbar = true
+            selectedEvent = event
+            navigateToEventDetails = true
+        }) {
             HStack(alignment: .top, spacing: 20) {
                 VStack( alignment: .leading, spacing: 8) {
                     Text("\(event.event.title)")
@@ -104,9 +109,6 @@ struct EventCard: View {
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-        .onChange(of: isActive) {
-            hideTabbar.toggle()
         }
     }
 }

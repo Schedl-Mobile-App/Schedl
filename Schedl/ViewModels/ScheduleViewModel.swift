@@ -11,8 +11,14 @@ import Firebase
 class ScheduleViewModel: ObservableObject {
     
     var currentUser: User
-    @Published var userSchedule: Schedule? = nil
+    @Published var userSchedules: [Schedule] = []
+    @Published var selectedSchedule: Schedule? = nil
+    
+    @Published var userBlends: [Blend] = []
+    @Published var selectedBlend: Blend? = nil
+    
     @Published var invitedUsersForEvent: [User] = []
+    
     var friends: [User] = []
     @Published var scheduleEvents: [RecurringEvents] = []
     @Published var showCreateEvent = false
@@ -80,10 +86,63 @@ class ScheduleViewModel: ObservableObject {
         self.errorMessage = nil
         self.isLoading = true
         do {
-            let fetchedSchedule = try await scheduleService.fetchSchedule(userId: currentUser.id)
-            self.userSchedule = fetchedSchedule
+            self.userSchedules = try await scheduleService.fetchAllSchedules(userId: currentUser.id)
             
-            let scheduleId = fetchedSchedule.id
+            if !userSchedules.isEmpty {
+                self.selectedSchedule = self.userSchedules.first!
+                let scheduleId = self.selectedSchedule!.id
+                
+                let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
+                
+                // now that we've fetched all events in DB, we need to check if any events are recurring meaning they'll have repeats in the future
+                // note that even singular events will be stored in this array of type RecurringEvents since there isn't a need
+                // to separate these from regular Event objects
+                var formattedEvents: [RecurringEvents] = []
+                if allEvents.isEmpty {
+                    self.scheduleEvents = []
+                } else {
+                    for event in allEvents {
+                        formattedEvents.append(contentsOf: parseRecurringEvents(event: event))
+                    }
+                    
+                    //            let currentDay = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+                    
+                    self.scheduleEvents = formattedEvents.sorted {
+                        let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+                        
+                        // if the event start dates are different, then we sort by their date
+                        if dayComparison != .orderedSame {
+                            return dayComparison == .orderedAscending
+                        }
+                        
+                        // if they occur on the same day, then we sort by their start time
+                        return $0.event.startTime < $1.event.startTime
+                    }
+                }
+            }
+            
+            userBlends = try await scheduleService.fetchAllBlendSchedules(userId: currentUser.id)
+            
+            observeScheduleChanges()
+            
+            self.isLoading = false
+        } catch {
+            print("Error Message: \(error.localizedDescription)")
+            self.errorMessage = error.localizedDescription
+            self.isLoading = false
+        }
+    }
+    
+    @MainActor
+    func fetchNewSchedule(id: String) async {
+        self.errorMessage = nil
+        self.isLoading = true
+        do {
+            self.selectedSchedule = try await scheduleService.fetchSchedule(scheduleId: id)
+                        
+            guard let scheduleId = selectedSchedule?.id else {
+                return
+            }
             
             let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
             
@@ -91,29 +150,67 @@ class ScheduleViewModel: ObservableObject {
             // note that even singular events will be stored in this array of type RecurringEvents since there isn't a need
             // to separate these from regular Event objects
             var formattedEvents: [RecurringEvents] = []
-            for event in allEvents {
-                formattedEvents.append(contentsOf: parseRecurringEvents(event: event))
-            }
-            
-//            let currentDay = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
-            
-            self.scheduleEvents = formattedEvents.sorted {
-                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
-                
-                // if the event start dates are different, then we sort by their date
-                if dayComparison != .orderedSame {
-                    return dayComparison == .orderedAscending
+            if allEvents.isEmpty {
+                self.scheduleEvents = []
+            } else {
+                for event in allEvents {
+                    formattedEvents.append(contentsOf: parseRecurringEvents(event: event))
                 }
                 
-                // if they occur on the same day, then we sort by their start time
-                return $0.event.startTime < $1.event.startTime
+                //            let currentDay = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+                
+                self.scheduleEvents = formattedEvents.sorted {
+                    let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+                    
+                    // if the event start dates are different, then we sort by their date
+                    if dayComparison != .orderedSame {
+                        return dayComparison == .orderedAscending
+                    }
+                    
+                    // if they occur on the same day, then we sort by their start time
+                    return $0.event.startTime < $1.event.startTime
+                }
             }
             
             observeScheduleChanges()
             
             self.isLoading = false
         } catch {
+            print("Error message: \(error.localizedDescription)")
             self.errorMessage = "Failed to fetch schedule: \(error.localizedDescription)"
+            self.isLoading = false
+        }
+    }
+    
+    @MainActor
+    func fetchBlendSchedule(id: String) async {
+        self.errorMessage = nil
+        self.isLoading = true
+        do {
+            let fetchedBlendSchedule = try await scheduleService.fetchBlendSchedule(blendId: id)
+            
+            self.selectedSchedule = nil
+            
+            self.selectedBlend = fetchedBlendSchedule
+            var allRecurringEvents: [RecurringEvents] = []
+            // Fetch events for each scheduleId in the blend schedule
+            for scheduleId in fetchedBlendSchedule.scheduleIds {
+                let events = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
+                for event in events {
+                    allRecurringEvents.append(contentsOf: parseRecurringEvents(event: event))
+                }
+            }
+            self.scheduleEvents = allRecurringEvents.sorted {
+                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+                if dayComparison != .orderedSame {
+                    return dayComparison == .orderedAscending
+                }
+                return $0.event.startTime < $1.event.startTime
+            }
+            self.isLoading = false
+        } catch {
+            print("Error message: \(error.localizedDescription)")
+            self.errorMessage = "Failed to fetch blend schedule: \(error.localizedDescription)"
             self.isLoading = false
         }
     }
@@ -124,9 +221,12 @@ class ScheduleViewModel: ObservableObject {
         self.errorMessage = nil
         do {
             let newSchedule = try await scheduleService.createSchedule(userId: currentUser.id, title: title)
-            self.userSchedule = newSchedule
+            
+            self.userSchedules.append(newSchedule)
+            self.selectedSchedule = newSchedule
             
             observeScheduleChanges()
+            
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to create schedule: \(error.localizedDescription)"
@@ -139,7 +239,7 @@ class ScheduleViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            guard let schedule = userSchedule else { return }
+            guard let schedule = selectedSchedule else { return }
             try await scheduleService.updateSchedule(scheduleId: schedule.id, title: schedule.title)
             self.isLoading = false
         } catch {
@@ -167,7 +267,7 @@ class ScheduleViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            guard let scheduleId = userSchedule?.id as? String else {
+            guard let scheduleId = selectedSchedule?.id as? String else {
                 return
             }
             
@@ -206,7 +306,7 @@ class ScheduleViewModel: ObservableObject {
     @MainActor
     func observeScheduleChanges() {
         
-        guard let scheduleId = userSchedule?.id else { return }
+        guard let scheduleId = selectedSchedule?.id else { return }
         removeScheduleObservers()
         
         addedEventsHandler = scheduleService.observeAddedEvents(scheduleId: scheduleId) { [weak self] eventId in
@@ -256,7 +356,7 @@ class ScheduleViewModel: ObservableObject {
     }
     
     func removeScheduleObservers() {
-        guard let scheduleId = userSchedule?.id else { return }
+        guard let scheduleId = selectedSchedule?.id else { return }
         
         if let addHandler = addedEventsHandler {
             scheduleService.removeScheduleObserver(handle: addHandler, scheduleId: scheduleId)

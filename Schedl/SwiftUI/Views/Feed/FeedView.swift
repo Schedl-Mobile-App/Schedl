@@ -26,7 +26,7 @@ struct FeedView: View {
                     NavigationLink(destination: NotificationsView(currentUser: feedViewModel.currentUser)) {
                         Image(systemName: "bell")
                             .fontWeight(.bold)
-                            .imageScale(.large)
+                            .font(.system(size: 24))
                             .labelStyle(.iconOnly)
                             .foregroundStyle(Color(hex: 0x333333))
                     }
