@@ -65,6 +65,29 @@ struct NotificationCell: View {
                                             .multilineTextAlignment(.center)
                                     }
                             }
+                            
+                        case .blend(let blendInvite):
+                            AsyncImage(url: URL(string: blendInvite.senderProfileImage)) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 55, height: 55)
+                                    .clipShape(Circle())
+                            } placeholder: {
+                                Circle()
+                                    .fill(Color(hex: 0xe0dad5))
+                                    .frame(width: 55, height: 55)
+                                    .overlay {
+                                        let splitName = blendInvite.senderName.split(separator: " ")
+                                        Text("\(splitName[0].first?.uppercased() ?? "")\(splitName[0].first?.uppercased() ?? "")")
+                                            .font(.title3)
+                                            .fontWeight(.bold)
+                                            .fontDesign(.monospaced)
+                                            .tracking(-0.25)
+                                            .foregroundStyle(Color(hex: 0x333333))
+                                            .multilineTextAlignment(.center)
+                                    }
+                            }
                         }
                     }
                 }
@@ -147,6 +170,37 @@ struct NotificationCell: View {
                         }
                     }) {
                         Text("View Event")
+                            .font(.footnote)
+                            .fontWeight(.heavy)
+                            .fontDesign(.monospaced)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(Color(hex: 0xf7f4f2))
+                            .padding(.horizontal)
+                            .frame(maxWidth: .infinity, minHeight: 35)
+                            .background(
+                                 RoundedRectangle(cornerRadius: 15)
+                                     .fill(Color(hex: 0x3C859E))
+                                     .stroke(Color(hex: 0x666666), lineWidth: 1)
+                            )
+                    }
+                case .blend(let blend):
+                    Text("\(blend.senderName) invited you to a blend!")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .fontDesign(.monospaced)
+                        .tracking(-0.25)
+                        .foregroundStyle(Color(hex: 0x333333))
+                        .frame(maxWidth: .infinity)
+                    
+                    Button(action: {
+                        Task {
+                            await notificationViewModel.handleNotificationResponse(
+                                id: notification.id,
+                                responseStatus: true
+                            )
+                        }
+                    }) {
+                        Text("View Blend")
                             .font(.footnote)
                             .fontWeight(.heavy)
                             .fontDesign(.monospaced)
@@ -246,7 +300,7 @@ struct NotificationsView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal)
                         LazyVStack(spacing: 16) {
-                            ForEach(notificationViewModel.notifications) { notification in
+                            ForEach(notificationViewModel.notifications.reversed(), id: \.id) { notification in
                                 NotificationCell(notificationViewModel: notificationViewModel, notification: notification)
                                 Divider()
                                     .background(Color(hex: 0xc0b8b2))

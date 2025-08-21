@@ -24,7 +24,6 @@ struct ChangeAccountDataView: View {
             VStack {
                 ZStack(alignment: .leading) {
                     Button(action: {
-                        showTabBar.toggle()
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
@@ -112,10 +111,11 @@ struct ChangeAccountDataView: View {
 
 struct SettingsView: View {
     
+    @EnvironmentObject var tabBarState: TabBarState
+    
     @ObservedObject var profileViewModel: ProfileViewModel
     @EnvironmentObject var authViewModel: AuthViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var showTabBar = false
     
     @State private var defaultEventVisibility: Bool = false
     @State private var allowInvitesFromAnyone: Bool = true
@@ -130,7 +130,7 @@ struct SettingsView: View {
             VStack {
                 ZStack(alignment: .leading) {
                     Button(action: {
-                        showTabBar.toggle()
+                        tabBarState.hideTabbar = false
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
@@ -248,5 +248,6 @@ struct SettingsView: View {
             profileViewModel.shouldReloadData = true
         }
         .navigationBarBackButtonHidden(true)
+        .toolbar(tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
     }
 }

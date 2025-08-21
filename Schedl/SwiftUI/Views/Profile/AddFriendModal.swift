@@ -18,7 +18,7 @@ struct AddFriendModal: View {
                 .multilineTextAlignment(.center)
             HStack(alignment: .center, spacing: 15) {
                 Button(action: {
-                    profileViewModel.showAddFriendModal.toggle()
+                    profileViewModel.showAddFriendModal = false
                 }) {
                     Text("Cancel")
                         .font(.system(size: 16, weight: .medium, design: .monospaced))
@@ -34,7 +34,7 @@ struct AddFriendModal: View {
                 Button(action: {
                     Task {
                         await profileViewModel.sendFriendRequest()
-                        profileViewModel.showAddFriendModal.toggle()
+                        profileViewModel.showAddFriendModal = false
                     }
                 }) {
                     Text("Send")

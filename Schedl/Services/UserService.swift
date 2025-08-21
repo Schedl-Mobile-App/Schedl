@@ -46,6 +46,7 @@ class UserService: UserServiceProtocol {
             return user
             
         } else {
+            print("Invalid data in the fetch user service method")
             throw UserServiceError.invalidData
         }
     }
@@ -163,7 +164,7 @@ class UserService: UserServiceProtocol {
         let snapshot = try await userRef.getData()
         
         guard let friendsNode = snapshot.value as? [String: Any] else {
-            throw UserServiceError.failedToFetchFriends
+            return []
         }
         
         let friendIds = Array(friendsNode.keys)

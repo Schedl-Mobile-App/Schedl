@@ -9,16 +9,10 @@ import SwiftUI
 
 struct EditEventView: View {
     
-    @StateObject var eventViewModel: EventViewModel
+    @ObservedObject var eventViewModel: EventViewModel
     @Environment(\.dismiss) var dismiss
-    @Binding var shouldReloadData: Bool
         
     @FocusState var isFocused: EventInfoFields?
-    
-    init(currentUser: User, event: RecurringEvents, shouldReloadData: Binding<Bool>) {
-        _eventViewModel = StateObject(wrappedValue: EventViewModel(currentUser: currentUser, selectedEvent: event))
-        _shouldReloadData = Binding(projectedValue: shouldReloadData)
-    }
     
     var body: some View {
         ZStack {
@@ -57,8 +51,9 @@ struct EditEventView: View {
                             }
                         }, label: {
                             Image(systemName: "trash")
-                                .font(.system(size: 26))
-                                .fontWeight(.semibold)
+                                .fontWeight(.bold)
+                                .font(.system(size: 24))
+                                .labelStyle(.iconOnly)
                                 .foregroundStyle(Color(hex: 0x333333))
                         })
                     }
@@ -67,7 +62,7 @@ struct EditEventView: View {
                 .frame(maxWidth: .infinity)
                 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .center, spacing: 30) {
+                    VStack(alignment: .center, spacing: 10) {
                         
                         // view for event title input
                         EventTitleView(title: $eventViewModel.title, isFocused: $isFocused, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, titleError: $eventViewModel.titleError)
@@ -91,39 +86,38 @@ struct EditEventView: View {
                             }
                         
                         // view for event notes input
-                        EventNotesView(notes: $eventViewModel.notes, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
+                        EventNotesView(notes: $eventViewModel.notes, notesError: $eventViewModel.notesError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
                         
-                        VStack(spacing: 12) {
-                            // view for event color selection
-                            EventColorView(eventColor: $eventViewModel.eventColor)
+                        EventColorView(eventColor: $eventViewModel.eventColor)
+                        
+                        VStack(spacing: 6) {
+                            Text(eventViewModel.submitError)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                                .opacity(eventViewModel.hasTriedSubmitting && !eventViewModel.submitError.isEmpty ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.2), value: eventViewModel.hasTriedSubmitting)
                             
-                            VStack(spacing: 6) {
-                                Text(eventViewModel.submitError)
-                                    .font(.footnote)
-                                    .foregroundStyle(.red)
-                                    .opacity(eventViewModel.hasTriedSubmitting && !eventViewModel.submitError.isEmpty ? 1 : 0)
-                                    .animation(.easeInOut(duration: 0.2), value: eventViewModel.hasTriedSubmitting)
-                                
-                                Button(action: {
+                            Button(action: {
+                                if eventViewModel.isRecurringEvent {
+                                    eventViewModel.showSaveChangesModal.toggle()
+                                } else {
                                     Task {
                                         await eventViewModel.updateEvent()
-                                        if eventViewModel.shouldDismiss {
-                                            dismiss()
-                                        }
                                     }
-                                }) {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .overlay {
-                                            Text("Save Changes")
-                                                .foregroundColor(Color(hex: 0xf7f4f2))
-                                                .font(.system(size: 18, weight: .bold, design: .monospaced))
-                                                .tracking(0.1)
-                                        }
                                 }
-                                .frame(maxWidth: .infinity, minHeight: 50)
-                                .foregroundStyle(Color(hex: 0x3C859E))
-                            }
-                            .padding(.bottom)
+                            }, label: {
+                                Text("Save Changes")
+                                    .foregroundColor(Color(hex: 0xf7f4f2))
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .fontDesign(.monospaced)
+                                    .tracking(0.1)
+                            })
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color(hex: 0x3C859E))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .padding(.vertical, 8)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -138,20 +132,82 @@ struct EditEventView: View {
                 }
                 .defaultScrollAnchor(.top, for: .initialOffset)
                 .defaultScrollAnchor(.bottom, for: .sizeChanges)
-                .scrollDismissesKeyboard(.immediately)
+                .scrollDismissesKeyboard(.interactively)
                 .onTapGesture {
                     isFocused = nil
                 }
                 .padding(.top)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            ZStack {
+                Color(.black.opacity(0.7))
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture {}
+                
+                SaveEditedEventModal(eventViewModel: eventViewModel)
+            }
+            .zIndex(1)
+            .hidden(!eventViewModel.showSaveChangesModal)
+            .allowsHitTesting(eventViewModel.showSaveChangesModal)
         }
         .navigationBarBackButtonHidden(true)
-        .onAppear {
-            shouldReloadData = false
+        .toolbar(.hidden, for: .tabBar)
+        .onChange(of: eventViewModel.shouldDismiss) {
+            dismiss()
         }
-        .onDisappear {
-            shouldReloadData = true
+    }
+}
+
+struct SaveEditedEventModal: View {
+    
+    @ObservedObject var eventViewModel: EventViewModel
+    
+    var body: some View {
+        VStack(alignment: .center, spacing: 20) {
+            Text("Do you want to save these changes to all future events or just this one?")
+                .font(.system(size: 16, weight: .medium, design: .monospaced))
+                .multilineTextAlignment(.center)
+            HStack(alignment: .center, spacing: 15) {
+                Button(action: {
+                    Task {
+                        await eventViewModel.updateRecurringEvent()
+                    }
+                }) {
+                    Text("Single")
+                        .font(.system(size: 16, weight: .medium, design: .monospaced))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color(hex: 0x333333))
+                }
+                .frame(maxWidth: .infinity, maxHeight: 50)
+                .background {
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color.black.opacity(0.1))
+                }
+                
+                Button(action: {
+                    Task {
+                        await eventViewModel.updateAllFutureRecurringEvent()
+                    }
+                }) {
+                    Text("All")
+                        .font(.system(size: 16, weight: .medium, design: .monospaced))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color(hex: 0xf7f4f2))
+                }
+                .frame(maxWidth: .infinity, maxHeight: 50)
+                .background {
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color(hex: 0x6d8a96))
+                }
+            }
         }
+        .padding()
+        .background {
+            RoundedRectangle(cornerRadius: 15)
+                .fill(Color(hex: 0xe0dad5))
+        }
+        .padding(.horizontal, UIScreen.main.bounds.width * 0.075)
     }
 }

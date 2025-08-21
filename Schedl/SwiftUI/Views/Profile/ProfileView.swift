@@ -12,6 +12,13 @@ struct ProfileView: View {
     
     @StateObject var profileViewModel: ProfileViewModel
     @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var tabBarState: TabBarState
+        
+    @State var navigateToEventDetails = false
+    @State var navigateToSettings = false
+    @State var navigateToFriends = false
+    @State var navigateToCreateEventView = false
+    
     @State var selectedType: Int = 0
     var utils = ["Upcoming", "Invited", "Past"]
     @Environment(\.dismiss) var dismiss
@@ -55,13 +62,15 @@ struct ProfileView: View {
                                         .fontWeight(.bold)
                                         .fontDesign(.monospaced)
                                         .tracking(-0.25)
-                                        .frame(maxWidth: .infinity, alignment: .center)
                                 }
                                 Spacer()
-                                NavigationLink(destination: SettingsView(profileViewModel: profileViewModel).environmentObject(authViewModel)) {
+                                Button(action: {
+                                    tabBarState.hideTabbar = true
+                                    navigateToSettings = true
+                                }) {
                                     Image(systemName: "gearshape")
                                         .fontWeight(.bold)
-                                        .imageScale(.large)
+                                        .font(.system(size: 24))
                                         .labelStyle(.iconOnly)
                                         .foregroundStyle(Color(hex: 0x333333))
                                 }
@@ -78,6 +87,7 @@ struct ProfileView: View {
                             
                             HStack {
                                 Button(action: {
+                                    tabBarState.hideTabbar = true
                                     dismiss()
                                 }) {
                                     Image(systemName: "chevron.left")
@@ -88,7 +98,7 @@ struct ProfileView: View {
                                 }
                                 Spacer()
                                 Button(action: {
-                                    profileViewModel.showAddFriendModal.toggle()
+                                    profileViewModel.showAddFriendModal = true
                                 }) {
                                     Image(systemName: "person.badge.plus")
                                         .font(.system(size: 24, weight: .medium))
@@ -109,23 +119,41 @@ struct ProfileView: View {
                             UserDisplayName(profileViewModel: profileViewModel)
                         }
                         
-                        ProfileInformatics(profileViewModel: profileViewModel)
+                        ProfileInformatics(profileViewModel: profileViewModel, navigateToFriends: $navigateToFriends).environmentObject(tabBarState)
                         
                         UserViewOptions(profileViewModel: profileViewModel)
                         
                         if profileViewModel.isCurrentUser || profileViewModel.isViewingFriend {
                             switch profileViewModel.selectedTab {
                             case .schedules:
-                                ScrollView(.vertical, showsIndicators: false) {
-                                    LazyVStack(spacing: 10) {
-                                        let sortedKeys = Array(profileViewModel.partitionedEvents.keys).sorted(by: <)
-                                        ForEach(sortedKeys, id: \.self) { key in
-                                            ScheduleEventCards(profileViewModel: profileViewModel, key: key)
-                                        }
+                                let sortedKeys = Array(profileViewModel.partitionedEvents.keys).sorted(by: <)
+                                if sortedKeys.isEmpty {
+                                    Button(action: {
+                                        tabBarState.hideTabbar = true
+                                        navigateToCreateEventView = true
+                                    }) {
+                                        Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) has no upcoming events. Tell them that they should create some!" : "No upcoming events. Tap anywhere here to create one!")
+                                            .font(.subheadline)
+                                            .fontDesign(.monospaced)
+                                            .tracking(-0.25)
+                                            .fontWeight(.medium)
+                                            .foregroundStyle(Color(hex: 0x666666))
+                                            .multilineTextAlignment(.center)
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                            .padding(.horizontal, 25)
                                     }
-                                    .padding(.bottom)
+                                } else {
+                                    ScrollView(.vertical, showsIndicators: false) {
+                                        LazyVStack(spacing: 10) {
+                                            ForEach(sortedKeys, id: \.self) { key in
+                                                ScheduleEventCards(profileViewModel: profileViewModel, key: key)
+                                            }
+                                        }
+                                        .padding(.bottom)
+                                    }
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .padding(.horizontal, 25)
                                 }
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                             case .events:
                                 VStack(spacing: 10) {
                                     HStack {
@@ -156,39 +184,121 @@ struct ProfileView: View {
                                     ScrollView(.vertical, showsIndicators: false) {
                                         LazyVStack(spacing: 10) {
                                             switch selectedType {
-                                            case 0: ForEach(profileViewModel.currentEvents, id: \.self.id) { event in
-                                                if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
-                                                    
-                                                    EventCard(event: event, profileViewModel: profileViewModel)
+                                            case 0:
+                                                if profileViewModel.currentEvents.isEmpty {
+                                                    Spacer()
+                                                        .frame(height: 75)
+                                                    Button(action: {
+                                                        tabBarState.hideTabbar = true
+                                                        navigateToCreateEventView = true
+                                                    }) {
+                                                        Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) has no upcoming events. Tell him that he should create some!" : "No upcoming events. Tap anywhere here to create one!")
+                                                            .font(.subheadline)
+                                                            .fontDesign(.monospaced)
+                                                            .tracking(-0.25)
+                                                            .fontWeight(.medium)
+                                                            .foregroundStyle(Color(hex: 0x666666))
+                                                            .multilineTextAlignment(.center)
+                                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                                    }
+                                                } else {
+                                                    ForEach(profileViewModel.currentEvents, id: \.self.id) { event in
+                                                        if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
+                                                            
+                                                            EventCard(event: event, navigateToEventDetails: $navigateToEventDetails, selectedEvent: $profileViewModel.selectedEvent).environmentObject(tabBarState)
+                                                        }
+                                                    }
                                                 }
-                                            }
-                                            case 1: ForEach(profileViewModel.invitedEvents, id: \.self.id) { event in
-                                                if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
-                                                    
-                                                    EventCard(event: event, profileViewModel: profileViewModel)
+                                            case 1:
+                                                if profileViewModel.invitedEvents.isEmpty {
+                                                    Spacer()
+                                                        .frame(height: 75)
+                                                    Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) hasn't been invited to any events. You should invite them to one!" : "You haven't been invited to any upcoming events yet. Text your friends to invite you!")
+                                                        .font(.subheadline)
+                                                        .fontDesign(.monospaced)
+                                                        .tracking(-0.25)
+                                                        .fontWeight(.medium)
+                                                        .foregroundStyle(Color(hex: 0x666666))
+                                                        .multilineTextAlignment(.center)
+                                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                                } else {
+                                                    ForEach(profileViewModel.invitedEvents, id: \.self.id) { event in
+                                                        if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
+                                                            
+                                                            EventCard(event: event, navigateToEventDetails: $navigateToEventDetails, selectedEvent: $profileViewModel.selectedEvent).environmentObject(tabBarState)
+                                                        }
+                                                    }
                                                 }
-                                            }
-                                            case 2: ForEach(profileViewModel.pastEvents, id: \.self.id) { EventCard(event: $0, profileViewModel: profileViewModel) }
+                                            case 2:
+                                                if profileViewModel.pastEvents.isEmpty {
+                                                    Spacer()
+                                                        .frame(height: 75)
+                                                    Button(action: {
+                                                        tabBarState.hideTabbar = true
+                                                        navigateToCreateEventView = true
+                                                    }) {
+                                                        Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) has no past events to show. Maybe they're new here..." : "No past events to show. Maybe you're new here... If so, tap anywhere here to create one!")
+                                                            .font(.subheadline)
+                                                            .fontDesign(.monospaced)
+                                                            .tracking(-0.25)
+                                                            .fontWeight(.medium)
+                                                            .foregroundStyle(Color(hex: 0x666666))
+                                                            .multilineTextAlignment(.center)
+                                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                                    }
+                                                } else {
+                                                    ForEach(profileViewModel.pastEvents, id: \.self.id) { event in
+                                                        EventCard(event: event, navigateToEventDetails: $navigateToEventDetails, selectedEvent: $profileViewModel.selectedEvent).environmentObject(tabBarState)}
+                                                }
                                             default: EmptyView()
                                             }
                                         }
                                         .padding(.bottom)
                                         .frame(maxHeight: .infinity)
                                     }
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
                                     .padding(.horizontal, 25)
                                     .layoutPriority(1)
                                 }
                                 .frame(maxHeight: .infinity, alignment: .top)
                             case .activity:
-                                ScrollView(.vertical, showsIndicators: false) {
-                                    Text("Activity")
-                                        .padding(.bottom)
+                                if profileViewModel.userPosts.isEmpty {
+                                    Button(action: {
+                                        
+                                    }) {
+                                        Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) has no recent activity. Tell them to create a post!" : "No activity to show here yet. Tap anywhere here to create your first post!")
+                                            .font(.subheadline)
+                                            .fontDesign(.monospaced)
+                                            .tracking(-0.25)
+                                            .fontWeight(.medium)
+                                            .foregroundStyle(Color(hex: 0x666666))
+                                            .multilineTextAlignment(.center)
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                            .padding(.horizontal, 25)
+                                    }
+                                } else {
+                                    ScrollView(.vertical, showsIndicators: false) {
+                                        Text("Posts go here")
+                                            .padding(.bottom)
+                                    }
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .padding(.horizontal, 25)
                                 }
                             }
                         } else {
-                            Text("Add \(profileViewModel.profileUser.displayName) as a friend first!")
-                                .font(.system(size: 20, weight: .medium, design: .monospaced))
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                            Button(action: {
+                                profileViewModel.showAddFriendModal = true
+                            }) {
+                                Text("You can't see \(profileViewModel.profileUser.displayName.split(separator: " ").first!)'s schedule until you add them as a friend. Click anywhere here to request them!")
+                                    .font(.subheadline)
+                                    .fontDesign(.monospaced)
+                                    .tracking(-0.25)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(Color(hex: 0x666666))
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                    .padding(.horizontal, 25)
+                            }
                         }
                     }
                     .padding(.top)
@@ -204,7 +314,7 @@ struct ProfileView: View {
                     
                     AddFriendModal(profileViewModel: profileViewModel)
                 }
-                .zIndex(1)
+                .zIndex(100)
                 .hidden(!profileViewModel.showAddFriendModal)
                 .allowsHitTesting(profileViewModel.showAddFriendModal)
                 
@@ -221,13 +331,34 @@ struct ProfileView: View {
                 .allowsHitTesting(profileViewModel.showSaveChangesModal)
             }
         }
+        .onAppear {
+            tabBarState.hideTabbar = false
+        }
         .navigationBarBackButtonHidden(true)
         .task {
             if profileViewModel.shouldReloadData {
                 await profileViewModel.loadProfileData()
             }
         }
-        .toolbar(profileViewModel.showSaveChangesModal || profileViewModel.showAddFriendModal ? .hidden : .visible, for: .tabBar)
+        .toolbar(profileViewModel.showSaveChangesModal || profileViewModel.showAddFriendModal || tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
+        .navigationDestination(isPresented: $navigateToSettings) {
+            SettingsView(profileViewModel: profileViewModel)
+                .environmentObject(authViewModel)
+                .environmentObject(tabBarState)
+        }
+        .navigationDestination(isPresented: $navigateToEventDetails) {
+            if let event = profileViewModel.selectedEvent {
+                EventDetailsView(event: event, currentUser: profileViewModel.currentUser, shouldReloadData: $profileViewModel.shouldReloadData)
+            }
+        }
+        .navigationDestination(isPresented: $navigateToFriends) {
+            FriendsView(profileViewModel: profileViewModel)
+                .environmentObject(tabBarState)
+        }
+        .navigationDestination(isPresented: $navigateToCreateEventView) {
+            CreateEventView(currentUser: profileViewModel.currentUser,
+                            shouldReloadData: $profileViewModel.shouldReloadData).environmentObject(tabBarState)
+        }
     }
 }
 
@@ -267,6 +398,127 @@ struct UserViewOptions: View {
         }
         .frame(maxWidth: .infinity, maxHeight: 45, alignment: .center)
         .padding(.horizontal, 25)
+    }
+}
+
+struct HiddenScheduleEventCardView: View {
+    
+    let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    var fakeTitles = [
+        "Going to the movies",
+        "Hiking with John",
+        "Gym",
+        "Dinner plans",
+        "Shopping with Jennifer",
+        "Movie night with friends",
+    ]
+    @Binding var displayName: String
+    
+    var body: some View {
+        ZStack(alignment: .center) {
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack {
+                    ForEach(1..<5, id: \.self) { index in
+                       
+                        var dateToDisplay: String {
+                            if index == 1 { return "Today" }
+                            if index == 2 { return "Tomorrow"}
+                            let today = Calendar.current.date(byAdding: .day, value: index - 1, to: Date())!
+                            return weekdays[min(Calendar.current.component(.weekday, from: today), 6)]
+                        }
+                        var monthToDisplay: String {
+                            let today = Calendar.current.date(byAdding: .day, value: index - 1, to: Date())!
+                            let monthIdx = Calendar.current.component(.month, from: today) - 1
+                            return months[monthIdx]
+                        }
+                        
+                        var dayToDisplay: String {
+                            let today = Calendar.current.date(byAdding: .day, value: index - 1, to: Date())!
+                            return String(Calendar.current.component(.day, from: today))
+                        }
+                        
+                        HStack(alignment: .top, spacing: 20) {
+                            LazyVStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text(dateToDisplay)
+                                        .font(.system(size: 15, weight: .bold, design: .monospaced))
+                                        .tracking(-0.25)
+                                        .foregroundStyle(Color(hex: 0x333333))
+                                        .multilineTextAlignment(.leading)
+                                    
+                                    Spacer()
+                                    
+                                    Text("\(monthToDisplay) \(dayToDisplay)")
+                                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                                        .foregroundStyle(Color(hex: 0x666666))
+                                        .lineLimit(1)
+                                }
+                                
+                                let randomValue = Int.random(in: 2...5)
+                                ForEach(1..<randomValue, id: \.self) { _ in
+                                    HStack(spacing: 12) {
+                                        Text(fakeTitles.randomElement()!)
+                                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                                            .foregroundStyle(Color(hex: 0x333333))
+                                            .tracking(1)
+                                            .lineLimit(1)
+                                            .truncationMode(.tail)
+                                        
+                                        Spacer(minLength: 6)
+                                        
+                                        Text("9:30 AM")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .monospacedDigit()
+                                            .foregroundStyle(Color(hex: 0x666666))
+                                            .lineLimit(1)
+                                            .truncationMode(.tail)
+                                    }
+                                }
+                            }
+                            .padding(.vertical)
+                        }
+                        .padding(.trailing, 10)
+                        .padding(.leading, 20)
+                        .background(
+                            ZStack(alignment: .leading) {
+                                Color.white
+                                
+                                Color(hex: 0x3C859E)
+                                    .frame(width: 7)
+                                    .frame(maxHeight: .infinity)
+                                
+                                
+                            }
+                        )
+                        .blur(radius: 5, opaque: false)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        
+                        //                                            .padding(.horizontal, 25)
+                        //                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        
+                    }
+                }
+                .padding(.bottom)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 25)
+            
+            Text("Add \(displayName.split(separator: " ").first!) as a friend to see her schedule!")
+                .font(.title3)
+                .fontWeight(.bold)
+                .fontDesign(.monospaced)
+                .tracking(-0.25)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Color(hex: 0xf7f4f2))
+                .padding(.horizontal)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.black.opacity(0.30))
+                )
+                .padding(.horizontal)
+        }
     }
 }
 
@@ -333,13 +585,13 @@ struct UserProfileImage: View {
                 .frame(width: 125, height: 112.5, alignment: .topTrailing)
             }
         }
-//        .onChange(of: pickerItem) {
-//            Task {
-//                if let imageData = try await pickerItem?.loadTransferable(type: Data.self) {
-//                    profileViewModel.selectedImage = UIImage(data: imageData)
-//                }
-//            }
-//        }
+        .onChange(of: pickerItem) {
+            Task {
+                if let imageData = try await pickerItem?.loadTransferable(type: Data.self) {
+                    profileViewModel.selectedImage = UIImage(data: imageData)
+                }
+            }
+        }
     }
 }
 
