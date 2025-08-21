@@ -98,10 +98,11 @@ struct EditEventView: View {
                                 .animation(.easeInOut(duration: 0.2), value: eventViewModel.hasTriedSubmitting)
                             
                             Button(action: {
-                                Task {
-                                    await eventViewModel.updateEvent()
-                                    if eventViewModel.shouldDismiss {
-                                        dismiss()
+                                if eventViewModel.isRecurringEvent {
+                                    eventViewModel.showSaveChangesModal.toggle()
+                                } else {
+                                    Task {
+                                        await eventViewModel.updateEvent()
                                     }
                                 }
                             }, label: {
@@ -131,15 +132,82 @@ struct EditEventView: View {
                 }
                 .defaultScrollAnchor(.top, for: .initialOffset)
                 .defaultScrollAnchor(.bottom, for: .sizeChanges)
-                .scrollDismissesKeyboard(.immediately)
+                .scrollDismissesKeyboard(.interactively)
                 .onTapGesture {
                     isFocused = nil
                 }
                 .padding(.top)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            ZStack {
+                Color(.black.opacity(0.7))
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture {}
+                
+                SaveEditedEventModal(eventViewModel: eventViewModel)
+            }
+            .zIndex(1)
+            .hidden(!eventViewModel.showSaveChangesModal)
+            .allowsHitTesting(eventViewModel.showSaveChangesModal)
         }
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .tabBar)
+        .onChange(of: eventViewModel.shouldDismiss) {
+            dismiss()
+        }
+    }
+}
+
+struct SaveEditedEventModal: View {
+    
+    @ObservedObject var eventViewModel: EventViewModel
+    
+    var body: some View {
+        VStack(alignment: .center, spacing: 20) {
+            Text("Do you want to save these changes to all future events or just this one?")
+                .font(.system(size: 16, weight: .medium, design: .monospaced))
+                .multilineTextAlignment(.center)
+            HStack(alignment: .center, spacing: 15) {
+                Button(action: {
+                    Task {
+                        await eventViewModel.updateRecurringEvent()
+                    }
+                }) {
+                    Text("Single")
+                        .font(.system(size: 16, weight: .medium, design: .monospaced))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color(hex: 0x333333))
+                }
+                .frame(maxWidth: .infinity, maxHeight: 50)
+                .background {
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color.black.opacity(0.1))
+                }
+                
+                Button(action: {
+                    Task {
+                        await eventViewModel.updateAllFutureRecurringEvent()
+                    }
+                }) {
+                    Text("All")
+                        .font(.system(size: 16, weight: .medium, design: .monospaced))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color(hex: 0xf7f4f2))
+                }
+                .frame(maxWidth: .infinity, maxHeight: 50)
+                .background {
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color(hex: 0x6d8a96))
+                }
+            }
+        }
+        .padding()
+        .background {
+            RoundedRectangle(cornerRadius: 15)
+                .fill(Color(hex: 0xe0dad5))
+        }
+        .padding(.horizontal, UIScreen.main.bounds.width * 0.075)
     }
 }

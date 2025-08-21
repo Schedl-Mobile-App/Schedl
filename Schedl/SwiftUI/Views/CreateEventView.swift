@@ -18,10 +18,11 @@ private let mockUser = User(
 
 struct CreateEventView: View {
     
+    @EnvironmentObject var tabBarState: TabBarState
+    
     @StateObject var eventViewModel: EventViewModel
     @Environment(\.dismiss) var dismiss
     @Binding var shouldReloadData: Bool
-    @State var hideTabbar = true
     
     @FocusState var isFocused: EventInfoFields?
     
@@ -38,7 +39,7 @@ struct CreateEventView: View {
             VStack(spacing: 10) {
                 ZStack(alignment: .leading) {
                     Button(action: {
-                        hideTabbar = false
+                        tabBarState.hideTabbar = false
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
@@ -102,6 +103,7 @@ struct CreateEventView: View {
                             Task {
                                 await eventViewModel.createEvent()
                                 if eventViewModel.shouldDismiss {
+                                    shouldReloadData = true
                                     dismiss()
                                 }
                             }
@@ -132,22 +134,22 @@ struct CreateEventView: View {
                 }
                 .defaultScrollAnchor(.top, for: .initialOffset)
                 .defaultScrollAnchor(.bottom, for: .sizeChanges)
-                .scrollDismissesKeyboard(.immediately)
+                .scrollDismissesKeyboard(.interactively)
                 .onTapGesture {
                     isFocused = nil
                 }
             }
-            .padding(.bottom, 0.5)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {
             shouldReloadData = false
+            tabBarState.hideTabbar = true
         }
         .onDisappear {
             shouldReloadData = true
         }
-        .toolbar(hideTabbar ? .hidden : .visible, for: .tabBar)
+        .toolbar(tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
     }
 }
 
@@ -174,52 +176,191 @@ struct AddInvitedUsers: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                HStack(alignment: .center, spacing: 10) {
-                    Button(action: {}) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.gray)
-                            .imageScale(.medium)
-                    }
-                    
-                    TextField("Search friends", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .autocorrectionDisabled(true)
-                        .textInputAutocapitalization(.never)
-                        .focused($isSearching, equals: true)
-                    
-                    Spacer()
-                    
-                    Button("Clear", action: {
-                        searchText = ""
-                    })
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .fontDesign(.monospaced)
-                    .tracking(-0.25)
-                    .foregroundStyle(Color(hex: 0x3C859E))
-                    .opacity(!searchText.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: searchText)
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 25))
-                .frame(maxWidth: .infinity, alignment: .center)
-                
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 20) {
-                        ForEach(filteredUsers, id: \.self.id) { friend in
-                            InvitedUserCell(friend: friend, selectedFriends: $eventViewModel.selectedFriends, availableFriends: eventViewModel.availabilityList)
+            Group {
+                if eventViewModel.isLoading {
+                    VStack(spacing: 0) {
+                        HStack(alignment: .center, spacing: 10) {
+                            Button(action: {}) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundStyle(.gray)
+                                    .imageScale(.medium)
+                            }
+                            
+                            TextField("Search friends", text: $searchText)
+                                .textFieldStyle(.plain)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .fontDesign(.monospaced)
+                                .tracking(-0.25)
+                                .foregroundStyle(Color(hex: 0x333333))
+                                .disabled(true)
+                            
+                            Spacer()
+                            
+                            Button("Clear", action: {
+                                searchText = ""
+                            })
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
+                            .foregroundStyle(Color(hex: 0x3C859E))
+                            .opacity(!searchText.isEmpty ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.2), value: searchText)
                         }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 25))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                                                
+                        FriendsLoadingView()
                     }
-                    .padding(.vertical)
+                } else if let error = eventViewModel.errorMessage {
+                    VStack(spacing: 0) {
+                        HStack(alignment: .center, spacing: 10) {
+                            Button(action: {}) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundStyle(.gray)
+                                    .imageScale(.medium)
+                            }
+                            
+                            TextField("Search friends", text: $searchText)
+                                .textFieldStyle(.plain)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .fontDesign(.monospaced)
+                                .tracking(-0.25)
+                                .foregroundStyle(Color(hex: 0x333333))
+                                .disabled(true)
+                            
+                            Spacer()
+                            
+                            Button("Clear", action: {
+                                searchText = ""
+                            })
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
+                            .foregroundStyle(Color(hex: 0x3C859E))
+                            .opacity(!searchText.isEmpty ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.2), value: searchText)
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 25))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        
+                        Spacer()
+                        
+                        Text(error)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .fontDesign(.monospaced)
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .tracking(-0.25)
+                            .multilineTextAlignment(.center)
+                        Spacer()
+                    }
+                } else if eventViewModel.userFriends.isEmpty {
+                    VStack(spacing: 0) {
+                        HStack(alignment: .center, spacing: 10) {
+                            Button(action: {}) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundStyle(.gray)
+                                    .imageScale(.medium)
+                            }
+                            
+                            TextField("Search friends", text: $searchText)
+                                .textFieldStyle(.plain)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .fontDesign(.monospaced)
+                                .tracking(-0.25)
+                                .foregroundStyle(Color(hex: 0x333333))
+                                .disabled(true)
+                            
+                            Spacer()
+                            
+                            Button("Clear", action: {
+                                searchText = ""
+                            })
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
+                            .foregroundStyle(Color(hex: 0x3C859E))
+                            .opacity(!searchText.isEmpty ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.2), value: searchText)
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 25))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                                      
+                        Spacer()
+                        
+                        Text("No friends found. Add your first friend by clicking the Search icon below!")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .fontDesign(.monospaced)
+                            .foregroundStyle(Color(hex: 0x666666))
+                            .tracking(-0.25)
+                            .multilineTextAlignment(.center)
+                        Spacer()
+                    }
+                } else {
+                    VStack(spacing: 0) {
+                        HStack(alignment: .center, spacing: 10) {
+                            Button(action: {}) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundStyle(.gray)
+                                    .imageScale(.medium)
+                            }
+                            
+                            TextField("Search friends", text: $searchText)
+                                .textFieldStyle(.plain)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .fontDesign(.monospaced)
+                                .tracking(-0.25)
+                                .foregroundStyle(Color(hex: 0x333333))
+                                .autocorrectionDisabled(true)
+                                .textInputAutocapitalization(.never)
+                                .focused($isSearching, equals: true)
+                            
+                            Spacer()
+                            
+                            Button("Clear", action: {
+                                searchText = ""
+                            })
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
+                            .foregroundStyle(Color(hex: 0x3C859E))
+                            .opacity(!searchText.isEmpty ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.2), value: searchText)
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 25))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        
+                        ScrollView(.vertical, showsIndicators: false) {
+                            LazyVStack(spacing: 20) {
+                                ForEach(filteredUsers, id: \.self.id) { friend in
+                                    InvitedUserCell(friend: friend, selectedFriends: $eventViewModel.selectedFriends, availableFriends: eventViewModel.availabilityList)
+                                }
+                            }
+                            .padding(.vertical)
+                        }
+                        .scrollDismissesKeyboard(.interactively)
+                    }
+                    .onTapGesture {
+                        isSearching = nil
+                    }
                 }
-                .scrollDismissesKeyboard(.immediately)
             }
             .padding(.horizontal)
             .navigationTitle("Invite Friends")
@@ -230,9 +371,6 @@ struct AddInvitedUsers: View {
                         dismiss()
                     }
                 }
-            }
-            .onTapGesture {
-                isSearching = nil
             }
         }
         .presentationDetents([.medium, .large])
@@ -318,7 +456,7 @@ struct EventTitleView: View {
             }
         }
         .padding(.vertical, 8)
-        .padding(.bottom, hasTriedSubmitting && !titleError.isEmpty ? 4 : 0)
+        .padding(.bottom, hasTriedSubmitting && !titleError.isEmpty ? 8 : 0)
     }
 }
 
@@ -331,7 +469,7 @@ struct EventDateView: View {
     @State var showEndDatePicker: Bool = false
     @Binding var startDateError: String
     @Binding var endDateError: String
-    @Binding var repeatedDays: [String]?
+    @Binding var repeatedDays: Set<Int>?
     
     var dayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     
@@ -369,7 +507,7 @@ struct EventDateView: View {
         ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
                 Text(eventDateText)
-                    .fontWeight(eventDate == nil ? .bold : .medium)
+                    .fontWeight(eventDate == nil ? .regular : .medium)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
                     .foregroundStyle(eventDate == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
@@ -414,6 +552,8 @@ struct EventDateView: View {
                                selection: eventDateBinding,
                                displayedComponents: [.date])
                     .datePickerStyle(.graphical)
+                    .padding(0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .navigationTitle("Select Date")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
@@ -469,7 +609,7 @@ struct EventDateView: View {
             }
         }
         .padding(.vertical, 8)
-        .padding(.bottom, hasTriedSubmitting && !startDateError.isEmpty ? 4 : 0)
+        .padding(.bottom, hasTriedSubmitting && !startDateError.isEmpty ? 8 : 0)
         
         if eventDate != nil {
             ZStack(alignment: .topLeading) {
@@ -486,20 +626,28 @@ struct EventDateView: View {
                                     .foregroundStyle(Color(hex: 0x333333))
                                 
                                 Button(action: {
-                                    if repeatedDays == nil {
-                                        repeatedDays = []
-                                    }
-                                    repeatedDays!.contains(String(index)) ? repeatedDays?.removeAll(where: { $0 == String(index) }) : repeatedDays?.append(String(index))
+                                    var currentDays = repeatedDays ?? Set<Int>()
+                                        
+                                        // 2. Perform the toggle logic on the local variable
+                                        if currentDays.contains(index) {
+                                            currentDays.remove(index)
+                                        } else {
+                                            currentDays.insert(index)
+                                        }
+                                        
+                                        // 3. Assign the modified set back to the @State variable to trigger a UI update
+                                        repeatedDays = currentDays
                                 }) {
                                     RoundedRectangle(cornerRadius: 5)
-                                        .fill((repeatedDays != nil && repeatedDays!.contains(String(index))) ? Color(hex: 0x3C859E) : Color.gray.opacity(0.2))
-                                        .frame(width: 25, height: 25)
+                                            // 4. Safely check for containment without force unwrapping
+                                            .fill(repeatedDays?.contains(index) == true ? Color(hex: 0x3C859E) : Color.gray.opacity(0.2))
+                                            .frame(width: 25, height: 25)
                                 }
                             }
                             Spacer()
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(maxWidth: .infinity)
                     
                     HStack {
                         Text("Repeating Until")
@@ -541,67 +689,77 @@ struct EventDateView: View {
                             .hidden(eventEndDate != nil)
                         }
                     }
-                    .sheet(isPresented: $showEndDatePicker) {
-                        NavigationView {
-                            DatePicker("Select End Date",
-                                       selection: eventEndDateBinding,
-                                       displayedComponents: [.date])
-                            .datePickerStyle(.graphical)
-                            .navigationTitle("Select End Date")
-                            .navigationBarTitleDisplayMode(.inline)
-                            .toolbar {
-                                ToolbarItem(placement: .navigationBarLeading) {
-                                    Button("Clear") {
-                                        eventEndDate = nil
-                                        showEndDatePicker = false
-                                    }
-                                }
-                                
-                                ToolbarItem(placement: .navigationBarTrailing) {
-                                    Button("Done") {
-                                        showEndDatePicker = false
-                                    }
+                }
+                .padding(.vertical)
+                .padding(.horizontal)
+                .background {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.clear)
+                        .stroke(hasTriedSubmitting && !endDateError.isEmpty ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                }
+                .sheet(isPresented: $showEndDatePicker) {
+                    NavigationView {
+                        DatePicker("Select End Date",
+                                   selection: eventEndDateBinding,
+                                   displayedComponents: [.date])
+                        .datePickerStyle(.graphical)
+                        .navigationTitle("Select End Date")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Clear") {
+                                    eventEndDate = nil
+                                    showEndDatePicker = false
                                 }
                             }
-                        }
-                        .presentationDetents([.medium])
-                        .onAppear {
-                            if eventEndDate == nil {
-                                eventEndDate = Calendar.current.startOfDay(for: Date())
+                            
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showEndDatePicker = false
+                                }
                             }
                         }
                     }
-                }
-                .padding()
-                .background {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(hasTriedSubmitting && !endDateError.isEmpty ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    .presentationDetents([.medium])
+                    .onAppear {
+                        if eventEndDate == nil {
+                            eventEndDate = Calendar.current.startOfDay(for: Date())
+                        }
+                    }
                 }
                 
-                HStack {
-                    Spacer(minLength: 8)
-                    Text("Recurring Days")
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                    Spacer(minLength: 8)
+                GeometryReader { geometry in
+                    HStack {
+                        Spacer()
+                            .frame(width: 4)
+                        Text("Recurring Days")
+                            .font(.footnote)
+                            .fontWeight(.medium)
+                            .fontDesign(.monospaced)
+                        Spacer()
+                            .frame(width: 4)
+                    }
+                    .opacity(eventDate != nil ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: eventDate)
+                    .background {
+                        Color(hex: 0xf7f4f2)
+                    }
+                    .padding(.leading)
+                    .offset(y: -10)
+                    .hidden(eventDate == nil)
+                    
+                    Text(endDateError)
+                        .font(.footnote)
+                        .padding(.leading)
+                        .offset(y: geometry.size.height * CGFloat(1.025))
+                        .foregroundStyle(.red)
+                        .opacity(hasTriedSubmitting && !endDateError.isEmpty ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
                 }
-                .background(
-                    Rectangle()
-                        .fill(Color(hex: 0xf7f4f2))
-                        .frame(height: 12)
-                )
-                .fixedSize()
-                .offset(x: 12, y: -7)
-                
-                Text(endDateError)
-                    .font(.footnote)
-                    .offset(x: 12, y: 120)
-                    .foregroundStyle(.red)
-                    .opacity(hasTriedSubmitting && !endDateError.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
             }
             .transition(.move(edge: .top).combined(with: .opacity))
             .padding(.vertical, 8)
-            .padding(.bottom, hasTriedSubmitting && !endDateError.isEmpty ? 4 : 0)
+            .padding(.bottom, hasTriedSubmitting && !endDateError.isEmpty ? 8 : 0)
         }
     }
 }
@@ -632,7 +790,7 @@ struct EventStartTimeView: View {
         ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
                 Text(startTimeText)
-                    .fontWeight(startTime == nil ? .bold : .medium)
+                    .fontWeight(startTime == nil ? .regular : .medium)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
                     .foregroundStyle(startTime == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
@@ -763,7 +921,7 @@ struct EventEndTimeView: View {
         ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
                 Text(endTimeText)
-                    .fontWeight(endTime == nil ? .bold : .medium)
+                    .fontWeight(endTime == nil ? .regular : .medium)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
                     .foregroundStyle(endTime == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
@@ -887,7 +1045,7 @@ struct EventLocationView: View {
             
             HStack(spacing: 0) {
                 Text(selectedLocationText)
-                    .fontWeight(selectedPlacemark == nil ? .bold : .medium)
+                    .fontWeight(selectedPlacemark == nil ? .regular : .medium)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
                     .foregroundStyle(selectedPlacemark == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
@@ -1325,9 +1483,8 @@ struct EventColorView: View {
                             .imageScale(.large)
                         
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(eventColor == nil ? Color.clear : eventColor!)
-                            .containerRelativeFrame(.vertical) { height, _ in height * 0.0375 }
-                            .containerRelativeFrame(.horizontal) { width, _ in width * 0.145 }
+                            .fill(eventColor ?? Color.clear)
+                            .frame(maxWidth: 55, maxHeight: 25)
                     }
                 }
             }

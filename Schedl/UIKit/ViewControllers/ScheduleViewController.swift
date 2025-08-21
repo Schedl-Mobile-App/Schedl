@@ -25,6 +25,10 @@ protocol ScheduleViewTypeDelegate: AnyObject {
     func didRequestScheduleViewTypeChange(to scheduleType: ScheduleType, id: String)
 }
 
+protocol ScheduleViewMenuDelegate: AnyObject {
+    func closeMenus()
+}
+
 class ScheduleViewController: UIViewController {
     
     var coordinator: ScheduleView.Coordinator?
@@ -46,7 +50,9 @@ class ScheduleViewController: UIViewController {
     private var loadingHostingController: UIHostingController<ScheduleLoadingView>?
     private var cancellables: Set<AnyCancellable> = []
     let dayVC = DayViewController()
+    
     let weekVC = WeekViewController()
+    
     let monthVC = MonthViewController()
     
     override func viewDidLoad() {
@@ -56,6 +62,8 @@ class ScheduleViewController: UIViewController {
             dayVC.coordinator = coordinator
             weekVC.coordinator = coordinator
         }
+        
+        weekVC.delegate = self
         
         configureUI()
     }
@@ -68,9 +76,7 @@ class ScheduleViewController: UIViewController {
             setupModelObservation(scheduleViewModel: scheduleViewModel)
             loadInitialData(scheduleViewModel: scheduleViewModel)
         }
-        
-        
-        
+                
         filterButton.configuration = .filled()
         filterButton.configuration?.baseBackgroundColor = UIColor(Color(hex: 0xf7f4f2))
         filterButton.layer.borderWidth = 1.25
@@ -100,9 +106,11 @@ class ScheduleViewController: UIViewController {
         
         scheduleViewOptions.delegate = self
         scheduleViewOptions.isHidden = true
+        scheduleViewOptions.translatesAutoresizingMaskIntoConstraints = false
         
         scheduleViewTypeOptions.delegate = self
         scheduleViewTypeOptions.isHidden = true
+        scheduleViewTypeOptions.translatesAutoresizingMaskIntoConstraints = false
         
         switch currentViewType {
         case .day:
@@ -112,7 +120,7 @@ class ScheduleViewController: UIViewController {
         case .month:
             currentVC = monthVC
         }
-        
+                
         currentVC.edgesForExtendedLayout = [.bottom]
         currentVC.extendedLayoutIncludesOpaqueBars = true
                 
@@ -146,15 +154,20 @@ class ScheduleViewController: UIViewController {
             
             scheduleViewOptions.topAnchor.constraint(equalTo: filterButton.bottomAnchor, constant: 5),
             scheduleViewOptions.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
-            scheduleViewOptions.widthAnchor.constraint(equalToConstant: 150),
-            scheduleViewOptions.heightAnchor.constraint(equalToConstant: 175),
             
             scheduleViewTypeOptions.topAnchor.constraint(equalTo: scheduleNameLabel.bottomAnchor, constant: 5),
             scheduleViewTypeOptions.leadingAnchor.constraint(equalTo: scheduleNameLabel.layoutMarginsGuide.leadingAnchor, constant: 10),
-            scheduleViewTypeOptions.widthAnchor.constraint(equalToConstant: 150),
-            scheduleViewTypeOptions.heightAnchor.constraint(equalToConstant: 175),
             
         ])
+    }
+    
+    @objc func dismissMenus() {
+        if showScheduleNameEditor {
+            toggleScheduleOptions()
+        }
+        if showScheduleOptions {
+            toggleOptions()
+        }
     }
     
     func switchViewType(type: ViewType) {
@@ -313,33 +326,36 @@ class ScheduleViewController: UIViewController {
                     self?.showLoading()
                 } else {
                     self?.hideLoading()
-                    if userSchedules.isEmpty {
-                        self?.blankSchedule()
-                    } else {
-                        self?.scheduleViewTypeOptions.configureUI(userSchedules: userSchedules, userBlends: userBlends)
-                    }
                 }
             }
             .store(in: &cancellables)
         
+        scheduleViewModel.$userSchedules
+            .combineLatest(scheduleViewModel.$userBlends)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] userSchedules, userBlends in
+                if !userSchedules.isEmpty || !userBlends.isEmpty {
+                    self?.scheduleViewTypeOptions.configureUI(userSchedules: userSchedules, userBlends: userBlends)
+                }
+            }
+            .store(in: &cancellables)
+                
         scheduleViewModel.$selectedSchedule
+            .combineLatest(scheduleViewModel.$selectedBlend, scheduleViewModel.$isLoading)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] selectedSchedule in
+            .sink { [weak self] selectedSchedule, selectedBlend, isLoading in
                 guard let self = self else { return }
-                if let selectedSchedule = selectedSchedule {
+                if isLoading {
+                    self.showLoading()
+                } else {
                     self.hideLoading()
-                    self.scheduleNameLabel.text = selectedSchedule.title
-                    self.view.bringSubviewToFront(self.scheduleNameLabel)
-                }
-            }
-            .store(in: &cancellables)
-        
-        scheduleViewModel.$selectedBlend
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] selectedBlend in
-                if let selectedBlend = selectedBlend {
-                    self?.hideLoading()
-                    self?.scheduleNameLabel.text = selectedBlend.title
+                    if let selectedSchedule = selectedSchedule {
+                        self.scheduleNameLabel.text = selectedSchedule.title
+                    } else if let selectedBlend = selectedBlend {
+                        self.scheduleNameLabel.text = selectedBlend.title
+                    } else {
+                        self.blankSchedule()
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -436,6 +452,18 @@ extension ScheduleViewController: ScheduleViewTypeDelegate {
             Task {
                 await scheduleViewModel.fetchBlendSchedule(id: id)
             }
+        }
+    }
+}
+
+extension ScheduleViewController: ScheduleViewMenuDelegate {
+    
+    func closeMenus() {
+        if self.showScheduleOptions {
+            self.toggleOptions()
+        }
+        if self.showScheduleNameEditor {
+            self.toggleScheduleOptions()
         }
     }
 }

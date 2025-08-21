@@ -9,6 +9,7 @@ import FirebaseDatabase
 import FirebaseCore
 
 class ScheduleService: ScheduleServiceProtocol {
+    
     static let shared = ScheduleService()
     let ref: DatabaseReference
     
@@ -152,7 +153,7 @@ class ScheduleService: ScheduleServiceProtocol {
         }
     }
     
-    func createBlendSchedule(ownerId: String, title: String, invitedUsers: [String], scheduleIds: [String], colors: [String: String]) async throws -> Void {
+    func createBlendSchedule(ownerId: String, scheduleId: String, title: String, invitedUsers: [String], colors: [String: String]) async throws -> String {
         let blendId = ref.child("blends").childByAutoId().key ?? UUID().uuidString
         
         var invitedUsersDict: [String: Bool] = [:]
@@ -161,16 +162,14 @@ class ScheduleService: ScheduleServiceProtocol {
         }
         
         var scheduleDict: [String: Bool] = [:]
-        for id in scheduleIds {
-            scheduleDict[id] = true
-        }
+        scheduleDict[scheduleId] = true
         
         let blendDict: [String: Any] = [
             "id": blendId,
-            "ownerId": ownerId,
+            "userId": ownerId,
             "title": title,
-            "scheduleIds": scheduleDict,
             "invitedUsers": invitedUsersDict,
+            "scheduleIds": scheduleDict,
             "blendColors": colors,
         ]
         
@@ -181,11 +180,8 @@ class ScheduleService: ScheduleServiceProtocol {
                 "/users/\(ownerId)/blendIds/\(blendId)": true,
             ]
             
-            for id in invitedUsers {
-                updates["/users/\(id)/blendIds/\(blendId)"] = true
-            }
-            
             try await ref.updateChildValues(updates)
+            return blendId
         } catch {
             throw FirebaseError.failedToCreateSchedule
         }
@@ -226,17 +222,19 @@ class ScheduleService: ScheduleServiceProtocol {
         }
         
         if let blendId = blendDict["id"] as? String,
+           let userId = blendDict["userId"] as? String,
            let title = blendDict["title"] as? String,
            let invitedUsers = blendDict["invitedUsers"] as? [String: Bool],
            let scheduleIds = blendDict["scheduleIds"] as? [String: Bool],
            let colors = blendDict["blendColors"] as? [String: String] {
             
-            return Blend(id: blendId, title: title, invitedUsers: Array(invitedUsers.keys), scheduleIds: Array(scheduleIds.keys), colors: colors)
+            return Blend(id: blendId, userId: userId, title: title, invitedUsers: Array(invitedUsers.keys), scheduleIds: Array(scheduleIds.keys), colors: colors)
         } else {
             throw ScheduleServiceError.failedToFetchScheduleEvents
         }
     }
     
+    // schedule observers
     func observeAddedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
         let eventsRef = ref.child("scheduleEvents").child(scheduleId)
         
@@ -267,5 +265,28 @@ class ScheduleService: ScheduleServiceProtocol {
     func removeScheduleObserver(handle: DatabaseHandle, scheduleId: String) {
         let eventsRef = ref.child("scheduleEvents").child(scheduleId)
         eventsRef.removeObserver(withHandle: handle)
+    }
+    
+    func observeAddedBlendSchedules(blendId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
+        let blendRef = ref.child("blends").child(blendId).child("scheduleIds")
+        
+        return blendRef.observe(.childAdded) { snapshot in
+            let scheduleId = snapshot.key
+            completion(scheduleId)
+        }
+    }
+    
+    func observeRemovedBlendSchedules(blendId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
+        let blendRef = ref.child("blends").child(blendId).child("scheduleIds")
+        
+        return blendRef.observe(.childRemoved) { snapshot in
+            let scheduleId = snapshot.key
+            completion(scheduleId)
+        }
+    }
+    
+    func removeBlendObserver(handle: DatabaseHandle, blendId: String) {
+        let blendRef = ref.child("blends").child(blendId).child("scheduleIds")
+        blendRef.removeObserver(withHandle: handle)
     }
 }

@@ -42,6 +42,8 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     private var eventService: EventServiceProtocol
     private var notificationService: NotificationServiceProtocol
     private var postService: PostServiceProtocol
+    private var searchService: SearchServiceProtocol
+    
     @Published var shouldReloadData: Bool = true
     @Published var path = NavigationPath()
     
@@ -64,12 +66,13 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     // only needs to be read-only since we will be creating new instances of the view model whether the current user is on their profile
     // or visiting their friends profile
     var isCurrentUser: Bool
-    init(userService: UserServiceProtocol = UserService.shared, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared, postService: PostServiceProtocol = PostService.shared, currentUser: User, profileUser: User){
+    init(userService: UserServiceProtocol = UserService.shared, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared, postService: PostServiceProtocol = PostService.shared, searchService: SearchServiceProtocol = SearchService.shared, currentUser: User, profileUser: User){
         self.userService = userService
         self.scheduleService = scheduleService
         self.eventService = eventService
         self.notificationService = notificationService
         self.postService = postService
+        self.searchService = searchService
         self.currentUser = currentUser
         self.profileUser = profileUser
         self.isCurrentUser = currentUser.id == profileUser.id
@@ -91,11 +94,13 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         self.isLoadingProfileView = true
         
         self.errorMessage = nil
+        
+        async let friends: () = fetchFriends()
+        async let events: () = fetchEvents()
+        async let profileImage: () = loadProfileImageIfNeeded()
+        _ = await (friends, events, profileImage)
+        
         await fetchTabInfo()
-        await loadProfileImageIfNeeded()
-        await fetchEvents()
-        await fetchFriends()
-        await checkIfFriend()
         
         self.isLoadingProfileView = false
     }
@@ -142,17 +147,17 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
         do {
             switch self.selectedTab {
             case .schedules:
-                if scheduleAlreadyFetched {
+                if !scheduleAlreadyFetched {
                     await fetchEvents()
                 }
                 break
             case .events:
-                if eventsAlreadyFetched {
+                if !eventsAlreadyFetched {
                     await fetchEvents()
                 }
                 break
             case .activity:
-                if postsAlreadyFetched {
+                if !postsAlreadyFetched {
                     let fetchedPosts = try await postService.fetchPostsByUserId(userId: profileUser.id)
                     userPosts = fetchedPosts
                 }
@@ -175,32 +180,104 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     
     func parseRecurringEvents(event: Event) -> [RecurringEvents] {
         
-        let originalEventInstance: RecurringEvents = RecurringEvents(date: event.startDate, event: event)
+        // 1. For clarity and efficiency, create a single Calendar instance.
+        let calendar = Calendar.current
         
-        // if there are no repeatedDays or endDate for this event, we simply return the single instance
-        guard let repeatedDays = event.repeatingDays else { return [originalEventInstance] }
-        guard let endDate = event.endDate else { return [originalEventInstance] }
-
-        let iterationStart = Date(timeIntervalSince1970: event.startDate)
-        let iterationEnd = Date(timeIntervalSince1970: endDate)
-
-        var repeatedEvents: [RecurringEvents] = []
-        var cursor = iterationStart
-        
-        while cursor <= iterationEnd {
-            // find the iterator's current weekday index
-            let weekIndex = Calendar.current.component(.weekday, from: cursor) - 1
-            
-            // next, we need to find a way to check whether our event instance includes the same weekday index
-            if repeatedDays.contains(String(weekIndex)) {
-                repeatedEvents.append(RecurringEvents(date: cursor.timeIntervalSince1970, event: event))
-            }
-            guard let next = Calendar.current.date(byAdding: .day, value: 1, to: cursor) else { break }
-                cursor = next
+        // 2. Handle non-recurring events with an early exit.
+        //    We also change repeatingDays to a Set<Int> for performance and type safety.
+        guard let repeatedDays: Set<Int> = event.repeatingDays, !repeatedDays.isEmpty, let endDate = event.endDate else {
+            return [RecurringEvents(date: event.startDate, event: event)]
         }
 
-        return repeatedEvents
+        // 3. (PERFORMANCE) Create a dictionary for exceptions for O(1) lookups.
+        //    This is the most significant performance improvement.
+        let exceptionsByDate = Dictionary(uniqueKeysWithValues: event.exceptions.map { ($0.date, $0) })
+        
+        // 4. Set up loop variables.
+        var generatedEvents: [RecurringEvents] = []
+        var cursor = Date(timeIntervalSince1970: event.startDate)
+        let finalDate = Date(timeIntervalSince1970: endDate)
+
+        // 5. Loop through each day in the range.
+        while cursor <= finalDate {
+            let weekIndex = calendar.component(.weekday, from: cursor) - 1 // Assumes Sunday = 1, so result is 0-6.
+            
+            // 6. (DRY) First, check if the current day is a day the event should occur on.
+            if repeatedDays.contains(weekIndex) {
+                let cursorTimeInterval = cursor.timeIntervalSince1970
+                var eventForThisDay = event // Default to the original event.
+                
+                // 7. (OPTIMIZED) Now, check for an exception using our fast dictionary lookup.
+                if let exception = exceptionsByDate[cursorTimeInterval] {
+                    // If an exception exists, create a new modified event instance for this occurrence.
+                    // A helper function makes this much cleaner.
+                    eventForThisDay = createEventInstance(from: event, with: exception)
+                }
+                
+                generatedEvents.append(RecurringEvents(date: cursorTimeInterval, event: eventForThisDay))
+            }
+            
+            // 8. (DRY) Advance the cursor to the next day. This is now only written once.
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = nextDay
+        }
+
+        return generatedEvents
     }
+
+
+    /// A helper function to create a modified event instance based on an exception.
+    /// This makes the main parsing function cleaner and easier to read.
+    private func createEventInstance(from baseEvent: Event, with exception: EventException) -> Event {
+        return Event(
+            id: baseEvent.id,
+            userId: baseEvent.userId,
+            scheduleId: baseEvent.scheduleId,
+            title: exception.title ?? baseEvent.title,
+            startDate: baseEvent.startDate, // The series start date remains the same
+            startTime: exception.startTime ?? baseEvent.startTime,
+            endTime: exception.endTime ?? baseEvent.endTime,
+            creationDate: baseEvent.creationDate,
+            locationName: exception.locationName ?? baseEvent.locationName,
+            locationAddress: exception.locationAddress ?? baseEvent.locationAddress,
+            latitude: exception.latitude ?? baseEvent.latitude,
+            longitude: exception.longitude ?? baseEvent.longitude,
+            taggedUsers: baseEvent.taggedUsers,
+            color: exception.color ?? baseEvent.color,
+            notes: exception.notes ?? baseEvent.notes,
+            // The original exceptions list is carried over for context if needed
+            exceptions: baseEvent.exceptions
+        )
+    }
+    
+//    func parseRecurringEvents(event: Event) -> [RecurringEvents] {
+//        
+//        let originalEventInstance: RecurringEvents = RecurringEvents(date: event.startDate, event: event)
+//        
+//        // if there are no repeatedDays or endDate for this event, we simply return the single instance
+//        guard let repeatedDays = event.repeatingDays else { return [originalEventInstance] }
+//        guard let endDate = event.endDate else { return [originalEventInstance] }
+//
+//        let iterationStart = Date(timeIntervalSince1970: event.startDate)
+//        let iterationEnd = Date(timeIntervalSince1970: endDate)
+//
+//        var repeatedEvents: [RecurringEvents] = []
+//        var cursor = iterationStart
+//        
+//        while cursor <= iterationEnd {
+//            // find the iterator's current weekday index
+//            let weekIndex = Calendar.current.component(.weekday, from: cursor) - 1
+//            
+//            // next, we need to find a way to check whether our event instance includes the same weekday index
+//            if repeatedDays.contains(String(weekIndex)) {
+//                repeatedEvents.append(RecurringEvents(date: cursor.timeIntervalSince1970, event: event))
+//            }
+//            guard let next = Calendar.current.date(byAdding: .day, value: 1, to: cursor) else { break }
+//                cursor = next
+//        }
+//
+//        return repeatedEvents
+//    }
     
     @MainActor
     func fetchEvents() async {
@@ -272,7 +349,7 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
                 recurringEvent.sorted { $0.event.startTime < $1.event.startTime }
             }
         } catch {
-            self.errorMessage = "Failed to partion events by day successfully. The following error occured: \(error.localizedDescription)"
+            self.errorMessage = "Failed to fetch events. The following error occured: \(error.localizedDescription)"
         }
     }
     
@@ -287,26 +364,17 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     }
     
     @MainActor
-    func fetchNumberOfFriends() async {
-        self.errorMessage = nil
-        do {
-            self.numberOfFriends = try await userService.fetchNumberOfFriends(userId: profileUser.id)
-        } catch {
-            self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
-        }
-    }
-    
-    @MainActor
     func fetchFriends() async {
         self.errorMessage = nil
         do {
             let friends = try await userService.fetchUserFriends(userId: profileUser.id)
             self.friends = friends
-//            if friends.contains(where: { $0.id == currentUser.id }) && profileUser.id != currentUser.id {
-//                self.isViewingFriend = true
-//            } else {
-//                self.isViewingFriend = false
-//            }
+            self.numberOfFriends = friends.count
+            if friends.contains(where: { $0.id == currentUser.id }) && profileUser.id != currentUser.id {
+                self.isViewingFriend = true
+            } else {
+                self.isViewingFriend = false
+            }
         } catch {
             self.errorMessage = "Failed to fetch friends: \(error.localizedDescription)"
         }
@@ -325,38 +393,15 @@ class ProfileViewModel: ObservableObject, ProfileViewModelProtocol {
     @MainActor
     func fetchFriendsInfo() async {
         do {
-            let friendsIds = try await userService.fetchFriendIds(userId: profileUser.id)
-            let friendsData = try await userService.fetchUsers(userIds: friendsIds)
-            for user in friendsData {
-                let numOfFriends = try await userService.fetchNumberOfFriends(userId: user.id)
-                let numOfPosts: Int
-                do {
-                    numOfPosts = try await postService.fetchNumOfPosts(userId: user.id)
-                } catch PostServiceError.failedToReturnNumberOfPosts {
-                    numOfPosts = 0
-                }
-                self.friendsInfoDict[user.id] = SearchInfo(
-                    id: user.id,
-                    user: user,
-                    numOfFriends: numOfFriends,
-                    numOfPosts: numOfPosts,
-                    isFriend: true
-                )
+            let friendsInfo = try await searchService.fetchFriendsSearchInfo(friendIds: self.friends.map(\.id))
+            // ensures that we have unique number of friend ids that we fetched since
+            // Dictionary(uniqueKeysWithValues:) will cause a runtime error if there are duplicates
+            if Set(friendsInfo.map(\.user.id)).count == friendsInfo.count {
+                self.friendsInfoDict = Dictionary(uniqueKeysWithValues: friendsInfo.map { ($0.user.id, $0) })
             }
         } catch {
             self.errorMessage = "Failed to fetch any friends!"
         }
     }
-    
-    @MainActor
-    func checkIfFriend() async {
-        self.errorMessage = nil
-        
-        do {
-            if profileUser.id == currentUser.id { return }
-            self.isViewingFriend = try await userService.isFriend(userId: currentUser.id, otherUserId: profileUser.id)
-        } catch {
-            self.errorMessage = "Failed to check friend status \(error.localizedDescription)"
-        }
-    }
 }
+

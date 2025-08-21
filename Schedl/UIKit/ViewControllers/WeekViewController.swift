@@ -26,6 +26,7 @@ class PassthroughView: UIScrollView {
 
 class WeekViewController: UIViewController {
         
+    weak var delegate: ScheduleViewMenuDelegate?
     var coordinator: ScheduleView.Coordinator?
     
     private var shouldReloadOnAppear = true
@@ -181,6 +182,9 @@ class WeekViewController: UIViewController {
         view.addSubview(displayedYearLabel)
         
         collectionView.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
+        
+        let longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(showCreateEvent))
+        collectionView.addGestureRecognizer(longPressGesture)
         
         // add the collection view to root view
         view.addSubview(collectionView)
@@ -389,14 +393,12 @@ class WeekViewController: UIViewController {
         if hasUserScrolled {
             return
         } else {
-            print("Being called in layout subviews")
             updateEventsOverlay()
             scrollToCurrentPosition()
         }
     }
     
     private func updateEventsOverlay() {
-        print("Being called in update events overlay")
         if let scheduleViewModel = coordinator?.scheduleViewModel {
             eventContainer.populateEventCells(rootVC: self, scheduleViewModel: scheduleViewModel, events: scheduleViewModel.scheduleEvents, centerDate: currentDate, calendarInterval: numberOfDays)
         }
@@ -408,15 +410,7 @@ class WeekViewController: UIViewController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newEvents in
                 guard let self = self else { return }
-                if self.previousSnapshot.isEmpty {
-                    self.previousSnapshot = newEvents
-                    self.updateEventsOverlay()
-                }
-                if self.previousSnapshot != newEvents {
-                    self.updateEventsOverlay()
-                    self.previousSnapshot = newEvents
-                }
-                print("Being called here in view model observation")
+                self.updateEventsOverlay()
             }
             .store(in: &cancellables)
     }
@@ -437,12 +431,11 @@ class WeekViewController: UIViewController {
         let eventSearchSheetViewController = UIHostingController(rootView: eventSearchSheet)
         
         if let sheet = eventSearchSheetViewController.sheetPresentationController {
-            sheet.detents = [.large()]
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
             sheet.prefersScrollingExpandsWhenScrolledToEdge = false
-            sheet.prefersEdgeAttachedInCompactHeight = false
-//            sheet.widthFollowsPreferredContentSizeWhenEdgeAttached = true
         }
-        
+                
         present(eventSearchSheetViewController, animated: true, completion: nil)
     }
     
@@ -464,8 +457,9 @@ class WeekViewController: UIViewController {
     @objc func showCreateOptions() {
         self.isExpanded.toggle()
         
+        delegate?.closeMenus()
+        
         if !isExpanded {
-//            self.navigationController?.tabBarController?.tabBar.isHidden = true
             self.navigationController?.tabBarController?.setTabBarHidden(true, animated: true)
         } else {
             self.navigationController?.tabBarController?.setTabBarHidden(false, animated: true)
@@ -512,9 +506,14 @@ class WeekViewController: UIViewController {
     }
     
     @objc
-    func showCreateEvent() {
+    func showCreateEvent(_ sender: Any) {
+        if let sender = sender as? UILongPressGestureRecognizer {
+            guard sender.state == .began else { return }
+        } else {
+            showCreateOptions()
+        }
         
-        if let scheduleViewModel = coordinator?.scheduleViewModel {
+        if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState {
             
 //            self.createEventButton.alpha = 0
 //            self.createEventButton.isHidden = true
@@ -532,15 +531,13 @@ class WeekViewController: UIViewController {
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(
-                rootView: CreateEventView(currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding)
+                rootView: CreateEventView(currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding).environmentObject(tabBarState)
             )
             
             navigationController?.pushViewController(hostingController, animated: true)
             navigationController?.tabBarController?.isTabBarHidden = true
             navigationController?.toolbar.isHidden = true
             navigationController?.toolbar.isTranslucent = true
-            
-            showCreateOptions()
         }
     }
     
@@ -598,17 +595,6 @@ class WeekViewController: UIViewController {
             let hostingController = UIHostingController(
                 rootView: EventDetailsView(event: event, currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding)
             )
-            
-//                .navigationTitle("Search for Events")
-//                .navigationBarTitleDisplayMode(.inline)
-//                .toolbar {
-//                    ToolbarItem(placement: .topBarTrailing) {
-//                        Button("Done") {
-//                            isFocused = false
-//                            dismiss()
-//                        }
-//                    }
-//                }
             
             hostingController.title = "Search for Events"
             let doneButton = UIBarButtonItem(
@@ -696,13 +682,17 @@ class WeekViewController: UIViewController {
         return layout
     }
     
-    var shouldIgnorePreviousTrigger = false
-    var isLoadingNextDates = false
-    var isLoadingPreviousDates = false
+    enum LoadingState {
+        case idle
+        case loadingPrevious
+        case loadingNext
+    }
+
+    var state: LoadingState = .idle
     
     private func loadPreviousDateInterval() {
-        guard !isLoadingPreviousDates else { return }
-        isLoadingPreviousDates = true
+        guard state == .idle else { return }
+        state = .loadingPrevious
         
         let currentOffset = collectionView.contentOffset
         let newOffset = CGPoint(x: currentOffset.x + CGFloat(datesToAdd) * itemWidth, y: currentOffset.y)
@@ -718,29 +708,37 @@ class WeekViewController: UIViewController {
                 newDays.append(newDate)
             }
         }
-        
-        // Update the data source with new days
-        dayList.removeLast(datesToAdd)
-        dayList.insert(contentsOf: newDays.reversed(), at: 0)
-        
-        currentDate = firstDate
                 
+        let totalItems = dayList.count * numberOfTimeIntervals
+        let itemsToDelete = datesToAdd * numberOfTimeIntervals
+        
+        let indexPathsToDelete = (totalItems-itemsToDelete..<totalItems).map { IndexPath(row: $0, section: 0) }
+        let indexPathsToAdd = (0..<itemsToDelete).map { IndexPath(row: $0, section: 0) }
+        
         UIView.performWithoutAnimation {
-            collectionView.reloadSections(IndexSet(integer: 0))
+            collectionView.performBatchUpdates({
+                // Update the data source with new days
+                dayList.removeLast(datesToAdd)
+                dayList.insert(contentsOf: newDays.reversed(), at: 0)
+                
+                currentDate = dayList[dayList.count/2]
+                
+                collectionView.deleteItems(at: indexPathsToDelete)
+                collectionView.insertItems(at: indexPathsToAdd)
+            }, completion: { [weak self] _ in
+                guard let self = self else { return }
+                self.state = .idle
+            })
+            
             collectionView.setContentOffset(newOffset, animated: false)
             dayHeader.addPreviousDates(updatedDayList: newDays)
             updateEventsOverlay()
         }
-        
-        isLoadingPreviousDates = false
     }
     
     private func loadNextDateInterval() {
-        guard !isLoadingNextDates else { return }
-        isLoadingNextDates = true
-        
-        // Set a flag to temporarily ignore the previous date loading trigger
-        shouldIgnorePreviousTrigger = true
+        guard state == .idle else { return }
+        state = .loadingNext
         
         let currentOffset = collectionView.contentOffset
         let newOffset = CGPoint(x: currentOffset.x - CGFloat(datesToAdd) * itemWidth, y: currentOffset.y)
@@ -756,31 +754,31 @@ class WeekViewController: UIViewController {
             }
         }
         
-        // since we've created the new 30 days, we now remove 30 from the beginning of dayList
-        dayList.removeFirst(datesToAdd)
-        dayList.append(contentsOf: newDays)
+        let totalItems = dayList.count * numberOfTimeIntervals
+        let itemsToDelete = datesToAdd * numberOfTimeIntervals
         
-        // set the currentDate as the previously saved last date since this is our new 'middle' reference date
-        currentDate = lastDate
+        let indexPathsToDelete = (0..<itemsToDelete).map { IndexPath(row: $0, section: 0) }
+        let indexPathsToAdd = ((totalItems-itemsToDelete)..<totalItems).map { IndexPath(row: $0, section: 0) }
         
-        // necessary to ensure that all of these updates happen without animation to provide the smoothest transition
         UIView.performWithoutAnimation {
-            // since we reload the section, the offset from this will make our prefetching delegate
-            // call to loadPreviousDateInterval, so we must set ignoring trigger as such
-            shouldIgnorePreviousTrigger = true
-            collectionView.reloadSections(IndexSet(integer: 0))
+            collectionView.performBatchUpdates({
+                // Update the data source with new days
+                dayList.removeFirst(datesToAdd)
+                dayList.append(contentsOf: newDays)
+                
+                currentDate = dayList[dayList.count/2]
+                
+                collectionView.deleteItems(at: indexPathsToDelete)
+                collectionView.insertItems(at: indexPathsToAdd)
+            }, completion: { [weak self] _ in
+                guard let self = self else { return }
+                self.state = .idle
+            })
+            
             collectionView.setContentOffset(newOffset, animated: false)
             dayHeader.addNextDates(updatedDayList: newDays)
             updateEventsOverlay()
-            
-            // before we set it back to false, we set a slight delay in case the new offset does not execute before our
-            // prefetch delegate is called upon
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.shouldIgnorePreviousTrigger = false
-            }
         }
-        
-        isLoadingNextDates = false
     }
     
     var modifiedCells = Set<UICollectionViewCell>()
@@ -931,6 +929,8 @@ extension WeekViewController: UICollectionViewDelegate {
         positionScroll = scrollView.contentOffset
         hideCreateEventButton(createEventButton)
         
+        delegate?.closeMenus()
+        
         if !hasUserScrolled {
             hasUserScrolled = true
         }
@@ -953,18 +953,18 @@ extension WeekViewController: UICollectionViewDelegate {
 extension WeekViewController: UICollectionViewDataSourcePrefetching {
     func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
         // calculate the total number of items in the collection view
-        let totalItems = numberOfDays * numberOfTimeIntervals
+        let totalItems = dayList.count * numberOfTimeIntervals
         
-        // 
+        //
         let endIndex = indexPaths.max(by: { $0.item < $1.item })?.item
         let startIndex = indexPaths.min(by: { $0.item < $1.item })?.item
         
         let daysBeforeThreshold = 7
         let threshold = numberOfTimeIntervals * daysBeforeThreshold
         
-        if endIndex ?? totalItems >= (totalItems - threshold) && !isLoadingNextDates {
+        if endIndex ?? totalItems >= (totalItems - threshold) {
             loadNextDateInterval()
-        } else if startIndex ?? 0 <= threshold && !isLoadingPreviousDates && !shouldIgnorePreviousTrigger {
+        } else if startIndex ?? 0 <= threshold {
             loadPreviousDateInterval()
         }
     }
@@ -979,7 +979,7 @@ extension WeekViewController: UICollectionViewDataSource {
     
     // 24 represents the number of hours in a day => number of cells needed since an item represents a single hour
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return numberOfTimeIntervals * numberOfDays
+        return numberOfTimeIntervals * dayList.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {

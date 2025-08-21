@@ -27,19 +27,24 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     }
     
     @MainActor
-    func persistentLogin() async {
+    func persistentLogin(retryInterval: TimeInterval = 0.3, timeout: TimeInterval = 5) async {
         self.isLoadingLaunchScreen = true
-        guard let cachedUserId = authService.auth.currentUser?.uid else {
-            self.isLoadingLaunchScreen = false
-            return
+        let startTime = Date()
+        while Date().timeIntervalSince(startTime) < timeout {
+            if let cachedUserId = authService.auth.currentUser?.uid {
+                do {
+                    currentUser = try await userService.fetchUser(userId: cachedUserId)
+                    isLoggedIn = true
+                } catch {
+                    // handle fetch error
+                }
+                self.isLoadingLaunchScreen = false
+                return
+            }
+            // Wait before retrying
+            try? await Task.sleep(nanoseconds: UInt64(retryInterval * 1_000_000_000))
         }
-        do {
-            currentUser = try await userService.fetchUser(userId: cachedUserId)
-            isLoggedIn = true
-            self.isLoadingLaunchScreen = false
-        } catch {
-            self.isLoadingLaunchScreen = false
-        }
+        self.isLoadingLaunchScreen = false // Give up after timeout
     }
     
     @MainActor

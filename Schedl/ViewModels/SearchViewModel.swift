@@ -48,11 +48,19 @@ class SearchViewModel: ObservableObject {
         guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             // clear results
             searchResults = nil
+            errorMessage = nil
             return
         }
-        searchTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 500_000_000) // 300ms
-            await self?.performSearch()
+        searchTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+                if Task.isCancelled { return }
+                
+                await self?.performSearch()
+            } catch {
+                self?.searchResults = nil
+                self?.errorMessage = nil
+            }
         }
     }
 
@@ -62,7 +70,7 @@ class SearchViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            searchResults = try await searchService.fetchUserSearchInfo(currentUserId: currentUser.id, username: searchText)
+            searchResults = try await searchService.fetchUserSearchInfo(username: searchText)
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription
@@ -77,6 +85,7 @@ class SearchViewModel: ObservableObject {
         guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             // clear results
             searchResults = nil
+            searchTask?.cancel()
             return
         }
         searchTask = Task { [weak self] in

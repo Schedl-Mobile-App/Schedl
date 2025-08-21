@@ -88,14 +88,15 @@ struct EventCard: View {
                             .fontDesign(.rounded)
                             .tracking(0.75)
                             .foregroundStyle(Color(hex: 0x666666))
+                            .lineLimit(2)
                             .multilineTextAlignment(.leading)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     
                     Spacer()
                 }
                 .padding(.top, 8)
                 
-                Spacer()
             }
             .padding(.leading, 20)
             .frame(minHeight: 90)

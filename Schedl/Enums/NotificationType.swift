@@ -8,4 +8,5 @@
 enum NotificationType: Codable {
     case friendRequest
     case eventInvite
+    case blend
 }

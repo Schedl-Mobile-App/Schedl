@@ -14,7 +14,7 @@ struct Event: Codable, Identifiable {
     var title: String
     let startDate: TimeInterval
     let endDate: TimeInterval?
-    let repeatingDays: [String]?
+    let repeatingDays: Set<Int>?
     var startTime: TimeInterval
     var endTime: TimeInterval
     var creationDate: TimeInterval
@@ -26,7 +26,10 @@ struct Event: Codable, Identifiable {
     var color: String
     var notes: String
     
-    init(id: String,userId: String, scheduleId: String, title: String, startDate: TimeInterval, startTime: TimeInterval, endTime: TimeInterval, creationDate: Double, locationName: String, locationAddress: String, latitude: Double, longitude: Double, taggedUsers: [String], color: String, notes: String, endDate: TimeInterval? = nil, repeatingDays: [String]? = nil) {
+    // on the database, we'll only ever a single exception for any given date where if an exception ever occurs, we'll simply update the modified value(s)
+    var exceptions: [EventException]
+    
+    init(id: String,userId: String, scheduleId: String, title: String, startDate: TimeInterval, startTime: TimeInterval, endTime: TimeInterval, creationDate: Double, locationName: String, locationAddress: String, latitude: Double, longitude: Double, taggedUsers: [String], color: String, notes: String, endDate: TimeInterval? = nil, repeatingDays: Set<Int>? = nil, exceptions: [EventException] = []) {
         self.id = id
         self.userId = userId
         self.scheduleId = scheduleId
@@ -42,6 +45,39 @@ struct Event: Codable, Identifiable {
         self.latitude = latitude
         self.longitude = longitude
         self.taggedUsers = taggedUsers
+        self.color = color
+        self.notes = notes
+        self.exceptions = exceptions
+    }
+}
+
+struct EventException: Codable, Equatable {
+    var futureEventsIncluded: Bool
+    var date: TimeInterval
+    var title: String?
+    var startTime: TimeInterval?
+    var endTime: TimeInterval?
+    var locationName: String?
+    var locationAddress: String?
+    var latitude: Double?
+    var longitude: Double?
+//    var taggedUsers: [String]?
+    var repeatedDays: Set<Int>?
+    var color: String?
+    var notes: String?
+    
+    init(futureEventsIncluded: Bool, date: TimeInterval, title: String? = nil, startTime: TimeInterval? = nil, endTime: TimeInterval? = nil, locationName: String? = nil, locationAddress: String? = nil, latitude: Double? = nil, longitude: Double? = nil, /*taggedUsers: [String]? = nil,*/ repeatedDays: Set<Int>? = nil, color: String? = nil, notes: String? = nil) {
+        self.futureEventsIncluded = futureEventsIncluded
+        self.date = date
+        self.title = title
+        self.startTime = startTime
+        self.endTime = endTime
+        self.locationName = locationName
+        self.locationAddress = locationAddress
+        self.latitude = latitude
+        self.longitude = longitude
+//        self.taggedUsers = taggedUsers
+        self.repeatedDays = repeatedDays
         self.color = color
         self.notes = notes
     }

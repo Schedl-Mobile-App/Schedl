@@ -25,7 +25,7 @@ class EventService: EventServiceProtocol {
         
         // Store a reference to the child node of the events node in the Firebase DB
         let eventRef = ref.child("events").child(eventId)
-            
+        
         // getData is a Firebase function that returns a DataSnapshot object
         let snapshot = try await eventRef.getData()
         
@@ -38,13 +38,25 @@ class EventService: EventServiceProtocol {
         let locationAddress = eventData["locationAddress"] as? String ?? ""
         let latitude = eventData["latitude"] as? Double ?? 0.0
         let longitude = eventData["longitude"] as? Double ?? 0.0
-        let taggedUsers = eventData["taggedUsers"] as? [String: Any] ?? [:]
+        let taggedUsers = eventData["taggedUsers"] as? [String: Bool] ?? [:]
         let endDate = eventData["endDate"] as? Double
-        let repeatedDays = eventData["repeatingDays"] as? [String]
+        let repeatedDays = eventData["repeatingDays"] as? [String: Bool] ?? [:]
         let notes = eventData["notes"] as? String ?? ""
         
-        let taggedUsersArray = Array(taggedUsers.keys)
+        let exceptionsDict = eventData["exceptions"] as? [String: [String: Any]] ?? [:]
+        let exceptions = exceptionsDict.compactMap { (key, value) -> EventException? in
+            if let data = try? JSONSerialization.data(withJSONObject: value) {
+                print(data)
+                return try? JSONDecoder().decode(EventException.self, from: data)
+            }
+            return nil
+        }
         
+        print("Exceptions in event service \(exceptions)")
+                
+        let taggedUsersArray = Array(taggedUsers.keys)
+        let repeatedDaysArray = Array(repeatedDays.keys.compactMap{ Int($0.split(separator: "_").last!) })
+                
         // only create a user object if we receive all parameters from the DB
         if
             let id = eventData["id"] as? String,
@@ -57,7 +69,7 @@ class EventService: EventServiceProtocol {
             let createdAt = eventData["creationDate"] as? Double,
             let eventColor = eventData["color"] as? String {
             
-            let event = Event(id: id, userId: userId, scheduleId: scheduleId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: locationName, locationAddress: locationAddress, latitude: latitude, longitude: longitude, taggedUsers: taggedUsersArray, color: eventColor, notes: notes, endDate: endDate, repeatingDays: repeatedDays)
+            let event = Event(id: id, userId: userId, scheduleId: scheduleId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: locationName, locationAddress: locationAddress, latitude: latitude, longitude: longitude, taggedUsers: taggedUsersArray, color: eventColor, notes: notes, endDate: endDate, repeatingDays: Set(repeatedDaysArray), exceptions: exceptions)
             return event
             
         } else {
@@ -94,7 +106,7 @@ class EventService: EventServiceProtocol {
     
     func fetchEventsByScheduleId(scheduleId: String) async throws -> [Event] {
         
-        let scheduleEventsRef = ref.child("scheduleEvents").child(scheduleId)
+        let scheduleEventsRef = ref.child("schedules").child(scheduleId).child("eventIds")
         let snapshot = try await scheduleEventsRef.getData()
         
         guard let data = snapshot.value as? [String: Any] else {
@@ -133,7 +145,7 @@ class EventService: EventServiceProtocol {
         }
     }
     
-    func createEvent(userId: String, title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, endDate: Double? = nil, repeatedDays: [String]? = nil) async throws -> String {
+    func createEvent(userId: String, title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, taggedUsers: [String], endDate: Double? = nil, repeatedDays: Set<Int>? = nil) async throws -> String {
         
         guard let id = ref.child("events").childByAutoId().key else { throw EventServiceError.failedToCreateEvent }
         let createdAt = Date().timeIntervalSince1970
@@ -145,16 +157,27 @@ class EventService: EventServiceProtocol {
         
         let scheduleId = scheduleIds.keys.first!
         
-        let eventObj = Event(id: id, userId: userId, scheduleId: scheduleId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: location.name, locationAddress: location.address, latitude: location.latitude, longitude: location.longitude, taggedUsers: [], color: color, notes: notes, endDate: endDate, repeatingDays: repeatedDays)
+        let eventObj = Event(id: id, userId: userId, scheduleId: scheduleId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, creationDate: createdAt, locationName: location.name, locationAddress: location.address, latitude: location.latitude, longitude: location.longitude, taggedUsers: [], color: color, notes: notes, endDate: endDate, repeatingDays: [])
                 
         let encoder = JSONEncoder()
         do {
             let jsonData = try encoder.encode(eventObj)
             print(jsonData)
             
-            guard let jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
+            guard var jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
                 throw EventServiceError.eventDataSerializationFailed
             }
+            
+            if !taggedUsers.isEmpty {
+                let taggedUsersDict = Dictionary(uniqueKeysWithValues: taggedUsers.map { ($0, true) })
+                jsonDictionary["taggedUsers"] = taggedUsersDict
+            }
+            
+            if let repeatedDays = repeatedDays {
+                let repeatedDaysDict = Dictionary(uniqueKeysWithValues: repeatedDays.map { ("day_\($0)", true)})
+                jsonDictionary["repeatingDays"] = repeatedDaysDict
+            }
+            
             
             let dict = [
                 "last_modified": ServerValue.timestamp()
@@ -174,7 +197,6 @@ class EventService: EventServiceProtocol {
                 updates["/userAvailability/\(userId)/\(Int(startDate))_\(Int(timeStamp))"] = true
             }
             
-            print(updates)
             try await ref.updateChildValues(updates)
             
             return id
@@ -219,10 +241,136 @@ class EventService: EventServiceProtocol {
             }
         }
         
+        print(availabilityList)
         return availabilityList
     }
     
-    func updateEvent(eventId: String, scheduleIds: [String], title: String?, eventDate: Double?, startTime: Double?, endTime: Double?, location: MTPlacemark?, repeatedDays: [String]?, color: String?, notes: String?) async throws {
+    func updateAllRecurringEvent(eventId: String, recurringDate: Double, scheduleIds: [String], title: String? = nil, eventDate: Double? = nil, repeatedDays: Set<Int>? = nil, endDate: Double? = nil, startTime: Double? = nil, endTime: Double? = nil, location: MTPlacemark? = nil, taggedUsers: [String]? = nil, color: String? = nil, notes: String? = nil) async throws {
+        
+        var updates: [String : Any] = [:]
+        let recurringDateInt = Int(recurringDate)
+        
+        if let eventDate = eventDate {
+            updates["/events/\(eventId)/startDate"] = eventDate
+        }
+        
+        if let endDate = endDate {
+            updates["/events/\(eventId)/endDate"] = endDate
+        }
+        
+        if let repeatedDays = repeatedDays {
+            let repeatedDaysDict = Dictionary(uniqueKeysWithValues: repeatedDays.map { ("day_\($0)", true)})
+            updates["events/\(eventId)/exceptions/\(recurringDateInt)/repeatedDays"] = repeatedDaysDict
+        }
+        
+        if let title = title {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/title"] = title
+        }
+        if let startTime = startTime {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/startTime"] = startTime
+        }
+        if let endTime = endTime {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/endTime"] = endTime
+        }
+        if let location = location {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/locationName"] = location.name
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/locationAddress"] = location.address
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/latitude"] = location.latitude
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/longitude"] = location.longitude
+        }
+        if let color = color {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/color"] = color
+        }
+        if let notes = notes {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/notes"] = notes
+        }
+//        if let taggedUsers = taggedUsers {
+//            let taggedUsersDict: [String: Bool] = Dictionary(uniqueKeysWithValues: taggedUsers.map { ($0, true) })
+//            updates["/events/exceptions/\(recurringDate)/\(eventId)/taggedUsers"] = taggedUsersDict
+//        }
+        
+        if updates.isEmpty {
+            return
+        }
+        
+        updates["/events/\(eventId)/exceptions/\(recurringDateInt)/date"] = recurringDateInt
+        updates["/events/\(eventId)/exceptions/\(recurringDateInt)/futureEventsIncluded"] = true
+        
+        for id in scheduleIds {
+            updates["scheduleEvents/\(id)/\(eventId)/last_modified"] = ServerValue.timestamp()
+        }
+        
+        do {
+            try await ref.updateChildValues(updates)
+        } catch {
+            throw EventServiceError.failedToUpdateEvent
+        }
+    }
+    
+    
+    func updateSingleRecurringEvent(eventId: String, recurringDate: Double, scheduleIds: [String], title: String? = nil, eventDate: Double? = nil, repeatedDays: Set<Int>? = nil, endDate: Double? = nil, startTime: Double? = nil, endTime: Double? = nil, location: MTPlacemark? = nil, taggedUsers: [String]? = nil, color: String? = nil, notes: String? = nil) async throws {
+        
+        var updates: [String : Any] = [:]
+        let recurringDateInt = Int(recurringDate)
+        
+        if let eventDate = eventDate {
+            updates["/events/\(eventId)/startDate"] = eventDate
+        }
+        
+        if let endDate = endDate {
+            updates["/events/\(eventId)/endDate"] = endDate
+        }
+        
+        if let repeatedDays = repeatedDays {
+            let repeatedDaysDict = Dictionary(uniqueKeysWithValues: repeatedDays.map { ("day_\($0)", true)})
+            updates["events/\(eventId)/exceptions/\(recurringDateInt)/repeatedDays"] = repeatedDaysDict
+        }
+        
+        if let title = title {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/title"] = title
+        }
+        if let startTime = startTime {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/startTime"] = startTime
+        }
+        if let endTime = endTime {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/endTime"] = endTime
+        }
+        if let location = location {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/locationName"] = location.name
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/locationAddress"] = location.address
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/latitude"] = location.latitude
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/longitude"] = location.longitude
+        }
+        if let color = color {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/color"] = color
+        }
+        if let notes = notes {
+            updates["/events/\(eventId)/exceptions/\(recurringDateInt)/notes"] = notes
+        }
+//        if let taggedUsers = taggedUsers {
+//            let taggedUsersDict: [String: Bool] = Dictionary(uniqueKeysWithValues: taggedUsers.map { ($0, true) })
+//            updates["/events/exceptions/\(recurringDate)/\(eventId)/taggedUsers"] = taggedUsersDict
+//        }
+        
+        if updates.isEmpty {
+            return
+        }
+        
+        updates["/events/\(eventId)/exceptions/\(recurringDateInt)/date"] = recurringDateInt
+        updates["/events/\(eventId)/exceptions/\(recurringDateInt)/futureEventsIncluded"] = false
+        
+        for id in scheduleIds {
+            updates["scheduleEvents/\(id)/\(eventId)/last_modified"] = ServerValue.timestamp()
+        }
+        
+        do {
+            try await ref.updateChildValues(updates)
+        } catch {
+            throw EventServiceError.failedToUpdateEvent
+        }
+    }
+    
+    func updateEvent(eventId: String, scheduleIds: [String], title: String? = nil, eventDate: Double? = nil, startTime: Double? = nil, endTime: Double? = nil, location: MTPlacemark? = nil, repeatedDays: Set<Int>? = nil, taggedUsers: [String]? = nil, color: String? = nil, notes: String? = nil) async throws {
         
         var updates: [String : Any] = [:]
         
@@ -253,6 +401,10 @@ class EventService: EventServiceProtocol {
         if let notes = notes {
             updates["/events/\(eventId)/notes"] = notes
         }
+//        if let taggedUsers = taggedUsers {
+//            let taggedUsersDict: [String: Bool] = Dictionary(uniqueKeysWithValues: taggedUsers.map { ($0, true) })
+//            updates["/events/\(eventId)/taggedUsers"] = taggedUsersDict
+//        }
         
         if updates.isEmpty {
             return

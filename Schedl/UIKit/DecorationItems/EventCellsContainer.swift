@@ -56,10 +56,6 @@ class EventCellsContainer: SecondPassthroughView {
     }
     
     func configureUI() {
-        let panGesture = TapOnlyGestureRecognizer(target: containerView, action: nil)
-//        panGesture.cancelsTouchesInView = true
-        containerView.addGestureRecognizer(panGesture)
-        
         containerView.translatesAutoresizingMaskIntoConstraints = false
         
         addSubview(containerView)
@@ -111,10 +107,5 @@ class EventCellsContainer: SecondPassthroughView {
         guard dayIndex >= 0 && dayIndex < calendarInterval else { return nil }
         
         return dayIndex
-    }
-    
-    @objc
-    func didPan(_ gesture: UIPanGestureRecognizer) {
-        guard gesture.state == .ended else { return }
     }
 }

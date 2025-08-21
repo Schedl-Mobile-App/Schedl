@@ -95,6 +95,5 @@ struct ScheduleEventCards: View {
             }
         )
         .clipShape(RoundedRectangle(cornerRadius: 10))
-        .padding(.horizontal, 25)
     }
 }
