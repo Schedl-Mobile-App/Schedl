@@ -129,6 +129,9 @@ struct LocationDetailView: View {
                 address = selectedPlacemark.address
             }
         }
+        .onDisappear {
+            selectedPlacemark = nil
+        }
     }
     
     func fetchLookAroundPreview() async {

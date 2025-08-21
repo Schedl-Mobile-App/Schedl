@@ -77,14 +77,9 @@ class BlendViewModel: ObservableObject {
         self.errorMessage = nil
         
         do {
-            let combinedUserIds = selectedFriends.map { $0.id } + [currentUser.id]
-            let friendsScheduleIds = try await scheduleService.fetchScheduleIds(userIds: combinedUserIds)
-            
-            print("I have schedule ids \(friendsScheduleIds)")
-            
-            guard friendsScheduleIds.count == selectedFriends.count + 1 else { return }
-            
-            try await scheduleService.createBlendSchedule(ownerId: currentUser.id, title: title, invitedUsers: selectedFriends.map(\.id), scheduleIds: friendsScheduleIds, colors: userColors.mapValues { $0.toHex()! })
+            let scheduleId = try await scheduleService.fetchScheduleId(userId: currentUser.id)
+            let blendId = try await scheduleService.createBlendSchedule(ownerId: currentUser.id, scheduleId: scheduleId, title: title, invitedUsers: selectedFriends.map(\.id), colors: userColors.mapValues { $0.toHex()! })
+            try await notificationService.sendBlendInvites(senderId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserIds: selectedFriends.map(\.id), blendId: blendId)
             
             shouldDismiss = true
             

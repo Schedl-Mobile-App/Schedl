@@ -32,7 +32,6 @@ struct FriendsLoadingView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal)
                 }
             }
             .padding(.vertical)

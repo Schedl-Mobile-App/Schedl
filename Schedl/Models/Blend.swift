@@ -7,8 +7,9 @@
 
 struct Blend: Codable, Identifiable {
     let id: String
-    let title: String
-    let invitedUsers: [String]
-    let scheduleIds: [String]
-    let colors: [String: String]
+    let userId: String
+    var title: String
+    var invitedUsers: [String]
+    var scheduleIds: [String]
+    var colors: [String: String]
 }

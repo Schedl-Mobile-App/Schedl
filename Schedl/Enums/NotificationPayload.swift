@@ -8,4 +8,5 @@
 enum NotificationPayload: Codable {
     case friendRequest(FriendRequest)
     case eventInvite(EventInvite)
+    case blend(BlendInvite)
 }

@@ -21,9 +21,15 @@ protocol ScheduleServiceProtocol {
     func observeUpdatedEvents(scheduleId: String, completion: @escaping (
         String) -> Void) -> DatabaseHandle
     func removeScheduleObserver(handle: DatabaseHandle, scheduleId: String)
-    func createBlendSchedule(ownerId: String, title: String, invitedUsers: [String], scheduleIds: [String], colors: [String: String]) async throws -> Void
+    func createBlendSchedule(ownerId: String, scheduleId: String, title: String, invitedUsers: [String], colors: [String: String]) async throws -> String
     
     func fetchAllBlendSchedules(userId: String) async throws -> [Blend]
     
     func fetchBlendSchedule(blendId: String) async throws -> Blend
+    
+    func observeAddedBlendSchedules(blendId: String, completion: @escaping (String) -> Void) -> DatabaseHandle
+    
+    func observeRemovedBlendSchedules(blendId: String, completion: @escaping (String) -> Void) -> DatabaseHandle
+        
+    func removeBlendObserver(handle: DatabaseHandle, blendId: String)
 }

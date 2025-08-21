@@ -31,7 +31,7 @@ class SearchService: SearchServiceProtocol {
         return Array(matchedUsers.values)
     }
     
-    func fetchUserSearchInfo(currentUserId: String, username: String) async throws -> [SearchInfo] {
+    func fetchUserSearchInfo(username: String) async throws -> [SearchInfo] {
         
         let matchedUserIds = try await fetchMatchingUsers(username: username)
         
@@ -40,7 +40,7 @@ class SearchService: SearchServiceProtocol {
         try await withThrowingTaskGroup(of: SearchInfo.self) { group in
             for id in matchedUserIds {
                 group.addTask {
-                    try await self.fetchUserInfo(currentUserId: currentUserId, userId: id)
+                    try await self.fetchUserInfo(userId: id)
                 }
             }
             for try await result in group {
@@ -51,7 +51,25 @@ class SearchService: SearchServiceProtocol {
         return mappedSearchData
     }
     
-    func fetchUserInfo(currentUserId: String, userId: String) async throws -> SearchInfo {
+    func fetchFriendsSearchInfo(friendIds: [String]) async throws -> [SearchInfo] {
+        
+        var mappedSearchData: [SearchInfo] = []
+        
+        try await withThrowingTaskGroup(of: SearchInfo.self) { group in
+            for id in friendIds {
+                group.addTask {
+                    try await self.fetchUserInfo(userId: id)
+                }
+            }
+            for try await result in group {
+                mappedSearchData.append(result)
+            }
+        }
+        
+        return mappedSearchData
+    }
+    
+    func fetchUserInfo(userId: String) async throws -> SearchInfo {
         let userRef = ref.child("users").child(userId)
         
         let snapshot = try await userRef.getData()
@@ -71,7 +89,7 @@ class SearchService: SearchServiceProtocol {
             let createdAt = userData["creationDate"] as? Double {
             
             let user = User(id: id, username: username, email: email, displayName: displayName, profileImage: profileImage, creationDate: createdAt)
-            return SearchInfo(id: user.id, user: user, numOfFriends: friends.keys.count, numOfPosts: posts.keys.count, isFriend: friends.keys.contains(currentUserId))
+            return SearchInfo(id: user.id, user: user, numOfFriends: friends.keys.count, numOfPosts: posts.keys.count)
         } else {
             throw UserServiceError.invalidData
         }

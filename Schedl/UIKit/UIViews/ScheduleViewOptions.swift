@@ -84,17 +84,17 @@ class ScheduleViewOptions: UIStackView {
         let titleLabel = UILabel()
         titleLabel.text = "Calendar View"
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.font = .systemFont(ofSize: 14, weight: .bold)
+        titleLabel.font = .systemFont(ofSize: 15, weight: .bold)
         titleLabel.textColor = UIColor(Color(hex: 0x6D675F))
         
         titleView.addSubview(titleLabel)
         
         NSLayoutConstraint.activate([
             titleLabel.leadingAnchor.constraint(equalTo: titleView.leadingAnchor, constant: 12),
-            titleLabel.trailingAnchor.constraint(equalTo: titleView.trailingAnchor, constant: -12),
+            titleLabel.trailingAnchor.constraint(equalTo: titleView.trailingAnchor, constant: -18),
             titleLabel.topAnchor.constraint(equalTo: titleView.topAnchor, constant: 8),
             titleLabel.bottomAnchor.constraint(equalTo: titleView.bottomAnchor, constant: -8),
-            titleView.heightAnchor.constraint(equalToConstant: 32)
+//            titleView.heightAnchor.constraint(equalToConstant: 32)
         ])
         
         return titleView
@@ -128,7 +128,7 @@ class ScheduleViewOptions: UIStackView {
             label.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 12),
             label.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
             
-            containerView.heightAnchor.constraint(equalToConstant: 40)
+//            containerView.heightAnchor.constraint(equalToConstant: 40)
         ])
         
         return containerView

@@ -148,6 +148,7 @@ struct SearchView: View {
                 
                 if searchViewModel.isLoading {
                     FriendsLoadingView()
+                        .padding(.horizontal)
                         .padding(.bottom, 1)
                 } else if let error = searchViewModel.errorMessage {
                     Spacer()
@@ -161,7 +162,7 @@ struct SearchView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     Spacer()
-                } else if searchViewModel.searchResults != nil &&  searchViewModel.searchResults!.isEmpty {
+                } else if searchViewModel.searchResults != nil && searchViewModel.searchResults!.isEmpty {
                     Spacer()
                     Text("No users matching the username entered were found.")
                         .font(.subheadline)
@@ -194,7 +195,7 @@ struct SearchView: View {
                         }
                         .padding(.vertical)
                     }
-                    .scrollDismissesKeyboard(.immediately)
+                    .scrollDismissesKeyboard(.interactively)
                 }
                 
             }
@@ -216,6 +217,7 @@ struct SearchView: View {
                     .environmentObject(tabBarState)
             }
         }
+        .toolbar(tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
     }
 }
 

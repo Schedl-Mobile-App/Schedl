@@ -9,17 +9,16 @@ import SwiftUI
 
 struct FriendCell: View {
     
-    @EnvironmentObject var tabBarState: TabBarState
-    
-    @ObservedObject var profileViewModel: ProfileViewModel
-    let userToDisplay: User
-    
+    @Binding var hideTabbar: Bool
+    @Binding var friendsInfoDict: [String: SearchInfo]
     @Binding var selectedUser: User?
     @Binding var shouldNavigate: Bool
     
+    let userToDisplay: User
+    
     var body: some View {
         Button(action: {
-            tabBarState.hideTabbar = false
+            hideTabbar = false
             selectedUser = userToDisplay
             shouldNavigate = true
         }) {
@@ -52,8 +51,8 @@ struct FriendCell: View {
                     }
                 
                 VStack(alignment: .leading) {
-                    let numOfPosts = profileViewModel.friendsInfoDict[userToDisplay.id]?.numOfPosts ?? 0
-                    let numOfFriends = profileViewModel.friendsInfoDict[userToDisplay.id]?.numOfFriends ?? 0
+                    let numOfPosts = friendsInfoDict[userToDisplay.id]?.numOfPosts ?? 0
+                    let numOfFriends = friendsInfoDict[userToDisplay.id]?.numOfFriends ?? 0
                     Text("\(userToDisplay.displayName)")
                         .font(.subheadline)
                         .fontWeight(.bold)
@@ -187,6 +186,7 @@ struct FriendsView: View {
                 
                 if profileViewModel.isLoadingFriendView {
                     FriendsLoadingView()
+                        .padding(.horizontal)
                         .padding(.bottom, 1)
                 } else if let error = profileViewModel.errorMessage {
                     Spacer()
@@ -204,7 +204,7 @@ struct FriendsView: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         LazyVStack(spacing: 25) {
                             ForEach(filteredUsers, id: \.id) { user in
-                                FriendCell(profileViewModel: profileViewModel, userToDisplay: user, selectedUser: $selectedUser, shouldNavigate: $shouldNavigate)
+                                FriendCell(hideTabbar: $tabBarState.hideTabbar, friendsInfoDict: $profileViewModel.friendsInfoDict, selectedUser: $selectedUser, shouldNavigate: $shouldNavigate, userToDisplay: user)
                             }
                         }
                         .padding(.vertical)

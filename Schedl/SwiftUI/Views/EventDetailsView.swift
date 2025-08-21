@@ -80,7 +80,7 @@ struct EventDetailsView: View {
                             Text(selectedEvent.event.title)
                                 .multilineTextAlignment(.leading)
                                 .font(.system(size: 24, weight: .semibold, design: .monospaced))
-                                .frame(maxWidth: (UIScreen.current?.bounds.width ?? 0) * 0.70, alignment: .leading)
+                                .frame(maxWidth: (UIScreen.current?.bounds.width ?? 0) * 0.65, alignment: .leading)
                                 .padding(.top, 30)
                                                         
                             NavigationLink(destination: {

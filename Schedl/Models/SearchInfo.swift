@@ -10,13 +10,11 @@ struct SearchInfo: Identifiable {
     var user: User
     var numOfFriends: Int
     var numOfPosts: Int
-    var isFriend: Bool
     
-    init(id: String, user: User, numOfFriends: Int, numOfPosts: Int, isFriend: Bool) {
+    init(id: String, user: User, numOfFriends: Int, numOfPosts: Int) {
         self.id = id
         self.user = user
         self.numOfFriends = numOfFriends
         self.numOfPosts = numOfPosts
-        self.isFriend = isFriend
     }
 }

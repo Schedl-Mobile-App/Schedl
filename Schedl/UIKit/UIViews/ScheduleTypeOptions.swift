@@ -30,6 +30,7 @@ class ScheduleTypeOptions: UIStackView {
     }
     
     func configureUI(userSchedules: [Schedule], userBlends: [Blend]) {
+        print("Being reconfigured")
         
         // schedule is always the initially selected option between schedules and blends
         selectedSchedule = userSchedules.first!
@@ -102,7 +103,7 @@ class ScheduleTypeOptions: UIStackView {
         let titleLabel = UILabel()
         titleLabel.text = title
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.font = .systemFont(ofSize: 14, weight: .bold)
+        titleLabel.font = .systemFont(ofSize: 15, weight: .bold)
         titleLabel.textColor = UIColor(Color(hex: 0x6D675F))
         
         titleView.addSubview(titleLabel)
@@ -112,7 +113,7 @@ class ScheduleTypeOptions: UIStackView {
             titleLabel.trailingAnchor.constraint(equalTo: titleView.trailingAnchor, constant: -12),
             titleLabel.topAnchor.constraint(equalTo: titleView.topAnchor, constant: 8),
             titleLabel.bottomAnchor.constraint(equalTo: titleView.bottomAnchor, constant: -8),
-            titleView.heightAnchor.constraint(equalToConstant: 32)
+//            titleView.heightAnchor.constraint(equalToConstant: 32)
         ])
         
         return titleView
@@ -143,10 +144,11 @@ class ScheduleTypeOptions: UIStackView {
             button.topAnchor.constraint(equalTo: containerView.topAnchor),
             button.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
             
-            label.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 12),
+            label.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 18),
+            label.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -15),
             label.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
             
-            containerView.heightAnchor.constraint(equalToConstant: 40)
+//            containerView.heightAnchor.constraint(equalToConstant: 40)
         ])
         
         return containerView

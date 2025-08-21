@@ -8,7 +8,7 @@
 import FirebaseDatabase
 
 class NotificationService: NotificationServiceProtocol {
-
+    
     static let shared = NotificationService()
     let ref: DatabaseReference
     
@@ -60,6 +60,24 @@ class NotificationService: NotificationServiceProtocol {
                 do {
                     let eventInviteObj = try jsonDecoder.decode(EventInvite.self, from: eventInviteJsonData)
                     let notif = Notification(id: notificationId, type: .eventInvite, notificationPayload: .eventInvite(eventInviteObj), creationDate: creationDate)
+                    userNotifications.append(notif)
+                } catch {
+                    print("Failed to decode notification")
+                    throw NotificationServiceError.failedToDecodeNotification
+                }
+            } else if
+                let payloadDict = notificationDict["notificationPayload"] as? [String: Any],
+                let blendInviteDict = payloadDict["blend"] as? [String: Any],
+                let firstEntry = blendInviteDict.values.first as? [String: Any] {
+                
+                let jsonDecoder = JSONDecoder()
+                jsonDecoder.dateDecodingStrategy = .secondsSince1970
+                
+                let blendInviteJsonData = try JSONSerialization.data(withJSONObject: firstEntry, options: [])
+                
+                do {
+                    let blendInviteObj = try jsonDecoder.decode(BlendInvite.self, from: blendInviteJsonData)
+                    let notif = Notification(id: notificationId, type: .blend, notificationPayload: .blend(blendInviteObj), creationDate: creationDate)
                     userNotifications.append(notif)
                 } catch {
                     print("Failed to decode notification")
@@ -139,18 +157,46 @@ class NotificationService: NotificationServiceProtocol {
         return userNotifications
     }
     
-    func sendEventInvites(senderId: String, username: String, profileImage: String, toUserIds: [String], eventId: String) async throws -> Void {
+    func sendBlendInvites(senderId: String, username: String, profileImage: String, toUserIds: [String], blendId: String) async throws -> Void {
+        
+        var updates: [String: Any] = [:]
+        
+        for id in toUserIds {
+            guard let notificationId = ref.child("notifications").childByAutoId().key else { return }
+            let notificationType: NotificationType = .blend
+            let blendInvite = BlendInvite(blendId: blendId, fromUserId: senderId, toUserId: id, senderName: username, senderProfileImage: profileImage)
+            let creationDate = Date().timeIntervalSince1970
+            
+            let notificationObj = Notification(id: notificationId, type: notificationType, notificationPayload: NotificationPayload.blend(blendInvite), creationDate: creationDate)
+            
+            let encodedData = try JSONEncoder().encode(notificationObj)
+            
+            guard let jsonDictionary = try JSONSerialization.jsonObject(with: encodedData, options: []) as? [String: Any] else {
+                throw NotificationServiceError.failedToSerializeFriendRequest
+            }
+            
+            updates["/notifications/\(id)/\(notificationId)"] = jsonDictionary
+            updates["blendInvites/\(senderId)/\(id)"] = "pending"
+        }
+        
+        do {
+            try await ref.updateChildValues(updates)
+        } catch {
+            throw NotificationServiceError.failedToSendEventInvites
+        }
+    }
+    
+    func sendEventInvites(senderId: String, username: String, profileImage: String, toUserIds: [String], eventId: String, eventDate: Double, startTime: Double, endTime: Double) async throws -> Void {
         
         var updates: [String: Any] = [:]
         
         for id in toUserIds {
             guard let notificationId = ref.child("notifications").childByAutoId().key else { return }
             let notificationType: NotificationType = .eventInvite
-            let eventInvite: EventInvite = EventInvite(fromUserId: senderId, toUserId: id, invitedEventId: eventId, senderName: username, senderProfileImage: profileImage)
-            let payload: NotificationPayload = .eventInvite(eventInvite)
+            let eventInvite: EventInvite = EventInvite(fromUserId: senderId, toUserId: id, invitedEventId: eventId, eventDate: eventDate, startTime: startTime, endTime: endTime, senderName: username, senderProfileImage: profileImage)
             let creationDate = Date().timeIntervalSince1970
             
-            let notificationObj = Notification(id: notificationId, type: notificationType, notificationPayload: payload, creationDate: creationDate)
+            let notificationObj = Notification(id: notificationId, type: notificationType, notificationPayload: NotificationPayload.eventInvite(eventInvite), creationDate: creationDate)
             
             let encodedData = try JSONEncoder().encode(notificationObj)
             
@@ -207,7 +253,7 @@ class NotificationService: NotificationServiceProtocol {
         }
     }
     
-    func handleEventInviteResponse(notificationId: String, senderScheduleId: String, eventId: String, senderId: String, toUserId: String, userScheduleId: String, responseStatus: Bool) async throws -> Void {
+    func handleEventInviteResponse(notificationId: String, senderScheduleId: String, eventId: String, senderId: String, toUserId: String, userScheduleId: String, responseStatus: Bool, startDate: Double, startTime: Double, endTime: Double) async throws -> Void {
         
         if responseStatus {
             
@@ -215,13 +261,20 @@ class NotificationService: NotificationServiceProtocol {
                 "last_modified": ServerValue.timestamp()
             ]
             
-            let queryRequest: [String: Any] = [
+            var queryRequest: [String: Any] = [
                 "/eventInvites/\(senderId)/\(toUserId)": NSNull(),
                 "/notifications/\(toUserId)/\(notificationId)": NSNull(),
                 "/schedules/\(userScheduleId)/eventIds/\(eventId)": true,
                 "/scheduleEvents/\(userScheduleId)/\(eventId)": dict,
-                "/events/\(eventId)/taggedUsers/\(toUserId)": true,
             ]
+            
+            let normalizedStartTime = floor(startTime / 900.0) * 900.0
+            
+            for i in stride(from: normalizedStartTime, to: endTime, by: 900) {
+                // always want to round the the startTime down to the nearest multiple of 15 or 0
+                let timeStamp: Double = floor(i / 900.0) * 900.0
+                queryRequest["/userAvailability/\(toUserId)/\(Int(startDate))_\(Int(timeStamp))"] = true
+            }
             
             do {
                 try await ref.updateChildValues(queryRequest)
@@ -264,6 +317,41 @@ class NotificationService: NotificationServiceProtocol {
             let queryRequest: [String: Any] = [
                 "/friendRequests/\(senderId)/\(toUserId)": NSNull(),
                 "/notifications/\(toUserId)/\(notificationId)": NSNull(),
+            ]
+            
+            do {
+                try await ref.updateChildValues(queryRequest)
+            } catch {
+                throw FirebaseError.failedToUpdateFriendRequest
+            }
+        }
+    }
+    
+    func handleBlendInviteResponse(notificationId: String, blendId: String, senderId: String, userId: String, scheduleId: String, responseStatus: Bool) async throws -> Void {
+        
+        if responseStatus {
+            
+            let dict = [
+                "last_modified": ServerValue.timestamp()
+            ]
+            
+            var queryRequest: [String: Any] = [
+                "/blendInvites/\(senderId)/\(userId)": NSNull(),
+                "/notifications/\(userId)/\(notificationId)": NSNull(),
+                "/blends/\(blendId)/scheduleIds/\(scheduleId)": true,
+                "/users/\(userId)/blendIds/\(blendId)": true
+            ]
+            
+            do {
+                try await ref.updateChildValues(queryRequest)
+            } catch {
+                throw FirebaseError.failedToUpdateFriendRequest
+            }
+        } else {
+            
+            let queryRequest: [String: Any] = [
+                "/blendInvites/\(senderId)/\(userId)": NSNull(),
+                "/notifications/\(userId)/\(notificationId)": NSNull(),
             ]
             
             do {
