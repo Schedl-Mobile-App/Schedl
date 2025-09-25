@@ -93,8 +93,10 @@
 		CB53080D2CA0824600A8AA04 /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 		CB5F72422D3DBF20004C7FC8 /* Enums */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Enums; sourceTree = "<group>"; };
 		CB7058BD2CA660AE00C4EE00 /* ViewModels */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ViewModels; sourceTree = "<group>"; };
+		CB9A6EB72E85DC0F005CA0DE /* Router */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Router; sourceTree = "<group>"; };
 		CBB1F87F2DC416700002E3F1 /* Protocols */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Protocols; sourceTree = "<group>"; };
 		CBB233CC2CA4B96D00BDBFC0 /* Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Models; sourceTree = "<group>"; };
+		CBDF2A122E856FB600A84A01 /* Coordinators */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Coordinators; sourceTree = "<group>"; };
 		CBFD83D52CF51C240034BE9F /* Core */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Core; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -171,6 +173,8 @@
 		046B83492C867DE600F97BB4 /* Schedl */ = {
 			isa = PBXGroup;
 			children = (
+				CB9A6EB72E85DC0F005CA0DE /* Router */,
+				CBDF2A122E856FB600A84A01 /* Coordinators */,
 				CB3FC7D02DE246BC004FD066 /* Info.plist */,
 				CB3C314C2DD9CE6700124F03 /* LaunchScreen.storyboard */,
 				CB3C31382DD9932000124F03 /* Extensions */,
@@ -231,8 +235,10 @@
 				CB53080D2CA0824600A8AA04 /* Services */,
 				CB5F72422D3DBF20004C7FC8 /* Enums */,
 				CB7058BD2CA660AE00C4EE00 /* ViewModels */,
+				CB9A6EB72E85DC0F005CA0DE /* Router */,
 				CBB1F87F2DC416700002E3F1 /* Protocols */,
 				CBB233CC2CA4B96D00BDBFC0 /* Models */,
+				CBDF2A122E856FB600A84A01 /* Coordinators */,
 				CBFD83D52CF51C240034BE9F /* Core */,
 			);
 			name = Schedl;

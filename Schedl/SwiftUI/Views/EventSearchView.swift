@@ -35,8 +35,6 @@ enum EventSearchFilter: CaseIterable {
 
 struct EventSearchView: View {
     
-    
-    @EnvironmentObject var tabBarState: TabBarState
     @StateObject var searchViewModel: SearchViewModel
     var scheduleEvents: [RecurringEvents]
     @Environment(\.dismiss) var dismiss

@@ -6,7 +6,6 @@ enum FeedDestinations: Hashable {
 
 struct FeedView: View {
     
-    @EnvironmentObject var tabBarState: TabBarState
     @StateObject private var feedViewModel: FeedViewModel
     @State var keyboardHeight: CGFloat = 0
     @State var navigateToNotifications = false

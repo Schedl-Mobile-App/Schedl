@@ -8,9 +8,7 @@
 import SwiftUI
 
 struct CreateScheduleView: View {
-    
-    @EnvironmentObject var tabBarState: TabBarState
-    
+        
     @ObservedObject var scheduleViewModel: ScheduleViewModel
     @Environment(\.dismiss) var dismiss
     
@@ -77,7 +75,6 @@ struct CreateScheduleView: View {
 //            shouldReloadData = true
 //        }
         .navigationBarBackButtonHidden(false)
-        .toolbar(tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("Create Schedule")

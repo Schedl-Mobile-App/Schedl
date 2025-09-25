@@ -32,7 +32,6 @@ class EventViewModel: ObservableObject, Equatable, Hashable {
     @Published var showDeleteEventModal = false
     @Published var shouldDismissToRoot = false
     
-    @Published var showMapSheet: Bool = false
     
     var currentScheduleId: String
         
@@ -91,7 +90,6 @@ class EventViewModel: ObservableObject, Equatable, Hashable {
     
     // Binding values to trigger/dismiss sheets/pickers
     
-    @Published var showInviteUsersSheet: Bool = false
     @Published var hasTriedSubmitting = false
     
     func resetErrors() {
@@ -132,7 +130,7 @@ class EventViewModel: ObservableObject, Equatable, Hashable {
     @Published var isLoading: Bool = false      // Indicates loading state
     @Published var errorMessage: String?        // Holds error messages if any
     
-    @Published var eventCreatorName: String = ""
+    var eventCreatorName: String = ""
     
     private var userService: UserServiceProtocol
     private var scheduleService: ScheduleServiceProtocol

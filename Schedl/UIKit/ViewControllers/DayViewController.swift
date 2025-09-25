@@ -467,7 +467,7 @@ class DayViewController: UIViewController {
     @objc
     func showCreateEvent() {
         
-        if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState  {
+        if let scheduleViewModel = coordinator?.scheduleViewModel {
             
             guard let schedule = scheduleViewModel.selectedSchedule else { return }
             
@@ -478,7 +478,6 @@ class DayViewController: UIViewController {
             // use the $ binding syntax within a view controller, we can create a
             // binding type manually
             
-            tabBarState.hideTabbar = true
                         
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
@@ -502,7 +501,7 @@ class DayViewController: UIViewController {
     }
     
     @objc func showCreateBlend() {
-        if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState {
+        if let scheduleViewModel = coordinator?.scheduleViewModel {
             
 //            self.createEventButton.alpha = 0
 //            self.createEventButton.isHidden = true
@@ -511,7 +510,6 @@ class DayViewController: UIViewController {
             // use the $ binding syntax within a view controller, we can create a
             // binding type manually
             
-            tabBarState.hideTabbar = true
                         
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
@@ -535,13 +533,10 @@ class DayViewController: UIViewController {
     }
     
     func showEventDetails(event: RecurringEvents) {
-        if let scheduleViewModel = coordinator?.scheduleViewModel,
-           let tabBarState = coordinator?.tabBarState {
+        if let scheduleViewModel = coordinator?.scheduleViewModel {
             
             guard let schedule = scheduleViewModel.selectedSchedule else { return }
-            
-            tabBarState.hideTabbar = true
-                        
+                                    
             
         }
     }

@@ -40,25 +40,22 @@ struct CreateEventView: View {
                         EventTitleView(title: $eventViewModel.title, isFocused: $isFocused, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, titleError: $eventViewModel.titleError)
                         
                         // view for event date and recurring days seletion
-                        EventDateView(eventDate: $eventViewModel.eventDate, eventEndDate: $eventViewModel.eventEndDate, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, startDateError: $eventViewModel.startDateError, endDateError: $eventViewModel.endDateError, repeatedDays: $eventViewModel.repeatedDays)
+                        EventDateView(eventDate: $eventViewModel.eventDate, eventEndDate: $eventViewModel.eventEndDate, repeatedDays: $eventViewModel.repeatedDays, hasTriedSubmitting: eventViewModel.hasTriedSubmitting, startDateError: eventViewModel.startDateError, endDateError: eventViewModel.endDateError)
                         
                         // view for start time selection
-                        EventStartTimeView(startTime: $eventViewModel.startTime, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, startTimeError: $eventViewModel.startTimeError)
+                        EventStartTimeView(startTime: $eventViewModel.startTime, hasTriedSubmitting: eventViewModel.hasTriedSubmitting, startTimeError: eventViewModel.startTimeError)
                         
                         // view for end time selection
-                        EventEndTimeView(endTime: $eventViewModel.endTime, endTimeError: $eventViewModel.endTimeError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting)
+                        EventEndTimeView(endTime: $eventViewModel.endTime, endTimeError: eventViewModel.endTimeError, hasTriedSubmitting: eventViewModel.hasTriedSubmitting)
                         
                         // view for location selection
-                        EventLocationView(selectedPlacemark: $eventViewModel.selectedPlacemark, locationError: $eventViewModel.locationError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting)
+                        EventLocationView(selectedPlacemark: $eventViewModel.selectedPlacemark, locationError: eventViewModel.locationError, hasTriedSubmitting: eventViewModel.hasTriedSubmitting)
                         
                         // view for inviting friends selection
-                        EventInviteesView(selectedFriends: $eventViewModel.selectedFriends, showInviteUsersSheet: $eventViewModel.showInviteUsersSheet)
-                            .sheet(isPresented: $eventViewModel.showInviteUsersSheet) {
-                                AddInvitedUsers(currentUser: eventViewModel.currentUser, selectedFriends: $eventViewModel.selectedFriends)
-                            }
+                        EventInviteesView(selectedFriends: $eventViewModel.selectedFriends, currentUser: eventViewModel.currentUser)
                         
                         // view for event notes input
-                        EventNotesView(notes: $eventViewModel.notes, notesError: $eventViewModel.notesError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
+                        EventNotesView(notes: $eventViewModel.notes, notesError: eventViewModel.notesError, hasTriedSubmitting: eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
                         
                         // view for event color selection
                         EventColorView(eventColor: $eventViewModel.eventColor)
@@ -104,7 +101,7 @@ struct CreateEventView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("Create Event")
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(Color("PrimaryText"))
                     .font(.title3)
                     .fontWeight(.bold)
                     .fontDesign(.monospaced)
@@ -121,7 +118,7 @@ struct AddInvitedUsers: View {
     @Binding var selectedFriends: [User]
         
     init(currentUser: User, selectedFriends: Binding<[User]>) {
-        _vm = StateObject(wrappedValue: FriendViewModel(currentUser: currentUser))
+        _vm = StateObject(wrappedValue: FriendViewModel(profileUser: currentUser))
         _selectedFriends = Binding(projectedValue: selectedFriends)
     }
     
@@ -306,36 +303,67 @@ struct EventTitleView: View {
     }
 }
 
+struct DatePickerView: View {
+    
+    @Environment(\.router) var coordinator: Router
+    @Binding var date: Date?
+    
+    var dateBinding: Binding<Date> {
+        Binding(
+            get: { date ?? Calendar.current.startOfDay(for: Date()) },
+            set: { selectedDate in
+                date = selectedDate
+            }
+        )
+    }
+    
+    var body: some View {
+        NavigationView {
+            DatePicker("Select Date",
+                       selection: dateBinding,
+                       displayedComponents: [.date])
+            .datePickerStyle(.graphical)
+            .padding()
+            .navigationTitle("Select Date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Clear") {
+                        date = nil
+                        coordinator.dismissSheet()
+                    }
+                }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        coordinator.dismissSheet()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            if date == nil {
+                date = Calendar.current.startOfDay(for: Date())
+            }
+            print("in on eappear of date picker view")
+        }
+    }
+}
+
 struct EventDateView: View {
+    
+    @Environment(\.router) var coordinator: Router
     
     @Binding var eventDate: Date?
     @Binding var eventEndDate: Date?
-    @Binding var hasTriedSubmitting: Bool
-    @State var showDatePicker: Bool = false
-    @State var showEndDatePicker: Bool = false
-    @Binding var startDateError: String
-    @Binding var endDateError: String
     @Binding var repeatedDays: Set<Int>?
+    
+    var hasTriedSubmitting: Bool
+    var startDateError: String
+    var endDateError: String
     
     var abbreviatedDayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     var completeDayList: [String] = ["Sunday", "Tuesday", "Wednesday", "Thursday", "Saturday", "Monday", "Friday"]
-    
-    var eventDateBinding: Binding<Date> {
-        Binding(
-            get: { eventDate ?? Calendar.current.startOfDay(for: Date()) },
-            set: { selectedDate in
-                eventDate = selectedDate
-            }
-        )
-    }
-    var eventEndDateBinding: Binding<Date> {
-        Binding(
-            get: { eventEndDate ?? Calendar.current.startOfDay(for: Date()) },
-            set: { selectedDate in
-                eventEndDate = selectedDate
-            }
-        )
-    }
     
     var eventDateText: String {
         if let date = eventDate {
@@ -367,7 +395,7 @@ struct EventDateView: View {
                 
                 ZStack(alignment: .trailing) {
                     Button("Edit", action: {
-                        showDatePicker.toggle()
+                        coordinator.present(sheet: .eventDate(date: $eventDate))
                     })
                     .font(.footnote)
                     .fontWeight(.bold)
@@ -376,7 +404,7 @@ struct EventDateView: View {
                     .hidden(eventDate == nil)
                     
                     Button(action: {
-                        showDatePicker.toggle()
+                        coordinator.present(sheet: .eventDate(date: $eventDate))
                     }) {
                         Image(systemName: "calendar")
                             .imageScale(.large)
@@ -391,40 +419,6 @@ struct EventDateView: View {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
                     .stroke(hasTriedSubmitting && eventDate == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
-            }
-            .onTapGesture {
-                showDatePicker.toggle()
-            }
-            .sheet(isPresented: $showDatePicker) {
-                NavigationView {
-                    DatePicker("Select Event Date",
-                               selection: eventDateBinding,
-                               displayedComponents: [.date])
-                    .datePickerStyle(.graphical)
-                    .padding()
-                    .navigationTitle("Select Date")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button("Clear") {
-                                eventDate = nil
-                                showDatePicker = false
-                            }
-                        }
-                        
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Done") {
-                                showDatePicker = false
-                            }
-                        }
-                    }
-                }
-                .presentationDetents([.medium])
-                .onAppear {
-                    if eventDate == nil {
-                        eventDate = Calendar.current.startOfDay(for: Date())
-                    }
-                }
             }
             .overlay(alignment: .topLeading) {
                 // This HStack creates the label with padding for the background.
@@ -549,7 +543,7 @@ struct EventDateView: View {
                             // Use a ZStack to conditionally show one of the two buttons.
                             ZStack {
                                 Button(action: {
-                                    showEndDatePicker.toggle()
+                                    coordinator.present(sheet: .eventDate(date: $eventEndDate))
                                 }) {
                                     // This HStack is for the text and icon
                                     HStack {
@@ -570,7 +564,7 @@ struct EventDateView: View {
                                 .opacity(eventEndDate == nil ? 0 : 1) // Fade in/out for a smoother look
                                 
                                 Button(action: {
-                                    showEndDatePicker.toggle()
+                                    coordinator.present(sheet: .eventDate(date: $eventEndDate))
                                 }) {
                                     // This HStack is for the text and icon
                                     HStack {
@@ -605,7 +599,7 @@ struct EventDateView: View {
                             // Using a ZStack here as well for consistency
                             ZStack(alignment: .leading) {
                                 Button(action: {
-                                    showEndDatePicker.toggle()
+                                    coordinator.present(sheet: .eventDate(date: $eventEndDate))
                                 }) {
                                     HStack {
                                         Image(systemName: "calendar")
@@ -624,7 +618,7 @@ struct EventDateView: View {
                                 .opacity(eventEndDate == nil ? 0 : 1)
                                 
                                 Button(action: {
-                                    showEndDatePicker.toggle()
+                                    coordinator.present(sheet: .eventDate(date: $eventEndDate))
                                 }) {
                                     HStack {
                                         Image(systemName: "calendar")
@@ -652,37 +646,6 @@ struct EventDateView: View {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.clear)
                         .stroke(hasTriedSubmitting && !endDateError.isEmpty ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
-                }
-                .sheet(isPresented: $showEndDatePicker) {
-                    NavigationView {
-                        DatePicker("Select End Date",
-                                   selection: eventEndDateBinding,
-                                   displayedComponents: [.date])
-                        .datePickerStyle(.graphical)
-                        .padding()
-                        .navigationTitle("Select End Date")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Clear") {
-                                    eventEndDate = nil
-                                    showEndDatePicker = false
-                                }
-                            }
-                            
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button("Done") {
-                                    showEndDatePicker = false
-                                }
-                            }
-                        }
-                    }
-                    .presentationDetents([.medium])
-                    .onAppear {
-                        if eventEndDate == nil {
-                            eventEndDate = Calendar.current.startOfDay(for: Date())
-                        }
-                    }
                 }
                 .overlay(alignment: .topLeading) {
                     // This HStack creates the label with padding for the background.
@@ -716,21 +679,61 @@ struct EventDateView: View {
     }
 }
 
-struct EventStartTimeView: View {
+struct TimePickerView: View {
     
-    @Binding var startTime: Date?
-    @Binding var hasTriedSubmitting: Bool
-    @Binding var startTimeError: String
-    @State var showStartTimePicker: Bool = false
+    @Environment(\.router) var coordinator: Router
+    @Binding var time: Date?
     
-    var startTimeBinding: Binding<Date> {
+    var timeBinding: Binding<Date> {
         Binding(
-            get: { startTime ?? Date.now },
+            get: { time ?? Date.now },
             set: { selectedTime in
-                startTime = selectedTime
+                time = selectedTime
             }
         )
     }
+    
+    var body: some View {
+        NavigationView {
+            DatePicker("",
+                      selection: timeBinding,
+                      displayedComponents: [.hourAndMinute])
+                .datePickerStyle(.wheel)
+                .navigationTitle("Select Start Time")
+                .navigationBarTitleDisplayMode(.inline)
+                .labelsHidden()
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Clear") {
+                            time = nil
+                            coordinator.dismissSheet()
+                        }
+                    }
+
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            coordinator.dismissSheet()
+                        }
+                    }
+                }
+        }
+        .presentationDetents([.medium])
+        .onAppear {
+            if time == nil {
+                time = Date.now
+            }
+        }
+    }
+}
+
+struct EventStartTimeView: View {
+    
+    @Environment(\.router) var coordinator: Router
+    @Binding var startTime: Date?
+    var hasTriedSubmitting: Bool
+    var startTimeError: String
+    
+    
     var startTimeText: String {
         if let date = startTime {
             return date.formatted(date: .omitted, time: .shortened)
@@ -753,7 +756,8 @@ struct EventStartTimeView: View {
                 
                 ZStack(alignment: .trailing) {
                     Button("Edit", action: {
-                        showStartTimePicker.toggle()
+                        print("clicking")
+                        coordinator.present(sheet: .eventTime(time: $startTime))
                     })
                     .font(.footnote)
                     .fontWeight(.bold)
@@ -762,7 +766,8 @@ struct EventStartTimeView: View {
                     .hidden(startTime == nil)
                     
                     Button(action: {
-                        showStartTimePicker.toggle()
+                        print("clicking")
+                        coordinator.present(sheet: .eventTime(time: $startTime))
                     }) {
                         Image(systemName: "clock.badge")
                             .imageScale(.large)
@@ -777,40 +782,6 @@ struct EventStartTimeView: View {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
                     .stroke(hasTriedSubmitting && startTime == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
-            }
-            .onTapGesture {
-                showStartTimePicker.toggle()
-            }
-            .sheet(isPresented: $showStartTimePicker) {
-                NavigationView {
-                    DatePicker("",
-                              selection: startTimeBinding,
-                              displayedComponents: [.hourAndMinute])
-                        .datePickerStyle(.wheel)
-                        .navigationTitle("Select Start Time")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .labelsHidden()
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Clear") {
-                                    startTime = nil
-                                    showStartTimePicker = false
-                                }
-                            }
-
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button("Done") {
-                                    showStartTimePicker = false
-                                }
-                            }
-                        }
-                }
-                .presentationDetents([.medium])
-                .onAppear {
-                    if startTime == nil {
-                        startTime = Date.now
-                    }
-                }
             }
             .overlay(alignment: .topLeading) {
                 // This HStack creates the label with padding for the background.
@@ -842,19 +813,12 @@ struct EventStartTimeView: View {
 
 struct EventEndTimeView: View {
     
-    @Binding var endTime: Date?
-    @Binding var endTimeError: String
-    @State var showEndTimePicker: Bool = false
-    @Binding var hasTriedSubmitting: Bool
+    @Environment(\.router) var coordinator: Router
     
-    var endTimeBinding: Binding<Date> {
-        Binding(
-            get: { endTime ?? Date.now },
-            set: { selectedTime in
-                endTime = selectedTime
-            }
-        )
-    }
+    @Binding var endTime: Date?
+    var endTimeError: String
+    var hasTriedSubmitting: Bool
+    
     var endTimeText: String {
         if let date = endTime {
             return date.formatted(date: .omitted, time: .shortened)
@@ -877,7 +841,7 @@ struct EventEndTimeView: View {
                 
                 ZStack(alignment: .trailing) {
                     Button("Edit", action: {
-                        showEndTimePicker.toggle()
+                        coordinator.present(sheet: .eventTime(time: $endTime))
                     })
                     .font(.footnote)
                     .fontWeight(.bold)
@@ -886,7 +850,7 @@ struct EventEndTimeView: View {
                     .hidden(endTime == nil)
                     
                     Button(action: {
-                        showEndTimePicker.toggle()
+                        coordinator.present(sheet: .eventTime(time: $endTime))
                     }) {
                         Image(systemName: "clock.badge")
                             .imageScale(.large)
@@ -901,40 +865,6 @@ struct EventEndTimeView: View {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
                     .stroke(hasTriedSubmitting && endTime == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
-            }
-            .onTapGesture {
-                showEndTimePicker.toggle()
-            }
-            .sheet(isPresented: $showEndTimePicker) {
-                NavigationView {
-                    DatePicker("",
-                              selection: endTimeBinding,
-                              displayedComponents: [.hourAndMinute])
-                        .datePickerStyle(.wheel)
-                        .navigationTitle("Select Start Time")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .labelsHidden()
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Clear") {
-                                    endTime = nil
-                                    showEndTimePicker = false
-                                }
-                            }
-
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button("Done") {
-                                    showEndTimePicker = false
-                                }
-                            }
-                        }
-                }
-                .presentationDetents([.medium])
-                .onAppear {
-                    if endTime == nil {
-                        endTime = Date.now
-                    }
-                }
             }
             .overlay(alignment: .topLeading) {
                 // This HStack creates the label with padding for the background.
@@ -966,10 +896,10 @@ struct EventEndTimeView: View {
 
 struct EventLocationView: View {
     
+    @Environment(\.router) var coordinator: Router
     @Binding var selectedPlacemark: MTPlacemark?
-    @Binding var locationError: String
-    @State var showMapSheet: Bool = false
-    @Binding var hasTriedSubmitting: Bool
+    var locationError: String
+    var hasTriedSubmitting: Bool
     
     var selectedLocationText: String {
         if let location = selectedPlacemark {
@@ -996,7 +926,7 @@ struct EventLocationView: View {
                 
                 ZStack(alignment: .trailing) {
                     Button("Edit", action: {
-                        showMapSheet.toggle()
+                        coordinator.present(cover: .location(selectedPlacemark: $selectedPlacemark))
                     })
                     .font(.footnote)
                     .fontWeight(.bold)
@@ -1005,7 +935,7 @@ struct EventLocationView: View {
                     .hidden(selectedPlacemark == nil)
                     
                     Button(action: {
-                        showMapSheet.toggle()
+                        coordinator.present(cover: .location(selectedPlacemark: $selectedPlacemark))
                     }) {
                         Image(systemName: "mappin")
                             .imageScale(.large)
@@ -1020,14 +950,6 @@ struct EventLocationView: View {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
                     .stroke(hasTriedSubmitting && selectedPlacemark == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
-            }
-            .onTapGesture {
-                showMapSheet.toggle()
-            }
-            .fullScreenCover(isPresented: $showMapSheet) {
-                NavigationView {
-                    LocationView(selectedPlacemark: $selectedPlacemark, showMapSheet: $showMapSheet)
-                }
             }
             .overlay(alignment: .topLeading) {
                 // This HStack creates the label with padding for the background.
@@ -1059,17 +981,18 @@ struct EventLocationView: View {
 
 struct EventInviteesView: View {
     
+    @Environment(\.router) var coordinator: Router
     @Binding var selectedFriends: [User]
-    @Binding var showInviteUsersSheet: Bool
     @State var showMoreInvitees = false
     
+    var currentUser: User
     var initialVisibleCount = 2
     
     var body: some View {
         Group {
             if selectedFriends.isEmpty {
                 Button(action: {
-                    showInviteUsersSheet.toggle()
+                    coordinator.present(sheet: .invitedUsers(currentUser: currentUser, selectedFriends: $selectedFriends))
                 }) {
                     HStack(spacing: 0) {
                         Text("Invite Friends to Your Event?")
@@ -1102,7 +1025,7 @@ struct EventInviteesView: View {
                         HStack {
                             Spacer()
                             Button("Edit", action: {
-                                showInviteUsersSheet.toggle()
+                                coordinator.present(sheet: .invitedUsers(currentUser: currentUser, selectedFriends: $selectedFriends))
                             })
                             .font(.footnote)
                             .fontWeight(.bold)
@@ -1288,7 +1211,7 @@ struct InvitedUserCell: View {
 struct EventNotesView: View {
     
     @Binding var notes: String?
-    @Binding var notesError: String
+    var notesError: String
     
     var notesBinding: Binding<String> {
         Binding(
@@ -1298,6 +1221,7 @@ struct EventNotesView: View {
             }
         )
     }
+    
     var notesText: String {
         if let eventNotes = notes {
             return eventNotes
@@ -1305,7 +1229,7 @@ struct EventNotesView: View {
         return "Add Notes"
     }
     
-    @Binding var hasTriedSubmitting: Bool
+    var hasTriedSubmitting: Bool
     var isFocused: FocusState<EventInfoFields?>.Binding
     
     var body: some View {
@@ -1385,8 +1309,8 @@ struct EventNotesView: View {
 
 struct EventColorView: View {
     
+    @Environment(\.router) var coordinator: Router
     @Binding var eventColor: Color?
-    @State var showColorPicker: Bool = false
     
     var eventColorBinding: Binding<Color> {
         Binding(
@@ -1399,7 +1323,7 @@ struct EventColorView: View {
     
     var body: some View {
         Button(action: {
-            showColorPicker.toggle()
+            coordinator.present(sheet: .color(color: eventColorBinding))
         }) {
             HStack(alignment: .center, spacing: 0) {
                 Text(eventColor == nil ? "Choose a Color For Your Event?" : "Selected Event Color:")
@@ -1434,9 +1358,6 @@ struct EventColorView: View {
             }
             .padding(.trailing)
             .padding(.vertical, 10)
-        }
-        .sheet(isPresented: $showColorPicker) {
-            ColorPickerSheet(selectedColor: eventColorBinding)
         }
     }
 }

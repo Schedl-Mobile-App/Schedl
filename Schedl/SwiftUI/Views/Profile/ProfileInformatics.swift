@@ -9,14 +9,19 @@ import SwiftUI
 
 struct ProfileInformatics: View {
     
+    @Environment(\.router) var coordinator: Router
+    
     let friendsCount: Int
     let eventsCount: Int
     let postsCount: Int
+    let profileUser: User
     
     var body: some View {
         
         HStack(spacing: 20) {
-            NavigationLink(value: ProfileDestinations.friendsView, label: {
+            Button(action: {
+                coordinator.push(page: .friends(profileUser: profileUser))
+            }, label: {
                 VStack(alignment: .center, spacing: 6) {
                     Text("\(friendsCount)")
                         .font(.headline)

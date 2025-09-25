@@ -6,34 +6,24 @@ import UIKit
 struct ScheduleView: UIViewControllerRepresentable {
     
     @StateObject var scheduleViewModel: ScheduleViewModel
-    @EnvironmentObject var tabBarState: TabBarState
-    var onShowEventDetails: (RecurringEvents, User, String) -> Void
+    @Environment(\.router) var coordinator: Router
     
-    init(currentUser: User, onShowEventDetails: @escaping (RecurringEvents, User, String) -> Void) {
+    init(currentUser: User) {
         _scheduleViewModel = StateObject(wrappedValue: ScheduleViewModel(currentUser: currentUser))
-        self.onShowEventDetails = onShowEventDetails
     }
     
     class Coordinator {
         var scheduleViewModel: ScheduleViewModel
-        var tabBarState: TabBarState
-        var onShowEventDetails: (RecurringEvents, User, String) -> Void
+        var coordinator: Router
         
-        init(scheduleViewModel: ScheduleViewModel, tabBarState: TabBarState, onShowEventDetails: @escaping (RecurringEvents, User, String) -> Void) {
+        init(scheduleViewModel: ScheduleViewModel, coordinator: Router) {
             self.scheduleViewModel = scheduleViewModel
-            self.tabBarState = tabBarState
-            self.onShowEventDetails = onShowEventDetails
-        }
-        
-        // This is the function the UIViewController will call
-        func showEventDetails(event: RecurringEvents, currentUser: User, scheduleId: String) {
-            // When called, it executes the closure, sending the data up to SwiftUI
-            onShowEventDetails(event, currentUser, scheduleId)
+            self.coordinator = coordinator
         }
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(scheduleViewModel: scheduleViewModel, tabBarState: tabBarState, onShowEventDetails: onShowEventDetails)
+        Coordinator(scheduleViewModel: scheduleViewModel, coordinator: coordinator)
     }
     
     func makeUIViewController(context: Context) -> UIViewController {

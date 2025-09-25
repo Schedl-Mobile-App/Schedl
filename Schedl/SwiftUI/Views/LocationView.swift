@@ -10,20 +10,23 @@ import MapKit
 
 struct LocationView: View {
     
+    @Environment(\.router) var coordinator: Router
+    
     @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var visibleRegion: MKCoordinateRegion?
+    
     @State var listPlacemarks: [MTPlacemark] = []
     @Binding var selectedPlacemark: MTPlacemark?
     @State private var detailPlacemark: MTPlacemark?
-    @State var sheetDetents: PresentationDetent = .height(80)
-    @State var showSearchBar: Bool = true
-    @State var searchText: String = ""
-    @Binding var showMapSheet: Bool
+    
+    @State var showLocationSearchSheet = true
+    @State var showLocationDetailSheet = false
     
     let manager = LocationManager()
     
     var body: some View {
         if manager.isAuthorized {
+            NavigationView {
                 Map(position: $cameraPosition, selection: $detailPlacemark) {
                     UserAnnotation()
                     ForEach(listPlacemarks, id: \.self) { placemark in
@@ -37,8 +40,8 @@ struct LocationView: View {
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     Rectangle()
-                      .foregroundStyle(.clear)
-                      .frame(height: 80)
+                        .foregroundStyle(.clear)
+                        .frame(height: 80)
                 }
                 .mapControls {
                     MapUserLocationButton()
@@ -50,11 +53,27 @@ struct LocationView: View {
                 .onChange(of: detailPlacemark) { oldValue, newValue in
                     if let newValue = newValue {
                         detailPlacemark = newValue
+                        
+                        showLocationDetailSheet = true
+                        
+//                        // to dismiss the always visible search sheet
+//                        coordinator.dismissSheet()
+//                        coordinator.present(sheet: .locationDetail(detailPlacemark: newValue, selectedPlacemark: $selectedPlacemark))
+                    } else {
+                        showLocationDetailSheet = false
                     }
                 }
                 .onAppear {
+                    guard let coordinate = manager.userLocation?.coordinate else {
+                        let userCenter = CLLocationCoordinate2D(latitude: 26.162073, longitude: -98.007771)
+                        let locationSpan = MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                        let userRegion = MKCoordinateRegion(center: userCenter, span: locationSpan)
+                        visibleRegion = userRegion
+                        return
+                    }
+                    
                     // define user location -> center
-                    let userCenter = CLLocationCoordinate2D(latitude: 26.162073, longitude: -98.007771)
+                    let userCenter = CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude)
                     // define the span using delta of 0.15 -> span
                     let locationSpan = MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
                     // define a region using our center and region
@@ -64,43 +83,25 @@ struct LocationView: View {
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("Cancel") {
-//                            isFocused = false
-                            selectedPlacemark = nil
-                            showMapSheet = false
+                            coordinator.dismissCover()
                         }
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button("Done") {
-//                            isFocused = false
-                            showMapSheet = false
+                            coordinator.dismissCover()
                         }
                         .disabled(selectedPlacemark == nil)
                     }
                 }
-                .sheet(isPresented: Binding<Bool>(
-                    get: { detailPlacemark != nil },
-                    set: { newValue in if !newValue { detailPlacemark = nil } }
-                )) {
-                    if let placemark = detailPlacemark {
-                        LocationDetailView(
-                            selectedPlacemark: placemark,
-                            onConfirm: {
-                                selectedPlacemark = placemark
-                                detailPlacemark = nil
-                            },
-                            onCancel: {
-                                detailPlacemark = nil
-                            }
-                        )
-                        .presentationDetents([.medium])
+                .sheet(isPresented: $showLocationSearchSheet) {
+                    MapSearchView(listPlacemarks: $listPlacemarks, visibleRegion: $visibleRegion, detailPlacemark: $detailPlacemark)
+                }
+                .sheet(isPresented: $showLocationDetailSheet) {
+                    if let detailPlacemark = detailPlacemark {
+                        LocationDetailView(selectedPlacemark: $selectedPlacemark, detailPlacemark: detailPlacemark)
                     }
                 }
-                .sheet(isPresented: $showSearchBar) {
-                    MapSearchView(sheetDetents: $sheetDetents, searchText: $searchText, listPlacemarks: $listPlacemarks, visibleRegion: $visibleRegion, detailPlacemark: $detailPlacemark)
-                        .presentationDetents([.height(80), .height(350), .large], selection: $sheetDetents)
-                        .interactiveDismissDisabled(true)
-                        .presentationBackgroundInteraction(.enabled)
-                }
+            }
         } else {
             LocationDeniedView()
         }
@@ -109,19 +110,20 @@ struct LocationView: View {
 
 struct MapSearchView: View {
     
-    @Binding var sheetDetents: PresentationDetent
+    @Environment(\.dismiss) var dismiss
     @FocusState var isFocused: Bool
-    @Binding var searchText: String
+    @State var searchText: String = ""
     @State private var searchTask: Task<Void, Never>?
     @Binding var listPlacemarks: [MTPlacemark]
     @Binding var visibleRegion: MKCoordinateRegion?
     @Binding var detailPlacemark: MTPlacemark?
+    @State var sheetDetents: PresentationDetent = .height(80)
     
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack {
                 if listPlacemarks.isEmpty {
-                    
+                    EmptyView()
                 } else {
                     ScrollView(.vertical, showsIndicators: false) {
                         ForEach(listPlacemarks, id: \.self) { placemark in
@@ -129,6 +131,7 @@ struct MapSearchView: View {
                             Button(action: {
                                 isFocused = false
                                 detailPlacemark = placemark
+                                dismiss()
                             }) {
                                 HStack(alignment: .center, spacing: 18) {
                                     Image(systemName: "mappin.circle.fill")
@@ -199,11 +202,10 @@ struct MapSearchView: View {
                 }
             }
         }
+        .presentationDetents([.height(80), .height(350), .large], selection: $sheetDetents)
+        .interactiveDismissDisabled(true)
+        .presentationBackgroundInteraction(.enabled)
     }
-}
-
-#Preview {
-    LocationView(selectedPlacemark: .constant(nil), showMapSheet: .constant(true))
 }
 
 @available(iOS 26.0, *)

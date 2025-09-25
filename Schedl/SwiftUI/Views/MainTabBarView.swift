@@ -1,108 +1,56 @@
 import SwiftUI
 
-class TabBarState: ObservableObject {
-    @Published var hideTabbar: Bool = false
-}
-
-enum MainTab: Hashable {
-    case feed, schedule, search, profile
-}
-
-enum ScheduleDestinations: Hashable {
-    // You'll need to make RecurringEvents Hashable
-    case eventDetails(event: RecurringEvents, currentUser: User, scheduleId: String)
-    case editEvent(vm: EventViewModel)
+@Observable
+class TabBarState {
+    var hideTabbar: Bool = false
 }
 
 struct MainTabBarView: View {
-    @EnvironmentObject var authViewModel: AuthViewModel
-    @StateObject var tabBarState: TabBarState = TabBarState()
-    @State var searchText = ""
-    @State var activeTab: MainTab = .feed
     
-    @State private var path = NavigationPath()
+    @EnvironmentObject var authViewModel: AuthViewModel
     
     var body: some View {
         if let user = authViewModel.currentUser {
-            TabView(selection: $activeTab) {
+            TabView {
                 if #available(iOS 26.0, *) {
-                    Tab("Feed", systemImage: "house", value: MainTab.feed) {
+                    Tab("Feed", systemImage: "house") {
                         NavigationStack {
                             FeedView(currentUser: user)
-                                .environmentObject(tabBarState)
                         }
                     }
                 } else {
-                    Tab("Feed", systemImage: "house", value: MainTab.feed) {
+                    Tab("Feed", systemImage: "house") {
                         NavigationStack {
                             FeedView(currentUser: user)
-                                .environmentObject(tabBarState)
                         }
                     }
                 }
                 
-                Tab("Schedule", systemImage: "calendar", value: MainTab.schedule) {
-                    NavigationStack(path: $path) {
-                        ZStack {
-                            Color(hex: 0xf7f4f2)
-                                .ignoresSafeArea()
-                            
-                            ScheduleView(currentUser: user, onShowEventDetails: { event, currentUser, scheduleId in
-                                path.append(ScheduleDestinations.eventDetails(event: event, currentUser: currentUser, scheduleId: scheduleId))
-                            })
-                                .ignoresSafeArea(edges: [.top, .bottom])
-                                .background { Color("BackgroundColor") }
-                                .environmentObject(tabBarState)
-                                .navigationTitle("Schedule")
-                                .navigationDestination(for: ScheduleDestinations.self) { destination in
-                                    switch destination {
-                                    case .eventDetails(let event, let user, let scheduleId):
-                                        FullEventDetailsView(recurringEvent: event, currentUser: user, currentScheduleId: scheduleId)
-                                    case .editEvent(vm: let vm):
-                                        EditEventView(vm: vm)
-                                    }
-                                }
-                        }
-                    }
+                Tab("Schedule", systemImage: "calendar") {
+                    SchedulesCoordinatorView(currentUser: user)
                 }
                 
                 if #available(iOS 26.0, *) {
-                    Tab("Profile", systemImage: "person", value: MainTab.profile) {
-                        NavigationStack {
-                            ProfileView(currentUser: user, profileUser: user, preferBackButton: false)
-                                .environmentObject(authViewModel)
-                                .environmentObject(tabBarState)
-                        }
+                    Tab("Profile", systemImage: "person") {
+                        ProfileCoordinatorView(currentUser: user, profileUser: user, prefersBackButton: false)
                     }
                     
-                    Tab("Search", systemImage: "magnifyingglass", value: MainTab.search, role: .search) {
-                        NavigationStack {
-                            SearchView(currentUser: user)
-                                .environmentObject(authViewModel)
-                                .environmentObject(tabBarState)
-                        }
+                    Tab("Search", systemImage: "magnifyingglass", role: .search) {
+                        SearchCoordinatorView(currentUser: user)
                     }
                 } else {
-                    Tab("Search", systemImage: "magnifyingglass", value: MainTab.search, role: .search) {
-                        NavigationStack {
-                            SearchView(currentUser: user)
-                                .environmentObject(authViewModel)
-                                .environmentObject(tabBarState)
-                        }
+                    Tab("Search", systemImage: "magnifyingglass", role: .search) {
+                        SearchCoordinatorView(currentUser: user)
                     }
                     
-                    Tab("Profile", systemImage: "person", value: MainTab.profile) {
-                        NavigationStack {
-                            ProfileView(currentUser: user, profileUser: user, preferBackButton: false)
-                                .environmentObject(authViewModel)
-                                .environmentObject(tabBarState)
-                        }
+                    Tab("Profile", systemImage: "person") {
+                        ProfileCoordinatorView(currentUser: user, profileUser: user, prefersBackButton: false)
                     }
                 }
             }
             .tint(Color("AccentColor"))
             .navigationBarBackButtonHidden(true)
-            .modifier(TabbarViewModifier(activeTab: $activeTab))
+            .modifier(TabbarViewModifier())
         } else {
             LoginView()
         }
@@ -111,8 +59,6 @@ struct MainTabBarView: View {
 
 
 struct TabbarViewModifier: ViewModifier {
-    @Binding var activeTab: MainTab
-    
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content

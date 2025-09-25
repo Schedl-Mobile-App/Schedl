@@ -8,7 +8,16 @@
 import SwiftUI
 import Firebase
 
-class ProfileViewModel: ObservableObject {
+class ProfileViewModel: ObservableObject, Hashable, Equatable {
+    
+    let id = UUID()
+    static func == (lhs: ProfileViewModel, rhs: ProfileViewModel) -> Bool {
+        lhs.id == rhs.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
     
     var currentUser: User
     var profileUser: User

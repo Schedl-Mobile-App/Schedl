@@ -25,7 +25,7 @@ struct EventDetailsView: View {
                         .frame(height: 65)
                     VStack(alignment: .leading, spacing: 0) {
                         
-                        EventDetails_TitleView(userCanEdit: vm.userCanEdit, eventColor: event.event.color, title: event.event.title)
+                        EventDetails_TitleView(vm: vm, userCanEdit: vm.userCanEdit, eventColor: event.event.color, title: event.event.title)
                         
                         EventDetails_NotesView(notes: event.event.notes)
                         
@@ -35,9 +35,9 @@ struct EventDetailsView: View {
                                 
                                 EventDetails_TimeView(startTime: event.event.startTime, endTime: event.event.endTime)
                                 
-                                EventDetails_LocationView(showMapSheet: $vm.showMapSheet, location: event.event.location, eventColor: event.event.color)
+                                EventDetails_LocationView(location: event.event.location, eventColor: event.event.color)
                                 
-                                EventDetails_InvitedUsersView(invitedUsers: vm.selectedFriends, eventColor: event.event.color)
+                                EventDetails_InvitedUsersView(currentUser: vm.currentUser, invitedUsers: vm.selectedFriends, eventColor: event.event.color)
                             }
                             .padding(.top)
                         }
@@ -59,18 +59,6 @@ struct EventDetailsView: View {
                             .padding(.top, 200)
                             .ignoresSafeArea(edges: .bottom)
                     }
-                    .fullScreenCover(isPresented: $vm.showMapSheet) {
-                        NavigationView {
-                            SelectedLocationView(desiredPlacemark: event.event.location)
-                                .toolbar {
-                                    ToolbarItem(placement: .topBarLeading) {
-                                        Button("Close") {
-                                            vm.showMapSheet = false
-                                        }
-                                    }
-                                }
-                        }
-                    }
                 }
             }
         }
@@ -89,12 +77,8 @@ struct FullEventDetailsView: View {
     
     var body: some View {
         EventDetailsView(vm: vm)
-            .navigationBarBackButtonHidden(false)
             .task {
                 await vm.fetchEventData()
-            }
-            .onChange(of: vm.shouldDismissToRoot) {
-                dismiss()
             }
             .toolbarVisibility(.hidden, for: .tabBar)
             .toolbar {
@@ -158,6 +142,9 @@ struct FullEventDetailsView: View {
 
 struct EventDetails_TitleView: View {
     
+    @Environment(\.router) var coordinator: Router
+    @ObservedObject var vm: EventViewModel
+    
     var userCanEdit: Bool
     var eventColor: String
     var title: String
@@ -182,25 +169,27 @@ struct EventDetails_TitleView: View {
                 .frame(maxWidth: (UIScreen.current?.bounds.width ?? 0) * 0.65, alignment: .leading)
                 .padding(.top)
             
-//            NavigationLink(value: EventDetailsDestinations.editEventView, label: {
-//                Circle()
-//                    .fill(stringToColor(eventColor).opacity(0.5))
-//                    .frame(width: 60, height: 60)
-//                    .overlay {
-//                        if userCanEdit {
-//                            Image("pencilIcon")
-//                                .resizable()
-//                                .frame(width: 25, height: 25)
-//                        } else {
-//                            Image("eyeIcon")
-//                                .resizable()
-//                                .frame(width: 30, height: 30)
-//                        }
-//                        
-//                    }
-//            })
-//            .frame(maxWidth: (UIScreen.current?.bounds.width ?? 0) * 0.875, alignment: .trailing)
-//            .disabled(!userCanEdit)
+            Button(action: {
+                coordinator.push(page: .editEvent(vm: vm))
+            }, label: {
+                Circle()
+                    .fill(stringToColor(eventColor).opacity(0.5))
+                    .frame(width: 60, height: 60)
+                    .overlay {
+                        if userCanEdit {
+                            Image("pencilIcon")
+                                .resizable()
+                                .frame(width: 25, height: 25)
+                        } else {
+                            Image("eyeIcon")
+                                .resizable()
+                                .frame(width: 30, height: 30)
+                        }
+                        
+                    }
+            })
+            .frame(maxWidth: (UIScreen.current?.bounds.width ?? 0) * 0.875, alignment: .trailing)
+            .disabled(!userCanEdit)
         }
     }
 }
@@ -311,7 +300,6 @@ struct EventDetails_TimeView: View {
 
 struct EventDetails_LocationView: View {
     
-    @Binding var showMapSheet: Bool
     var location: MTPlacemark
     var eventColor: String
     
@@ -347,7 +335,6 @@ struct EventDetails_LocationView: View {
                     }
                     
                     Button(action: {
-                        showMapSheet.toggle()
                     }) {
                         HStack {
                             Text("More Details →")
@@ -365,6 +352,10 @@ struct EventDetails_LocationView: View {
 }
 
 struct EventDetails_InvitedUsersView: View {
+    
+    @Environment(\.router) var coordinator: Router
+    
+    let currentUser: User
     
     var invitedUsers: [User]
     var eventColor: String
@@ -395,7 +386,11 @@ struct EventDetails_InvitedUsersView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(invitedUsers.enumerated()), id: \.element.id) { index, user in
                         if isExpanded || index < initialVisibleCount {
-                            InvitedUserRow(user: user)
+                            Button(action: {
+                                coordinator.push(page: .profile(currentUser: currentUser, profileUser: user, preferBackButton: true))
+                            }, label: {
+                                InvitedUserRow(user: user)
+                            })
                         }
                     }
                     

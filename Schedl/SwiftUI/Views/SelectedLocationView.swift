@@ -10,6 +10,8 @@ import MapKit
 
 struct SelectedLocationView: View {
     
+    @Environment(\.router) var coordinator: Router
+    
     @State private var cameraPosition: MapCameraPosition
     @State private var visibleRegion: MKCoordinateRegion
     @State private var selectedPlacemark: MTPlacemark
@@ -37,7 +39,7 @@ struct SelectedLocationView: View {
                 UserAnnotation()
                 Annotation(selectedPlacemark.name, coordinate: selectedPlacemark.coordinate) {
                     Button {
-                        showLocationDetail.toggle()
+                        coordinator.present(sheet: .locationDetail(detailPlacemark: selectedPlacemark, selectedPlacemark: .constant(nil)))
                     } label: {
                         Image(systemName: "mappin.circle.fill")
                             .foregroundColor(.red)
@@ -55,10 +57,6 @@ struct SelectedLocationView: View {
             .onAppear {
                 // This will automatically trigger the sheet since selectedPlacemark is set
                 // and showLocationDetail is true
-            }
-            .sheet(isPresented: $showLocationDetail) {
-                LocationDetailView(selectedPlacemark: selectedPlacemark)
-                    .presentationDetents([.medium])
             }
         } else {
             LocationDeniedView()

@@ -10,9 +10,9 @@ import MapKit
 
 struct LocationDetailView: View {
     
-    @State var selectedPlacemark: MTPlacemark?
-    var onConfirm: (() -> Void)?
-    var onCancel: (() -> Void)?
+    @Environment(\.router) var coordinator: Router
+    @Binding var selectedPlacemark: MTPlacemark?
+    var detailPlacemark: MTPlacemark
     @State var name: String = ""
     @State var address: String = ""
     @State var lookaroundScene: MKLookAroundScene?
@@ -43,7 +43,7 @@ struct LocationDetailView: View {
                 Spacer()
                 
                 Button(action: {
-                    dismiss()
+                    coordinator.dismissSheet()
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .imageScale(.large)
@@ -61,7 +61,7 @@ struct LocationDetailView: View {
             }
             
             Button(action: {
-                if onConfirm == nil {
+                if selectedPlacemark == nil {
                     if let selectedPlacemark {
                         let placemark = MKPlacemark(coordinate: selectedPlacemark.coordinate)
                         let mapItem = MKMapItem(placemark: placemark)
@@ -69,10 +69,11 @@ struct LocationDetailView: View {
                         mapItem.openInMaps()
                     }
                 } else {
-                    onConfirm!()
+                    selectedPlacemark = detailPlacemark
+                    coordinator.dismissSheet()
                 }
             }) {
-                if onConfirm != nil {
+                if selectedPlacemark == nil {
                     HStack(spacing: 6) {
                         Image(systemName: "location.fill")
                             .imageScale(.medium)
@@ -121,6 +122,7 @@ struct LocationDetailView: View {
                 address = selectedPlacemark.address
             }
         }
+        .presentationDetents([.medium])
     }
     
     func fetchLookAroundPreview() async {

@@ -8,7 +8,7 @@
 import SwiftUI
 
 class FriendViewModel: ObservableObject {
-    var currentUser: User
+    var profileUser: User
     private var userService: UserServiceProtocol
     private var eventService: EventServiceProtocol
     
@@ -36,8 +36,8 @@ class FriendViewModel: ObservableObject {
         }
     }
     
-    init(currentUser: User, userService: UserServiceProtocol = UserService.shared, eventService: EventServiceProtocol = EventService.shared) {
-        self.currentUser = currentUser
+    init(profileUser: User, userService: UserServiceProtocol = UserService.shared, eventService: EventServiceProtocol = EventService.shared) {
+        self.profileUser = profileUser
         self.userService = userService
         self.eventService = eventService
     }
@@ -49,7 +49,7 @@ class FriendViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let friends = try await userService.fetchUserFriends(userId: currentUser.id)
+            let friends = try await userService.fetchUserFriends(userId: profileUser.id)
             self.friends = friends
             isLoading = false
         } catch {
@@ -71,7 +71,7 @@ class FriendViewModel: ObservableObject {
                 return
             }
             
-            self.friends = try await userService.fetchUserFriends(userId: currentUser.id)
+            self.friends = try await userService.fetchUserFriends(userId: profileUser.id)
             
             let normalizedStartTime: Double = floor(Date.computeTimeSinceStartOfDay(date: startTime) / 900.0) * 900.0
             let normalizedEventDate = eventDate.timeIntervalSince1970
@@ -86,18 +86,15 @@ class FriendViewModel: ObservableObject {
     }
 }
 
-enum FriendsDestinations: Hashable {
-    case profileView(User)
-}
-
 struct FriendsView: View {
     
+    @Environment(\.router) var coordinator: Router
     @Environment(\.dismiss) var dismiss
     
     @StateObject private var vm: FriendViewModel
     
-    init(currentUser: User) {
-        _vm = StateObject(wrappedValue: FriendViewModel(currentUser: currentUser))
+    init(profileUser: User) {
+        _vm = StateObject(wrappedValue: FriendViewModel(profileUser: profileUser))
     }
     
     var body: some View {
@@ -123,7 +120,9 @@ struct FriendsView: View {
                         if vm.isSearching {
                             Section(content: {
                                 ForEach(vm.filteredUsers, id: \.id) { friend in
-                                    NavigationLink(value: FriendsDestinations.profileView(friend), label: {
+                                    Button(action: {
+                                        coordinator.push(page: .profile(currentUser: vm.profileUser, profileUser: friend, preferBackButton: true))
+                                    }, label: {
                                         UserCell(user: friend)
                                             .listRowBackground(Color.clear)
                                     })
@@ -144,7 +143,9 @@ struct FriendsView: View {
                         } else {
                             Section(content: {
                                 ForEach(vm.filteredUsers, id: \.id) { friend in
-                                    NavigationLink(value: FriendsDestinations.profileView(friend), label: {
+                                    Button(action: {
+                                        coordinator.push(page: .profile(currentUser: vm.profileUser, profileUser: friend, preferBackButton: true))
+                                    }, label: {
                                         UserCell(user: friend)
                                             .listRowBackground(Color.clear)
                                     })
@@ -155,7 +156,9 @@ struct FriendsView: View {
                     } else {
                         Section(content: {
                             ForEach(vm.filteredUsers, id: \.id) { friend in
-                                NavigationLink(value: FriendsDestinations.profileView(friend), label: {
+                                Button(action: {
+                                    coordinator.push(page: .profile(currentUser: vm.profileUser, profileUser: friend, preferBackButton: true))
+                                }, label: {
                                     UserCell(user: friend)
                                         .listRowBackground(Color.clear)
                                 })
@@ -208,12 +211,6 @@ struct FriendsView: View {
                     DefaultToolbarItem(kind: .search, placement: .bottomBar)
             }
         }
-        .navigationDestination(for: FriendsDestinations.self, destination: { destination in
-            switch destination {
-            case .profileView(let user):
-                ProfileView(currentUser: vm.currentUser, profileUser: user, preferBackButton: true)
-            }
-        })
         .modifier(FriendViewModifier(searchText: $vm.searchText, isSearching: $vm.isSearching))
     }
 }

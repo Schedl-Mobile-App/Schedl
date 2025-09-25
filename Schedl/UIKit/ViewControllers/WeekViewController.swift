@@ -474,8 +474,9 @@ class WeekViewController: UIViewController {
     @objc func showEventSearchMenu() {
         guard let scheduleViewModel = coordinator?.scheduleViewModel else { return }
         
-        let eventSearchSheet = EventSearchView(currentUser: scheduleViewModel.currentUser, scheduleEvents: scheduleViewModel.scheduleEvents)
-        
+        if let schedulesCoordinator = coordinator?.coordinator {
+            schedulesCoordinator.present(sheet: .eventSearch(currentUser: scheduleViewModel.currentUser, events: scheduleViewModel.scheduleEvents))
+        }
     }
     
     func showCreateEventButton(_ button: UIButton) {
@@ -581,40 +582,34 @@ class WeekViewController: UIViewController {
             showCreateOptions()
         }
         
-        if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState {
+        if let scheduleViewModel = coordinator?.scheduleViewModel,
+           let schedulesCoordinator = coordinator?.coordinator {
             
             guard let schedule = scheduleViewModel.selectedSchedule else { return }
             
-            tabBarState.hideTabbar = true
-            
+            schedulesCoordinator.push(page: .createEvent(currentUser: scheduleViewModel.currentUser, scheduleId: schedule.id))
         }
     }
     
     @objc func showCreateBlend() {
-        if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState {
+        if let scheduleViewModel = coordinator?.scheduleViewModel,
+           let schedulesCoordinator = coordinator?.coordinator {
             
-            tabBarState.hideTabbar = true
+            guard let schedule = scheduleViewModel.selectedSchedule else { return }
+            
+            schedulesCoordinator.push(page: .createEvent(currentUser: scheduleViewModel.currentUser, scheduleId: schedule.id))
             
             showCreateOptions()
         }
     }
     
     @objc func showCreateSchedule() {
-        if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState {
+        if let scheduleViewModel = coordinator?.scheduleViewModel,
+           let schedulesCoordinator = coordinator?.coordinator {
             
-            tabBarState.hideTabbar = true
-                        
-            let hostingController = UIHostingController(
-                rootView: CreateScheduleView(scheduleViewModel: scheduleViewModel)
-            )
+            guard let schedule = scheduleViewModel.selectedSchedule else { return }
             
-            let title = UILabel()
-            title.text = "Create Schedule"
-            let preferredFont = UIFont.preferredFont(forTextStyle: .title3)
-            title.font = UIFont.monospacedSystemFont(ofSize: preferredFont.pointSize, weight: .bold)
-
-            hostingController.navigationItem.titleView = title
-            navigationController?.pushViewController(hostingController, animated: true)
+            schedulesCoordinator.push(page: .createEvent(currentUser: scheduleViewModel.currentUser, scheduleId: schedule.id))
             
             showCreateOptions()
         }
@@ -622,37 +617,11 @@ class WeekViewController: UIViewController {
     
     func showEventDetails(event: RecurringEvents) {
         if let scheduleViewModel = coordinator?.scheduleViewModel,
-           let _ = coordinator?.tabBarState {
+           let schedulesCoordinator = coordinator?.coordinator {
             
             guard let schedule = scheduleViewModel.selectedSchedule else { return }
             
-            self.createEventButton.alpha = 0
-            self.createEventButton.isHidden = true
-            
-            // since event details view expects a Binding type, and we can't explicity
-            // use the $ binding syntax within a view controller, we can create a
-            // binding type manually
-//            let shouldReloadDataBinding = Binding<Bool>(
-//                get: { scheduleViewModel.shouldReloadData },
-//                set: { newValue in
-//                    scheduleViewModel.shouldReloadData = newValue
-//                }
-//            )
-            coordinator?.showEventDetails(event: event, currentUser: scheduleViewModel.currentUser, scheduleId: schedule.id)
-                                    
-            // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
-//            // inject our viewModel explicitly as an environment object
-//            let hostingController = UIHostingController(
-//                rootView: FullEventDetailsView(recurringEvent: event, currentUser: scheduleViewModel.currentUser, currentScheduleId: schedule.id)
-//            )
-//            
-////            let title = UILabel()
-////            title.text = "Event Details"
-////            let preferredFont = UIFont.preferredFont(forTextStyle: .title3)
-////            title.font = UIFont.monospacedSystemFont(ofSize: preferredFont.pointSize, weight: .bold)
-//            
-////            hostingController.navigationItem.titleView = title
-//            navigationController?.pushViewController(hostingController, animated: true)
+            schedulesCoordinator.push(page: .eventDetails(currentUser: scheduleViewModel.currentUser, event: event, scheduleId: schedule.id))
         }
     }
     

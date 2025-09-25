@@ -57,7 +57,7 @@ class BlendViewModel: ObservableObject {
     @Published var scheduleIds: [String] = []
     @Published var userColors: [UserMappedBlendColor] = []
     
-    private var currentUser: User
+    var currentUser: User
     
     init(currentUser: User, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, userService: UserServiceProtocol = UserService.shared, eventService: EventServiceProtocol = EventService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared) {
         self.currentUser = currentUser
@@ -136,7 +136,7 @@ struct CreateBlendView: View {
                         BlendTitleView(title: $blendViewModel.title, isFocused: $isFocused, hasTriedSubmitting: $blendViewModel.hasTriedSubmitting, titleError: $blendViewModel.titleError)
                         
                         // view for inviting friends selection
-                        EventInviteesView(selectedFriends: $blendViewModel.selectedFriends, showInviteUsersSheet: $blendViewModel.showInviteUsersSheet)
+                        EventInviteesView(selectedFriends: $blendViewModel.selectedFriends, currentUser: blendViewModel.currentUser)
                             .sheet(isPresented: $blendViewModel.showInviteUsersSheet) {
                                 AddUsersToBlend(blendViewModel: blendViewModel)
                             }

@@ -132,10 +132,6 @@ class ScheduleViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
-        if let tabBarState = coordinator?.tabBarState {
-            tabBarState.hideTabbar = false
-        }
     }
     
     func configureUI() {

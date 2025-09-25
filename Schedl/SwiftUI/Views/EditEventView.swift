@@ -9,8 +9,8 @@ import SwiftUI
 
 struct EditEventView: View {
     
+    @Environment(\.router) var coordinator: Router
     @ObservedObject var vm: EventViewModel
-    @Environment(\.dismiss) var dismiss
         
     @FocusState var isFocused: EventInfoFields?
     
@@ -27,25 +27,22 @@ struct EditEventView: View {
                         EventTitleView(title: $vm.title, isFocused: $isFocused, hasTriedSubmitting: $vm.hasTriedSubmitting, titleError: $vm.titleError)
                         
                         // view for event date and recurring days seletion
-                        EventDateView(eventDate: $vm.eventDate, eventEndDate: $vm.eventEndDate, hasTriedSubmitting: $vm.hasTriedSubmitting, startDateError: $vm.startDateError, endDateError: $vm.endDateError, repeatedDays: $vm.repeatedDays)
+                        EventDateView(eventDate: $vm.eventDate, eventEndDate: $vm.eventEndDate, repeatedDays: $vm.repeatedDays, hasTriedSubmitting: vm.hasTriedSubmitting, startDateError: vm.startDateError, endDateError: vm.endDateError)
                         
                         // view for start time selection
-                        EventStartTimeView(startTime: $vm.startTime, hasTriedSubmitting: $vm.hasTriedSubmitting, startTimeError: $vm.startTimeError)
+                        EventStartTimeView(startTime: $vm.startTime, hasTriedSubmitting: vm.hasTriedSubmitting, startTimeError: vm.startTimeError)
                         
                         // view for end time selection
-                        EventEndTimeView(endTime: $vm.endTime, endTimeError: $vm.endTimeError, hasTriedSubmitting: $vm.hasTriedSubmitting)
+                        EventEndTimeView(endTime: $vm.endTime, endTimeError: vm.endTimeError, hasTriedSubmitting: vm.hasTriedSubmitting)
                         
                         // view for location selection
-                        EventLocationView(selectedPlacemark: $vm.selectedPlacemark, locationError: $vm.locationError, hasTriedSubmitting: $vm.hasTriedSubmitting)
+                        EventLocationView(selectedPlacemark: $vm.selectedPlacemark, locationError: vm.locationError, hasTriedSubmitting: vm.hasTriedSubmitting)
                         
                         // view for inviting friends selection
-                        EventInviteesView(selectedFriends: $vm.selectedFriends, showInviteUsersSheet: $vm.showInviteUsersSheet)
-                            .sheet(isPresented: $vm.showInviteUsersSheet) {
-                                AddInvitedUsers(currentUser: vm.currentUser, selectedFriends: $vm.selectedFriends)
-                            }
+                        EventInviteesView(selectedFriends: $vm.selectedFriends, currentUser: vm.currentUser)
                         
                         // view for event notes input
-                        EventNotesView(notes: $vm.notes, notesError: $vm.notesError, hasTriedSubmitting: $vm.hasTriedSubmitting, isFocused: $isFocused)
+                        EventNotesView(notes: $vm.notes, notesError: vm.notesError, hasTriedSubmitting: vm.hasTriedSubmitting, isFocused: $isFocused)
                         
                         EventColorView(eventColor: $vm.eventColor)
                     }
@@ -93,10 +90,6 @@ struct EditEventView: View {
             }
             .defaultScrollAnchor(.top, for: .initialOffset)
             .scrollDismissesKeyboard(.interactively)
-            .onTapGesture {
-                isFocused = nil
-            }
-            .padding(.top)
         }
         .alert(isPresented: $vm.showDeleteEventModal) {
             Alert(title: Text("Delete Event"),
@@ -106,11 +99,7 @@ struct EditEventView: View {
             }), secondaryButton: .destructive(Text("Delete").foregroundStyle(Color("ErrorTextColor")), action: {
                 Task {
                     await vm.deleteEvent()
-                    vm.showDeleteEventModal = false
-                    dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        vm.shouldDismissToRoot = true
-                    }
+                    coordinator.pop(2)
                 }
             }))
         }
@@ -121,7 +110,6 @@ struct EditEventView: View {
             vm.resetErrors()
         }
         .navigationBarBackButtonHidden(false)
-        .toolbar(.hidden, for: .tabBar)
         .modifier(EditEventViewModifier(showDeleteEventModal: $vm.showDeleteEventModal))
     }
 }

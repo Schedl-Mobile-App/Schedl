@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct EventCard: View {
-        
+            
     var event: RecurringEvents
     
     let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]

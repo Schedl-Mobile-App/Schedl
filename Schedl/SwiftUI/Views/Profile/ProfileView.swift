@@ -61,12 +61,17 @@ struct Profile_ScheduleDayCards: View {
 
 struct Profile_EventCards: View {
     
+    @Environment(\.router) var coordinator: Router
+    
     var utils = ["Upcoming", "Invited", "Past"]
     @State var selectedType: Int = 0
     
     var currentEvents: [RecurringEvents]
     var invitedEvents: [RecurringEvents]
     var pastEvents: [RecurringEvents]
+    
+    let currentUser: User
+    let scheduleId: String
     
     var body: some View {
         VStack {
@@ -106,7 +111,9 @@ struct Profile_EventCards: View {
                         if currentEvents.isEmpty {
                             Spacer()
                                 .frame(height: 75)
-                            NavigationLink(value: ProfileDestinations.createEvent, label: {
+                            Button(action: {
+                                
+                            }, label: {
                                 Text("No upcoming events. Tap anywhere here to create one!")
                                     .font(.subheadline)
                                     .fontDesign(.monospaced)
@@ -120,7 +127,9 @@ struct Profile_EventCards: View {
                             ForEach(currentEvents, id: \.id) { event in
                                 if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
                                     
-                                    NavigationLink(value: ProfileDestinations.eventDetails(event), label: {
+                                    Button(action: {
+                                        coordinator.push(page: .eventDetails(currentUser: currentUser, event: event, scheduleId: scheduleId))
+                                    }, label: {
                                         EventCard(event: event)
                                     })
                                 }
@@ -139,7 +148,9 @@ struct Profile_EventCards: View {
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                         } else {
                             ForEach(invitedEvents, id: \.self.id) { event in
-                                NavigationLink(value: ProfileDestinations.eventDetails(event), label: {
+                                Button(action: {
+                                    coordinator.push(page: .eventDetails(currentUser: currentUser, event: event, scheduleId: scheduleId))
+                                }, label: {
                                     EventCard(event: event)
                                 })
                             }
@@ -147,19 +158,21 @@ struct Profile_EventCards: View {
                         
                     case 2:
                         if pastEvents.isEmpty {
-                            NavigationLink(value: ProfileDestinations.createEvent, label: {
-                                Text("No past events to show. Maybe you're new here... If so, tap anywhere here to create one!")
-                                    .font(.subheadline)
-                                    .fontDesign(.monospaced)
-                                    .tracking(-0.25)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(Color("SecondaryText"))
-                                    .multilineTextAlignment(.center)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                            })
+//                            NavigationLink(value: ProfileDestinations.createEvent, label: {
+//                                Text("No past events to show. Maybe you're new here... If so, tap anywhere here to create one!")
+//                                    .font(.subheadline)
+//                                    .fontDesign(.monospaced)
+//                                    .tracking(-0.25)
+//                                    .fontWeight(.medium)
+//                                    .foregroundStyle(Color("SecondaryText"))
+//                                    .multilineTextAlignment(.center)
+//                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+//                            })
                         } else {
                             ForEach(pastEvents, id: \.self.id) { event in
-                                NavigationLink(value: ProfileDestinations.eventDetails(event), label: {
+                                Button(action: {
+                                    coordinator.push(page: .eventDetails(currentUser: currentUser, event: event, scheduleId: scheduleId))
+                                }, label: {
                                     EventCard(event: event)
                                 })
                             }
@@ -230,7 +243,6 @@ struct ProfileView: View {
                 ProfileLoadingView()
             } else {
                 VStack(spacing: 15) {
-                    
                     VStack(spacing: 8) {
                         UserProfileImage(profileImage: vm.profileUser.profileImage, displayName: vm.profileUser.displayName)
                         Text(vm.profileUser.displayName)
@@ -242,7 +254,7 @@ struct ProfileView: View {
                             .padding(.top, 5)
                     }
                     
-                    ProfileInformatics(friendsCount: vm.profileUser.numOfFriends, eventsCount: vm.profileUser.numOfEvents, postsCount: vm.profileUser.numOfPosts)
+                    ProfileInformatics(friendsCount: vm.profileUser.numOfFriends, eventsCount: vm.profileUser.numOfEvents, postsCount: vm.profileUser.numOfPosts, profileUser: vm.profileUser)
                     
                     UserViewOptions(selectedTab: $vm.selectedTab)
                     
@@ -252,7 +264,9 @@ struct ProfileView: View {
                         case .schedules:
                             Profile_ScheduleDayCards(schedules: vm.schedules, currentSchedule: $vm.currentSchedule, partitionedEvents: vm.partitionedEvents)
                         case .events:
-                            Profile_EventCards(currentEvents: vm.currentEvents, invitedEvents: vm.invitedEvents, pastEvents: vm.pastEvents)
+                            if let schedule = vm.currentSchedule {
+                                Profile_EventCards(currentEvents: vm.currentEvents, invitedEvents: vm.invitedEvents, pastEvents: vm.pastEvents, currentUser: vm.currentUser, scheduleId: schedule.id)
+                            }
                         case .activity:
                             Profile_ActivityCards(posts: vm.posts)
                         }
@@ -300,22 +314,6 @@ struct ProfileView: View {
         .task {
             await vm.loadProfileData()
         }
-        .navigationDestination(for: ProfileDestinations.self, destination: { destination in
-            switch destination {
-            case .eventDetails(let event):
-                if let schedule = vm.currentSchedule {
-                    FullEventDetailsView(recurringEvent: event, currentUser: vm.currentUser, currentScheduleId: schedule.id)
-                }
-            case .settings:
-                EmptyView()
-            case .createEvent:
-                if let schedule = vm.currentSchedule {
-                    CreateEventView(currentUser: vm.currentUser, currentScheduleId: schedule.id)
-                }
-            case .friendsView:
-                FriendsView(currentUser: vm.currentUser)
-            }
-        })
         .modifier(ProfileViewModifier(preferBackButton: $preferBackButton, isCurrentUser: vm.isCurrentUser))
     }
 }

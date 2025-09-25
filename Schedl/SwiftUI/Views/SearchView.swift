@@ -122,14 +122,9 @@ struct RecentSearches {
     }
 }
 
-enum SearchDestinations: Hashable {
-    case profileView(User)
-}
-
 struct SearchView: View {
     
-    @EnvironmentObject var tabBarState: TabBarState
-    
+    @Environment(\.searchCoordinator) var searchCoordinator: SearchCoordinator
     @StateObject var vm: SearchViewModel
     
     init(currentUser: User) {
@@ -175,7 +170,9 @@ struct SearchView: View {
                     List {
                         Section(content: {
                             ForEach(vm.recentSearches, id: \.id) { user in
-                                NavigationLink(value: SearchDestinations.profileView(user), label: {
+                                Button(action: {
+                                    searchCoordinator.push(page: .profile(currentUser: vm.currentUser, profileUser: user, prefersBackButton: true))
+                                }, label: {
                                     UserCell(user: user)
                                         .listRowBackground(Color.clear)
                                 })
@@ -218,6 +215,7 @@ struct SearchView: View {
                             .frame(maxWidth: .infinity)
                         })
                         .listSectionSeparator(.hidden, edges: .top)
+                        .listRowBackground(Color.clear)
                     }
                     .listStyle(.plain)
                     .scrollDismissesKeyboard(.immediately)
@@ -256,8 +254,12 @@ struct SearchView: View {
                     if #available(iOS 26.0, *) {
                         Section(content: {
                             ForEach(searchResults, id: \.id) { user in
-                                UserCell(user: user)
-                                    .listRowBackground(Color.clear)
+                                Button(action: {
+                                    searchCoordinator.push(page: .profile(currentUser: vm.currentUser, profileUser: user, prefersBackButton: true))
+                                }, label: {
+                                    UserCell(user: user)
+                                        .listRowBackground(Color.clear)
+                                })
                             }
                         }, header: {
                             HStack {
@@ -274,8 +276,12 @@ struct SearchView: View {
                     } else {
                         Section(content: {
                             ForEach(searchResults, id: \.id) { user in
-                                UserCell(user: user)
-                                    .listRowBackground(Color.clear)
+                                Button(action: {
+                                    searchCoordinator.push(page: .profile(currentUser: vm.currentUser, profileUser: user, prefersBackButton: true))
+                                }, label: {
+                                    UserCell(user: user)
+                                        .listRowBackground(Color.clear)
+                                })
                             }
                         }, header: {
                             EmptyView()
@@ -286,7 +292,6 @@ struct SearchView: View {
                 .listStyle(.plain)
                 .listSectionSpacing(0)
                 .scrollDismissesKeyboard(.immediately)
-                .scrollBounceBehavior(.basedOnSize)
             }
         }
         .task {
@@ -295,17 +300,6 @@ struct SearchView: View {
         .onChange(of: vm.searchText) {
             vm.debounceSearch()
         }
-        .onAppear {
-            tabBarState.hideTabbar = false
-        }
-        .navigationDestination(for: SearchDestinations.self, destination: { destination in
-            switch destination {
-            case .profileView(let user):
-                ProfileView(currentUser: vm.currentUser, profileUser: user, preferBackButton: true)
-            }
-        })
-        .navigationBarBackButtonHidden(true)
-        .toolbar(tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
         .searchable(text: $vm.searchText, isPresented: $vm.isSearching, prompt: Text("Search"))
         .modifier(SearchViewModifier())
     }
