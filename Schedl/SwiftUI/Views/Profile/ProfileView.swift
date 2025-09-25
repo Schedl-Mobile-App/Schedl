@@ -7,624 +7,666 @@
 
 import SwiftUI
 import PhotosUI
+import Kingfisher
 
-struct ProfileView: View {
-    
-    @StateObject var profileViewModel: ProfileViewModel
-    @EnvironmentObject var authViewModel: AuthViewModel
-    @EnvironmentObject var tabBarState: TabBarState
-        
-    @State var navigateToEventDetails = false
-    @State var navigateToSettings = false
-    @State var navigateToFriends = false
-    @State var navigateToCreateEventView = false
-    
-    @State var selectedType: Int = 0
-    var utils = ["Upcoming", "Invited", "Past"]
-    @Environment(\.dismiss) var dismiss
-        
-    init(currentUser: User, profileUser: User) {
-        _profileViewModel = StateObject(wrappedValue: ProfileViewModel(currentUser: currentUser, profileUser: profileUser))
-    }
-    
-    var body: some View {
-        ZStack {
-            Color(hex: 0xf7f4f2)
-                .ignoresSafeArea()
-            
-            if profileViewModel.isLoadingProfileView {
-                ProfileLoadingView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.bottom, 0.5)
-            } else {
-                VStack {
-                    ZStack(alignment: .leading) {
-                        if profileViewModel.isCurrentUser {
-                            Text("Profile")
-                                .foregroundStyle(Color(hex: 0x333333))
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .fontDesign(.monospaced)
-                                .tracking(-0.25)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                            
-                            HStack {
-                                Button(action: {
-                                    if profileViewModel.isEditingProfile {
-                                        profileViewModel.showSaveChangesModal.toggle()
-                                    } else {
-                                        profileViewModel.isEditingProfile.toggle()
-                                    }
-                                }) {
-                                    Text(profileViewModel.isEditingProfile ? "Done" : "Edit")
-                                        .foregroundStyle(Color(hex: 0x333333))
-                                        .font(.headline)
-                                        .fontWeight(.bold)
-                                        .fontDesign(.monospaced)
-                                        .tracking(-0.25)
-                                }
-                                Spacer()
-                                Button(action: {
-                                    tabBarState.hideTabbar = true
-                                    navigateToSettings = true
-                                }) {
-                                    Image(systemName: "gearshape")
-                                        .fontWeight(.bold)
-                                        .font(.system(size: 24))
-                                        .labelStyle(.iconOnly)
-                                        .foregroundStyle(Color(hex: 0x333333))
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                        } else {
-                            Text("Profile")
-                                .foregroundStyle(Color(hex: 0x333333))
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .fontDesign(.monospaced)
-                                .tracking(-0.25)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                            
-                            HStack {
-                                Button(action: {
-                                    tabBarState.hideTabbar = true
-                                    dismiss()
-                                }) {
-                                    Image(systemName: "chevron.left")
-                                        .fontWeight(.bold)
-                                        .imageScale(.large)
-                                        .labelStyle(.iconOnly)
-                                        .foregroundStyle(Color(hex: 0x333333))
-                                }
-                                Spacer()
-                                Button(action: {
-                                    profileViewModel.showAddFriendModal = true
-                                }) {
-                                    Image(systemName: "person.badge.plus")
-                                        .font(.system(size: 24, weight: .medium))
-                                        .labelStyle(.iconOnly)
-                                        .foregroundStyle(Color.primary)
-                                        .accessibilityLabel("Send Friend Request")
-                                }
-                                .hidden(profileViewModel.isViewingFriend || profileViewModel.isCurrentUser)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                    .padding()
-                    
-                    VStack(spacing: 20) {
-                        VStack(spacing: 8) {
-                            UserProfileImage(profileViewModel: profileViewModel)
-                            UserDisplayName(profileViewModel: profileViewModel)
-                        }
-                        
-                        ProfileInformatics(profileViewModel: profileViewModel, navigateToFriends: $navigateToFriends).environmentObject(tabBarState)
-                        
-                        UserViewOptions(profileViewModel: profileViewModel)
-                        
-                        if profileViewModel.isCurrentUser || profileViewModel.isViewingFriend {
-                            switch profileViewModel.selectedTab {
-                            case .schedules:
-                                let sortedKeys = Array(profileViewModel.partitionedEvents.keys).sorted(by: <)
-                                if sortedKeys.isEmpty {
-                                    Button(action: {
-                                        tabBarState.hideTabbar = true
-                                        navigateToCreateEventView = true
-                                    }) {
-                                        Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) has no upcoming events. Tell them that they should create some!" : "No upcoming events. Tap anywhere here to create one!")
-                                            .font(.subheadline)
-                                            .fontDesign(.monospaced)
-                                            .tracking(-0.25)
-                                            .fontWeight(.medium)
-                                            .foregroundStyle(Color(hex: 0x666666))
-                                            .multilineTextAlignment(.center)
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                                            .padding(.horizontal, 25)
-                                    }
-                                } else {
-                                    ScrollView(.vertical, showsIndicators: false) {
-                                        LazyVStack(spacing: 10) {
-                                            ForEach(sortedKeys, id: \.self) { key in
-                                                ScheduleEventCards(profileViewModel: profileViewModel, key: key)
-                                            }
-                                        }
-                                        .padding(.bottom)
-                                    }
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    .padding(.horizontal, 25)
-                                }
-                            case .events:
-                                VStack(spacing: 10) {
-                                    HStack {
-                                        ForEach(utils.indices, id: \.self) { index in
-                                            Text("\(utils[index])")
-                                                .font(.system(size: 14, weight: .heavy, design: .monospaced))
-                                                .foregroundStyle(Color(hex: 0x666666))
-                                                .tracking(0.001)
-                                                .fixedSize()
-                                                .frame(maxWidth: .infinity)
-                                                .onTapGesture {
-                                                    selectedType = index
-                                                }
-                                        }
-                                    }
-                                    .padding(.horizontal, 25)
-                                    
-                                    GeometryReader { proxy in
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color(hex: 0x3C859E))
-                                            .frame(width: proxy.size.width / CGFloat(utils.count), height: 4)
-                                            .offset(x: CGFloat(proxy.size.width / CGFloat(utils.count)) * CGFloat(selectedType))
-                                            .animation(.bouncy, value: selectedType)
-                                    }
-                                    .padding(.horizontal, 25)
-                                    .padding(.bottom, 10)
-                                    
-                                    ScrollView(.vertical, showsIndicators: false) {
-                                        LazyVStack(spacing: 10) {
-                                            switch selectedType {
-                                            case 0:
-                                                if profileViewModel.currentEvents.isEmpty {
-                                                    Spacer()
-                                                        .frame(height: 75)
-                                                    Button(action: {
-                                                        tabBarState.hideTabbar = true
-                                                        navigateToCreateEventView = true
-                                                    }) {
-                                                        Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) has no upcoming events. Tell him that he should create some!" : "No upcoming events. Tap anywhere here to create one!")
-                                                            .font(.subheadline)
-                                                            .fontDesign(.monospaced)
-                                                            .tracking(-0.25)
-                                                            .fontWeight(.medium)
-                                                            .foregroundStyle(Color(hex: 0x666666))
-                                                            .multilineTextAlignment(.center)
-                                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                                                    }
-                                                } else {
-                                                    ForEach(profileViewModel.currentEvents, id: \.self.id) { event in
-                                                        if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
-                                                            
-                                                            EventCard(event: event, navigateToEventDetails: $navigateToEventDetails, selectedEvent: $profileViewModel.selectedEvent).environmentObject(tabBarState)
-                                                        }
-                                                    }
-                                                }
-                                            case 1:
-                                                if profileViewModel.invitedEvents.isEmpty {
-                                                    Spacer()
-                                                        .frame(height: 75)
-                                                    Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) hasn't been invited to any events. You should invite them to one!" : "You haven't been invited to any upcoming events yet. Text your friends to invite you!")
-                                                        .font(.subheadline)
-                                                        .fontDesign(.monospaced)
-                                                        .tracking(-0.25)
-                                                        .fontWeight(.medium)
-                                                        .foregroundStyle(Color(hex: 0x666666))
-                                                        .multilineTextAlignment(.center)
-                                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                                                } else {
-                                                    ForEach(profileViewModel.invitedEvents, id: \.self.id) { event in
-                                                        if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
-                                                            
-                                                            EventCard(event: event, navigateToEventDetails: $navigateToEventDetails, selectedEvent: $profileViewModel.selectedEvent).environmentObject(tabBarState)
-                                                        }
-                                                    }
-                                                }
-                                            case 2:
-                                                if profileViewModel.pastEvents.isEmpty {
-                                                    Spacer()
-                                                        .frame(height: 75)
-                                                    Button(action: {
-                                                        tabBarState.hideTabbar = true
-                                                        navigateToCreateEventView = true
-                                                    }) {
-                                                        Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) has no past events to show. Maybe they're new here..." : "No past events to show. Maybe you're new here... If so, tap anywhere here to create one!")
-                                                            .font(.subheadline)
-                                                            .fontDesign(.monospaced)
-                                                            .tracking(-0.25)
-                                                            .fontWeight(.medium)
-                                                            .foregroundStyle(Color(hex: 0x666666))
-                                                            .multilineTextAlignment(.center)
-                                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                                                    }
-                                                } else {
-                                                    ForEach(profileViewModel.pastEvents, id: \.self.id) { event in
-                                                        EventCard(event: event, navigateToEventDetails: $navigateToEventDetails, selectedEvent: $profileViewModel.selectedEvent).environmentObject(tabBarState)}
-                                                }
-                                            default: EmptyView()
-                                            }
-                                        }
-                                        .padding(.bottom)
-                                        .frame(maxHeight: .infinity)
-                                    }
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    .padding(.horizontal, 25)
-                                    .layoutPriority(1)
-                                }
-                                .frame(maxHeight: .infinity, alignment: .top)
-                            case .activity:
-                                if profileViewModel.userPosts.isEmpty {
-                                    Button(action: {
-                                        
-                                    }) {
-                                        Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) has no recent activity. Tell them to create a post!" : "No activity to show here yet. Tap anywhere here to create your first post!")
-                                            .font(.subheadline)
-                                            .fontDesign(.monospaced)
-                                            .tracking(-0.25)
-                                            .fontWeight(.medium)
-                                            .foregroundStyle(Color(hex: 0x666666))
-                                            .multilineTextAlignment(.center)
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                                            .padding(.horizontal, 25)
-                                    }
-                                } else {
-                                    ScrollView(.vertical, showsIndicators: false) {
-                                        Text("Posts go here")
-                                            .padding(.bottom)
-                                    }
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    .padding(.horizontal, 25)
-                                }
-                            }
-                        } else {
-                            Button(action: {
-                                profileViewModel.showAddFriendModal = true
-                            }) {
-                                Text("You can't see \(profileViewModel.profileUser.displayName.split(separator: " ").first!)'s schedule until you add them as a friend. Click anywhere here to request them!")
-                                    .font(.subheadline)
-                                    .fontDesign(.monospaced)
-                                    .tracking(-0.25)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(Color(hex: 0x666666))
-                                    .multilineTextAlignment(.center)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                                    .padding(.horizontal, 25)
-                            }
-                        }
-                    }
-                    .padding(.top)
-                }
-                .padding(.bottom, 0.5)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                
-                ZStack {
-                    Color(.black.opacity(0.7))
-                        .ignoresSafeArea()
-                        .contentShape(Rectangle())
-                        .onTapGesture {}
-                    
-                    AddFriendModal(profileViewModel: profileViewModel)
-                }
-                .zIndex(100)
-                .hidden(!profileViewModel.showAddFriendModal)
-                .allowsHitTesting(profileViewModel.showAddFriendModal)
-                
-                ZStack {
-                    Color(.black.opacity(0.7))
-                        .ignoresSafeArea()
-                        .contentShape(Rectangle())
-                        .onTapGesture {}
-                    
-                    SaveChangesForm(profileViewModel: profileViewModel)
-                }
-                .zIndex(1)
-                .hidden(!profileViewModel.showSaveChangesModal)
-                .allowsHitTesting(profileViewModel.showSaveChangesModal)
-            }
-        }
-        .onAppear {
-            tabBarState.hideTabbar = false
-        }
-        .navigationBarBackButtonHidden(true)
-        .task {
-            if profileViewModel.shouldReloadData {
-                await profileViewModel.loadProfileData()
-            }
-        }
-        .toolbar(profileViewModel.showSaveChangesModal || profileViewModel.showAddFriendModal || tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
-        .navigationDestination(isPresented: $navigateToSettings) {
-            SettingsView(profileViewModel: profileViewModel)
-                .environmentObject(authViewModel)
-                .environmentObject(tabBarState)
-        }
-        .navigationDestination(isPresented: $navigateToEventDetails) {
-            if let event = profileViewModel.selectedEvent {
-                EventDetailsView(event: event, currentUser: profileViewModel.currentUser, shouldReloadData: $profileViewModel.shouldReloadData)
-            }
-        }
-        .navigationDestination(isPresented: $navigateToFriends) {
-            FriendsView(profileViewModel: profileViewModel)
-                .environmentObject(tabBarState)
-        }
-        .navigationDestination(isPresented: $navigateToCreateEventView) {
-            CreateEventView(currentUser: profileViewModel.currentUser,
-                            shouldReloadData: $profileViewModel.shouldReloadData).environmentObject(tabBarState)
-        }
-    }
+enum ProfileDestinations: Hashable {
+    case eventDetails(RecurringEvents)
+    case settings
+    case createEvent
+    case friendsView
 }
 
-
-
-struct UserViewOptions: View {
+struct Profile_ScheduleDayCards: View {
     
-    @ObservedObject var profileViewModel: ProfileViewModel
-        
-    var body: some View {
-        ZStack {
-            Rectangle()
-                .fill(Color(hex: 0xe0dad5))
-                .cornerRadius(30)
-            
-            GeometryReader { proxy in
-                RoundedRectangle(cornerRadius: 30)
-                    .fill(Color(hex: 0x3C859E))
-                    .frame(width: proxy.size.width / CGFloat(profileViewModel.tabOptions.count))
-                    .offset(x: CGFloat(proxy.size.width / CGFloat(profileViewModel.tabOptions.count)) * CGFloat(profileViewModel.returnSelectedOptionIndex()))
-                    .animation(.bouncy, value: profileViewModel.selectedTab)
-            }
-            
-            HStack {
-                ForEach(profileViewModel.tabOptions, id: \.self) { option in
-                    Text("\(option.title)")
-                        .font(.system(size: 14, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(profileViewModel.selectedTab == option ? Color(hex: 0xf7f4f2) : Color(hex: 0x666666))
-                        .tracking(0.001)
-                        .fixedSize()
-                        .frame(maxWidth: .infinity)
-                        .onTapGesture {
-                            profileViewModel.selectedTab = option
-                        }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: 45, alignment: .center)
-        .padding(.horizontal, 25)
+    var schedules: [Schedule]
+    @Binding var currentSchedule: Schedule?
+    
+    var partitionedEvents: [Double: [RecurringEvents]]
+    
+    var sortedKeys: [Double] {
+        return Array(partitionedEvents.keys).sorted(by: <)
     }
-}
-
-struct HiddenScheduleEventCardView: View {
     
-    let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-    let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-    var fakeTitles = [
-        "Going to the movies",
-        "Hiking with John",
-        "Gym",
-        "Dinner plans",
-        "Shopping with Jennifer",
-        "Movie night with friends",
-    ]
-    @Binding var displayName: String
+    func returnPartionedEvents(forKey key: Double) -> [RecurringEvents] {
+        guard let events = partitionedEvents[key] else { return [] }
+        return events
+    }
     
     var body: some View {
-        ZStack(alignment: .center) {
+        if sortedKeys.isEmpty {
+            //            NavigationLink(value: , label: {
+            //                Text(profileViewModel.isViewingFriend ? "\(profileViewModel.profileUser.displayName.split(separator: " ").first!) has no upcoming events. Tell them that they should create some!" : "No upcoming events. Tap anywhere here to create one!")
+            //                    .font(.subheadline)
+            //                    .fontDesign(.monospaced)
+            //                    .tracking(-0.25)
+            //                    .fontWeight(.medium)
+            //                    .foregroundStyle(Color("SecondaryText"))
+            //                    .multilineTextAlignment(.center)
+            //                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            //                    .padding(.horizontal, 25)
+            //            })
+        } else {
             ScrollView(.vertical, showsIndicators: false) {
-                LazyVStack {
-                    ForEach(1..<5, id: \.self) { index in
-                       
-                        var dateToDisplay: String {
-                            if index == 1 { return "Today" }
-                            if index == 2 { return "Tomorrow"}
-                            let today = Calendar.current.date(byAdding: .day, value: index - 1, to: Date())!
-                            return weekdays[min(Calendar.current.component(.weekday, from: today), 6)]
-                        }
-                        var monthToDisplay: String {
-                            let today = Calendar.current.date(byAdding: .day, value: index - 1, to: Date())!
-                            let monthIdx = Calendar.current.component(.month, from: today) - 1
-                            return months[monthIdx]
-                        }
-                        
-                        var dayToDisplay: String {
-                            let today = Calendar.current.date(byAdding: .day, value: index - 1, to: Date())!
-                            return String(Calendar.current.component(.day, from: today))
-                        }
-                        
-                        HStack(alignment: .top, spacing: 20) {
-                            LazyVStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text(dateToDisplay)
-                                        .font(.system(size: 15, weight: .bold, design: .monospaced))
-                                        .tracking(-0.25)
-                                        .foregroundStyle(Color(hex: 0x333333))
-                                        .multilineTextAlignment(.leading)
-                                    
-                                    Spacer()
-                                    
-                                    Text("\(monthToDisplay) \(dayToDisplay)")
-                                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                                        .foregroundStyle(Color(hex: 0x666666))
-                                        .lineLimit(1)
-                                }
-                                
-                                let randomValue = Int.random(in: 2...5)
-                                ForEach(1..<randomValue, id: \.self) { _ in
-                                    HStack(spacing: 12) {
-                                        Text(fakeTitles.randomElement()!)
-                                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                                            .foregroundStyle(Color(hex: 0x333333))
-                                            .tracking(1)
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
-                                        
-                                        Spacer(minLength: 6)
-                                        
-                                        Text("9:30 AM")
-                                            .font(.system(size: 13, weight: .medium))
-                                            .monospacedDigit()
-                                            .foregroundStyle(Color(hex: 0x666666))
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
-                                    }
-                                }
-                            }
-                            .padding(.vertical)
-                        }
-                        .padding(.trailing, 10)
-                        .padding(.leading, 20)
-                        .background(
-                            ZStack(alignment: .leading) {
-                                Color.white
-                                
-                                Color(hex: 0x3C859E)
-                                    .frame(width: 7)
-                                    .frame(maxHeight: .infinity)
-                                
-                                
-                            }
-                        )
-                        .blur(radius: 5, opaque: false)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        
-                        //                                            .padding(.horizontal, 25)
-                        //                                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                        
+                LazyVStack(spacing: 10) {
+                    ForEach(sortedKeys, id: \.self) { key in
+                        ScheduleEventCard(events: returnPartionedEvents(forKey: key), key: key)
                     }
                 }
                 .padding(.bottom)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 25)
+        }
+    }
+}
+
+struct Profile_EventCards: View {
+    
+    var utils = ["Upcoming", "Invited", "Past"]
+    @State var selectedType: Int = 0
+    
+    var currentEvents: [RecurringEvents]
+    var invitedEvents: [RecurringEvents]
+    var pastEvents: [RecurringEvents]
+    
+    var body: some View {
+        VStack {
+            HStack {
+                ForEach(utils.indices, id: \.self) { index in
+                    Button(action: {
+                        withAnimation(.bouncy) {
+                            selectedType = index
+                        }
+                    }) {
+                        Text("\(utils[index])")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
+                            .foregroundStyle(Color("SecondaryText"))
+                            .tracking(-0.25)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
             
-            Text("Add \(displayName.split(separator: " ").first!) as a friend to see her schedule!")
-                .font(.title3)
-                .fontWeight(.bold)
-                .fontDesign(.monospaced)
-                .tracking(-0.25)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(Color(hex: 0xf7f4f2))
-                .padding(.horizontal)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.black.opacity(0.30))
-                )
-                .padding(.horizontal)
+            ZStack {
+                GeometryReader { proxy in
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color("ButtonColors"))
+                        .frame(width: proxy.size.width / CGFloat(utils.count), height: 4)
+                        .offset(x: CGFloat(proxy.size.width / CGFloat(utils.count)) * CGFloat(selectedType))
+                        .animation(.bouncy, value: selectedType)
+                }
+            }
+            .frame(height: 4)
+            
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(spacing: 10) {
+                    switch selectedType {
+                    case 0:
+                        if currentEvents.isEmpty {
+                            Spacer()
+                                .frame(height: 75)
+                            NavigationLink(value: ProfileDestinations.createEvent, label: {
+                                Text("No upcoming events. Tap anywhere here to create one!")
+                                    .font(.subheadline)
+                                    .fontDesign(.monospaced)
+                                    .tracking(-0.25)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(Color("SecondaryText"))
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                            })
+                        } else {
+                            ForEach(currentEvents, id: \.id) { event in
+                                if event.event.startTime >= Date.computeTimeSinceStartOfDay(date: Calendar.current.startOfDay(for: Date())) {
+                                    
+                                    NavigationLink(value: ProfileDestinations.eventDetails(event), label: {
+                                        EventCard(event: event)
+                                    })
+                                }
+                            }
+                        }
+                        
+                    case 1:
+                        if invitedEvents.isEmpty {
+                            Text("You haven't been invited to any upcoming events yet. Text your friends to invite you!")
+                                .font(.subheadline)
+                                .fontDesign(.monospaced)
+                                .tracking(-0.25)
+                                .fontWeight(.medium)
+                                .foregroundStyle(Color("SecondaryText"))
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        } else {
+                            ForEach(invitedEvents, id: \.self.id) { event in
+                                NavigationLink(value: ProfileDestinations.eventDetails(event), label: {
+                                    EventCard(event: event)
+                                })
+                            }
+                        }
+                        
+                    case 2:
+                        if pastEvents.isEmpty {
+                            NavigationLink(value: ProfileDestinations.createEvent, label: {
+                                Text("No past events to show. Maybe you're new here... If so, tap anywhere here to create one!")
+                                    .font(.subheadline)
+                                    .fontDesign(.monospaced)
+                                    .tracking(-0.25)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(Color("SecondaryText"))
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                            })
+                        } else {
+                            ForEach(pastEvents, id: \.self.id) { event in
+                                NavigationLink(value: ProfileDestinations.eventDetails(event), label: {
+                                    EventCard(event: event)
+                                })
+                            }
+                        }
+                        
+                    default: EmptyView()
+                    }
+                }
+                .frame(maxHeight: .infinity)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .padding(.horizontal, 25)
+    }
+}
+
+struct Profile_ActivityCards: View {
+    
+    var posts: [Post]
+    
+    var body: some View {
+        if posts.isEmpty {
+            Button(action: {
+                // make this into a navigation link when create posts are up
+            }) {
+                Text("No activity to show here yet. Tap anywhere here to create your first post!")
+                    .font(.subheadline)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color("SecondaryText"))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .padding(.horizontal, 25)
+            }
+        } else {
+            ScrollView(.vertical, showsIndicators: false) {
+                Text("Posts go here")
+                    .padding(.bottom)
+            }
+            .padding(.horizontal, 25)
+        }
+    }
+}
+
+struct ProfileView: View {
+    
+    @StateObject var vm: ProfileViewModel
+    @EnvironmentObject var authViewModel: AuthViewModel
+    
+    @Environment(\.dismiss) var dismiss
+    
+    @Namespace private var animation
+    
+    @State var preferBackButton: Bool
+        
+    init(currentUser: User, profileUser: User, preferBackButton: Bool) {
+        _vm = StateObject(wrappedValue: ProfileViewModel(currentUser: currentUser, profileUser: profileUser))
+        _preferBackButton = State(initialValue: preferBackButton)
+    }
+    
+    var body: some View {
+        ZStack {
+            Color("BackgroundColor")
+                .ignoresSafeArea()
+            
+            if vm.isLoading {
+                ProfileLoadingView()
+            } else {
+                VStack(spacing: 15) {
+                    
+                    VStack(spacing: 8) {
+                        UserProfileImage(profileImage: vm.profileUser.profileImage, displayName: vm.profileUser.displayName)
+                        Text(vm.profileUser.displayName)
+                            .foregroundStyle(Color("PrimaryText"))
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 5)
+                    }
+                    
+                    ProfileInformatics(friendsCount: vm.profileUser.numOfFriends, eventsCount: vm.profileUser.numOfEvents, postsCount: vm.profileUser.numOfPosts)
+                    
+                    UserViewOptions(selectedTab: $vm.selectedTab)
+                    
+                    // user is either viewing their profile or a friend's profile
+                    if vm.showProfileDetails {
+                        switch vm.selectedTab {
+                        case .schedules:
+                            Profile_ScheduleDayCards(schedules: vm.schedules, currentSchedule: $vm.currentSchedule, partitionedEvents: vm.partitionedEvents)
+                        case .events:
+                            Profile_EventCards(currentEvents: vm.currentEvents, invitedEvents: vm.invitedEvents, pastEvents: vm.pastEvents)
+                        case .activity:
+                            Profile_ActivityCards(posts: vm.posts)
+                        }
+                        
+                        // user is viewing a public profile who is not their friend
+                    } else {
+                        Button(action: {
+                            vm.showAddFriendAlert = true
+                        }) {
+                            Text("You can't see \(vm.getFirstName())'s schedule until you add them as a friend. Click anywhere here to request them!")
+                                .font(.subheadline)
+                                .fontDesign(.monospaced)
+                                .tracking(-0.25)
+                                .fontWeight(.medium)
+                                .foregroundStyle(Color("SecondaryText"))
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                .padding(.horizontal, 25)
+                        }
+                        .alert(isPresented: $vm.showAddFriendAlert) {
+                            if vm.friendRequestPending {
+                                Alert(title: Text("Friend Request Pending"),
+                                      message: Text("There's already a pending friend request with \(vm.getFirstName()). Either check your notifications or wait for them to respond!"),
+                                      dismissButton: .default(Text("Ok"), action: {
+                                    vm.showAddFriendAlert = false
+                                }))
+                            } else {
+                                Alert(title: Text("Send Friend Request"),
+                                      message: Text("Would you like to send \(vm.getFirstName()) a friend request?"),
+                                      primaryButton: .destructive(Text("Cancel"), action: {
+                                    vm.showAddFriendAlert = false
+                                }), secondaryButton: .default(Text("Send"), action: {
+                                    Task {
+                                        await vm.sendFriendRequest()
+                                    }
+                                }))
+                            }
+                        }
+                    }
+                }
+                .padding(.top)
+            }
+        }
+        .navigationBarBackButtonHidden(false)
+        .task {
+            await vm.loadProfileData()
+        }
+        .navigationDestination(for: ProfileDestinations.self, destination: { destination in
+            switch destination {
+            case .eventDetails(let event):
+                if let schedule = vm.currentSchedule {
+                    FullEventDetailsView(recurringEvent: event, currentUser: vm.currentUser, currentScheduleId: schedule.id)
+                }
+            case .settings:
+                EmptyView()
+            case .createEvent:
+                if let schedule = vm.currentSchedule {
+                    CreateEventView(currentUser: vm.currentUser, currentScheduleId: schedule.id)
+                }
+            case .friendsView:
+                FriendsView(currentUser: vm.currentUser)
+            }
+        })
+        .modifier(ProfileViewModifier(preferBackButton: $preferBackButton, isCurrentUser: vm.isCurrentUser))
+    }
+}
+
+struct ProfileViewModifier: ViewModifier {
+    
+    @Binding var preferBackButton: Bool
+    var isCurrentUser: Bool
+    
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .toolbar {
+                    if !preferBackButton {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Text("Profile")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                                .foregroundStyle(Color("NavItemsColors"))
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                    }
+                    
+                    if isCurrentUser {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(action: {
+                            }) {
+                                Image(systemName: "gearshape")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundStyle(Color("NavItemsColors"))
+                            }
+                        }
+                    } else {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(action: {
+                            }) {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundStyle(Color("NavItemsColors"))
+                            }
+                        }
+                    }
+                }
+        } else {
+            content
+                .toolbar {
+                    if !preferBackButton {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Text("Profile")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                                .foregroundStyle(Color("NavItemsColors"))
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
+                    }
+                    
+                    if isCurrentUser {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(action: {
+                            }) {
+                                Image(systemName: "gearshape")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundStyle(Color("NavItemsColors"))
+                            }
+                        }
+                        //                    } else {
+                        //                        ToolbarItem(placement: .topBarTrailing) {
+                        //                            Menu {
+                        //                                Button(action: {
+                        //                                    hideTabbar = true
+                        //                                    navigateToSettings = true
+                        //                                }, label: {
+                        //                                    Label("Settings", systemImage: "gearshape")
+                        //                                })
+                        //                                
+                        //                                Button(action: {
+                        //                                    isEditingProfile = true
+                        //                                }, label: {
+                        //                                    Label("Edit", systemImage: "gearshape")
+                        //                                })
+                        //                                
+                        //                                Button(action: {
+                        //                                    showAddFriendModal = true
+                        //                                }, label: {
+                        //                                    Label("Send Friend Request", systemImage: "person.badge.plus")
+                        //                                })
+                        //                                
+                        //                                Button(action: {
+                        //                                    
+                        //                                }, label: {
+                        //                                    Label("Remove Friend", systemImage: "person.badge.minus")
+                        //                                })
+                        //                                
+                        //                                Button(action: {
+                        //                                    
+                        //                                }, label: {
+                        //                                    Label("Block", systemImage: "person.badge.plus")
+                        //                                })
+                        //                            } label: {
+                        //                                Label("", systemImage: "ellipsis")
+                        //                                    .font(.system(size: 20, weight: .bold))
+                        //                                    .foregroundStyle(Color("NavItemsColors"))
+                        //                            }
+                        //                            .task {
+                        //                                
+                        //                            }
+                        //                        }
+                        //                    }
+                    }
+                }
+        }
+    }
+}
+
+struct UserViewOptions: View {
+    
+    @Binding var selectedTab: ProfileTab
+    @Environment(\.colorScheme) var colorScheme
+    @Namespace private var animation
+    
+    var body: some View {
+        if colorScheme == .dark {
+            HStack(spacing: 0) {
+                ForEach(ProfileTab.allCases, id: \.self) { option in
+                    Button(action: {
+                        withAnimation(.bouncy) {
+                            selectedTab = option
+                        }
+                    }) {
+                        Text(option.title)
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
+                            .foregroundStyle(selectedTab == option ? Color(hex: 0xFDFDFD) : Color("SecondaryText"))
+                            .tracking(-0.25)
+                            .padding()
+                            .background {
+                                if selectedTab == option {
+                                    RoundedRectangle(cornerRadius: 30)
+                                        .fill(Color("ButtonColors"))
+                                        .matchedGeometryEffect(id: "tabSelection", in: animation)
+                                }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 30))
+        } else {
+            HStack(spacing: 0) {
+                ForEach(ProfileTab.allCases, id: \.self) { option in
+                    Button(action: {
+                        withAnimation(.bouncy) {
+                            selectedTab = option
+                        }
+                    }) {
+                        Text(option.title)
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
+                            .foregroundStyle(selectedTab == option ? Color(hex: 0xFDFDFD) : Color("SecondaryText"))
+                            .tracking(-0.25)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 45)
+                            .background {
+                                if selectedTab == option {
+                                    RoundedRectangle(cornerRadius: 30)
+                                        .fill(Color("ButtonColors"))
+                                        .matchedGeometryEffect(id: "selector", in: animation)
+                                }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(Color("SectionalColors"), in: RoundedRectangle(cornerRadius: 30))
         }
     }
 }
 
 struct UserProfileImage: View {
     
-    @ObservedObject var profileViewModel: ProfileViewModel
-    @State private var pickerItem: PhotosPickerItem?
+    var profileImage: String
+    var displayName: String
+    
+    var formattedDisplayName: String {
+        guard displayName.isEmpty == false else { return "JD" } // john doe
+        let splitName = displayName.split(separator: " ")
+        
+        let firstInitial = splitName.first ?? "J"
+        let secondInitial = splitName.last ?? "D"
+        
+        return String(firstInitial + secondInitial)
+    }
+    
+    @State private var imageLoadingError = false
     
     var body: some View {
-        ZStack {
+        avatar
+    }
+    
+    @ViewBuilder
+    private var avatar: some View {
+        if profileImage.isEmpty == false {
+            KFImage.url(URL(string: profileImage))
+                .placeholder { ProgressView() }
+                .loadDiskFileSynchronously()
+                .fade(duration: 0.25)
+                .onFailure { _ in imageLoadingError = true }
+                .resizable()
+                .scaledToFill()
+                .frame(width: 125, height: 125)
+                .clipShape(Circle())
+        } else {
             Circle()
-                .strokeBorder(Color(hex: 0x6d8a96), lineWidth: 1.5)
-                .frame(width: 114, height: 114)
+                .fill(Color("SectionalColors"))
+                .strokeBorder(Color("ButtonColors"), lineWidth: 1.5)
+                .frame(width: 123.5, height: 123.5)
                 .overlay {
-                    if let selectedImage = profileViewModel.selectedImage {
-                        Image(uiImage: selectedImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 112.5, height: 112.5)
-                            .clipShape(Circle())
-                    } else if let cachedImage = profileViewModel.cachedProfileImage {
-                        Image(uiImage: cachedImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 112.5, height: 112.5)
-                            .clipShape(Circle())
-                    } else if !profileViewModel.profileUser.profileImage.isEmpty {
-                        AsyncImage(url: URL(string: profileViewModel.profileUser.profileImage)) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 112.5, height: 112.5)
-                                .clipShape(Circle())
-                        } placeholder: {
-                            ProgressView()
-                        }
-                        .frame(width: 112.5, height: 112.5)
-                        .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(Color(hex: 0xe0dad5))
-                            .frame(width: 112.5, height: 112.5)
-                            .overlay {
-                                Text("\(profileViewModel.profileUser.displayName.first?.uppercased() ?? "J")\(profileViewModel.profileUser.displayName.last?.uppercased() ?? "D")")
-                                    .font(.system(size: 36, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(Color(hex: 0x333333))
-                                    .multilineTextAlignment(.center)
-                            }
-                    }
+                    Text(formattedDisplayName)
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .fontDesign(.monospaced)
+                        .tracking(1)
+                        .foregroundStyle(Color("SecondaryText"))
                 }
-            if profileViewModel.isEditingProfile {
-                PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Circle()
-                        .foregroundStyle(Color(hex: 0x3C859E))
-                        .frame(maxWidth: 30, maxHeight: 30)
-                        .foregroundStyle(.clear)
-                        .overlay {
-                            Image(systemName: "plus")
-                                .font(.system(size: 14, weight: .heavy))
-                                .foregroundStyle(.white)
-                                .containerShape(Circle())
-                        }
-                }
-                .frame(width: 125, height: 112.5, alignment: .topTrailing)
-            }
-        }
-        .onChange(of: pickerItem) {
-            Task {
-                if let imageData = try await pickerItem?.loadTransferable(type: Data.self) {
-                    profileViewModel.selectedImage = UIImage(data: imageData)
-                }
-            }
         }
     }
 }
 
-struct UserDisplayName: View {
-    
-    @ObservedObject var profileViewModel: ProfileViewModel
-    @State var isEditingProfile = false
-    @State var isEditingUsername = false
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            TextField("Placeholder", text: $profileViewModel.profileUser.displayName)
-              .font(.system(size: 18, weight: .bold, design: .monospaced))
-              .multilineTextAlignment(.center)
-              .disabled(!isEditingProfile && !isEditingUsername)
-              .overlay {
-                  Rectangle()
-                      .foregroundStyle(.clear)
-                      .clipShape(RoundedRectangle(cornerRadius: 5))
-                      .padding(-5)
-              }
 
-            if isEditingProfile {
-              Image(systemName: "pencil")
-                .font(.system(size: 14, weight: .medium))
-                .padding(.leading, 5)
-                .onTapGesture {
-                    isEditingUsername.toggle()
-                }
-            }
-        }
-        .fixedSize(horizontal: true, vertical: false)
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-}
+//struct HiddenScheduleEventCardView: View {
+//    
+//    let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+//    let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+//    var fakeTitles = [
+//        "Going to the movies",
+//        "Hiking with John",
+//        "Gym",
+//        "Dinner plans",
+//        "Shopping with Jennifer",
+//        "Movie night with friends",
+//    ]
+//    @Binding var displayName: String
+//    
+//    var body: some View {
+//        ZStack(alignment: .center) {
+//            ScrollView(.vertical, showsIndicators: false) {
+//                LazyVStack {
+//                    ForEach(1..<5, id: \.self) { index in
+//                       
+//                        var dateToDisplay: String {
+//                            if index == 1 { return "Today" }
+//                            if index == 2 { return "Tomorrow"}
+//                            let today = Calendar.current.date(byAdding: .day, value: index - 1, to: Date())!
+//                            return weekdays[min(Calendar.current.component(.weekday, from: today), 6)]
+//                        }
+//                        var monthToDisplay: String {
+//                            let today = Calendar.current.date(byAdding: .day, value: index - 1, to: Date())!
+//                            let monthIdx = Calendar.current.component(.month, from: today) - 1
+//                            return months[monthIdx]
+//                        }
+//                        
+//                        var dayToDisplay: String {
+//                            let today = Calendar.current.date(byAdding: .day, value: index - 1, to: Date())!
+//                            return String(Calendar.current.component(.day, from: today))
+//                        }
+//                        
+//                        HStack(alignment: .top, spacing: 20) {
+//                            LazyVStack(alignment: .leading, spacing: 8) {
+//                                HStack {
+//                                    Text(dateToDisplay)
+//                                        .font(.system(size: 15, weight: .bold, design: .monospaced))
+//                                        .tracking(-0.25)
+//                                        .foregroundStyle(Color("PrimaryText"))
+//                                        .multilineTextAlignment(.leading)
+//                                    
+//                                    Spacer()
+//                                    
+//                                    Text("\(monthToDisplay) \(dayToDisplay)")
+//                                        .font(.system(size: 13, weight: .medium, design: .rounded))
+//                                        .foregroundStyle(Color("SecondaryText"))
+//                                        .lineLimit(1)
+//                                }
+//                                
+//                                let randomValue = Int.random(in: 2...5)
+//                                ForEach(1..<randomValue, id: \.self) { _ in
+//                                    HStack(spacing: 12) {
+//                                        Text(fakeTitles.randomElement()!)
+//                                            .font(.system(size: 13, weight: .medium, design: .rounded))
+//                                            .foregroundStyle(Color("PrimaryText"))
+//                                            .tracking(1)
+//                                            .lineLimit(1)
+//                                            .truncationMode(.tail)
+//                                        
+//                                        Spacer(minLength: 6)
+//                                        
+//                                        Text("9:30 AM")
+//                                            .font(.system(size: 13, weight: .medium))
+//                                            .monospacedDigit()
+//                                            .foregroundStyle(Color("SecondaryText"))
+//                                            .lineLimit(1)
+//                                            .truncationMode(.tail)
+//                                    }
+//                                }
+//                            }
+//                            .padding(.vertical)
+//                        }
+//                        .padding(.trailing, 10)
+//                        .padding(.leading, 20)
+//                        .background(
+//                            ZStack(alignment: .leading) {
+//                                Color.white
+//                                
+//                                Color("ButtonColors")
+//                                    .frame(width: 7)
+//                                    .frame(maxHeight: .infinity)
+//                                
+//                                
+//                            }
+//                        )
+//                        .blur(radius: 5, opaque: false)
+//                        .clipShape(RoundedRectangle(cornerRadius: 10))
+//                        
+//                        //                                            .padding(.horizontal, 25)
+//                        //                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+//                        
+//                    }
+//                }
+//                .padding(.bottom)
+//            }
+//            .clipShape(RoundedRectangle(cornerRadius: 10))
+//            .padding(.horizontal, 25)
+//            
+//            Text("Add \(displayName.split(separator: " ").first!) as a friend to see her schedule!")
+//                .font(.title3)
+//                .fontWeight(.bold)
+//                .fontDesign(.monospaced)
+//                .tracking(-0.25)
+//                .multilineTextAlignment(.center)
+//                .foregroundStyle(Color("BackgroundColor"))
+//                .padding(.horizontal)
+//                .padding(.vertical, 16)
+//                .background(
+//                    RoundedRectangle(cornerRadius: 12)
+//                        .fill(Color.black.opacity(0.30))
+//                )
+//                .padding(.horizontal)
+//        }
+//    }
+//}
+
 

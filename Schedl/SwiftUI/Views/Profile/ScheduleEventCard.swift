@@ -7,9 +7,9 @@
 
 import SwiftUI
 
-struct ScheduleEventCards: View {
+struct ScheduleEventCard: View {
     
-    @ObservedObject var profileViewModel: ProfileViewModel
+    let events: [RecurringEvents]
     let key: Double
     let weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -28,14 +28,13 @@ struct ScheduleEventCards: View {
     
     var body: some View {
         
-        let recurringEvents: [RecurringEvents] = profileViewModel.partitionedEvents[key] ?? []
         let tomorrowStart = todayStart + 86400
         let blockDate = Date(timeIntervalSince1970: key)
         let dayText: String = {
-        if key == todayStart     { return "Today" }
-        if key == tomorrowStart  { return "Tomorrow" }
-        let wd = Calendar.current.component(.weekday, from: blockDate)
-        return weekdays[wd-1]
+            if key == todayStart     { return "Today" }
+            if key == tomorrowStart  { return "Tomorrow" }
+            let wd = Calendar.current.component(.weekday, from: blockDate)
+            return weekdays[wd-1]
         }()
         let monthIdx = Calendar.current.component(.month, from: blockDate) - 1
         let monthName = months[monthIdx]
@@ -47,23 +46,23 @@ struct ScheduleEventCards: View {
                     Text(dayText)
                         .font(.system(size: 15, weight: .bold, design: .monospaced))
                         .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x333333))
+                        .foregroundStyle(Color("PrimaryText"))
                         .multilineTextAlignment(.leading)
                     
                     Spacer()
                     
                     Text("\(monthName) \(String(format: "%02d", dayOfMonth))")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color(hex: 0x666666))
+                        .foregroundStyle(Color("SecondaryText"))
                         .lineLimit(1)
                 }
                 
-                ForEach(recurringEvents, id: \.self.id) { event in
+                ForEach(events, id: \.self.id) { event in
                     HStack(spacing: 12) {
                         let formattedTime = returnTimeFormatted(timeObj: event.event.startTime)
                         Text("\(event.event.title)")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundStyle(Color(hex: 0x333333))
+                            .foregroundStyle(Color("PrimaryText"))
                             .tracking(1)
                             .lineLimit(1)
                             .truncationMode(.tail)
@@ -74,7 +73,7 @@ struct ScheduleEventCards: View {
                         Text("\(formattedTime)")
                             .font(.system(size: 13, weight: .medium))
                             .monospacedDigit()
-                            .foregroundStyle(Color(hex: 0x666666))
+                            .foregroundStyle(Color("SecondaryText"))
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .strikethrough(eventHasEnded(startTime: event.event.startTime, date: event.date), color: Color(.black))
@@ -87,9 +86,9 @@ struct ScheduleEventCards: View {
         .padding(.leading, 20)
         .background(
             ZStack(alignment: .leading) {
-                Color.white
+                Color("CardBackground")
                 
-                Color(hex: 0x3C859E)
+                Color("ButtonColors")
                     .frame(width: 7)
                     .frame(maxHeight: .infinity)
             }

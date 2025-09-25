@@ -38,44 +38,24 @@ class SecondPassthroughView: UIView {
 
 class EventCellsContainer: SecondPassthroughView {
     
-    weak var rootVC: UIViewController?
-    weak var viewModel: ScheduleViewModel?
-    
     var onTap: ((RecurringEvents) -> Void)?
-    
     var events: [RecurringEvents] = []
-    let containerView = SecondPassthroughView()
     
     override init(frame: CGRect) {
         super.init(frame: frame)
-        configureUI()
+        translatesAutoresizingMaskIntoConstraints = false
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func configureUI() {
-        containerView.translatesAutoresizingMaskIntoConstraints = false
+    func populateEventCells(events: [RecurringEvents], centerDate: Date, calendarInterval: Int) {
         
-        addSubview(containerView)
-        
-        NSLayoutConstraint.activate([
-            containerView.topAnchor.constraint(equalTo: topAnchor),
-            containerView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            containerView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            containerView.bottomAnchor.constraint(equalTo: bottomAnchor)
-        ])
-    }
-    
-    func populateEventCells(rootVC: UIViewController, scheduleViewModel: ScheduleViewModel, events: [RecurringEvents], centerDate: Date, calendarInterval: Int) {
-        
-        for subview in containerView.subviews {
+        for subview in self.subviews {
             subview.removeFromSuperview()
         }
         
-        self.rootVC = rootVC
-        self.viewModel = scheduleViewModel
         self.events = events
         
         for event in events {
@@ -89,21 +69,86 @@ class EventCellsContainer: SecondPassthroughView {
                 self?.onTap?(event)
             }
             eventCell.isUserInteractionEnabled = true
-            containerView.addSubview(eventCell)
-            containerView.bringSubviewToFront(eventCell)
+            addSubview(eventCell)
         }
     }
     
+    func addSingleEvent(event: RecurringEvents, centerDate: Date, calendarInterval: Int) {
+                
+        let eventDate = Date(timeIntervalSince1970: event.event.startDate)
+        
+        let calendar = Calendar.current
+        let eventDay = calendar.startOfDay(for: eventDate)
+        let centerDay = calendar.startOfDay(for: centerDate)
+
+        let comps = calendar.dateComponents([.day], from: centerDay, to: eventDay)
+        if let dayDiff = comps.day {
+            let centerIndex = calendarInterval / 2
+            let dayIndex = dayDiff + centerIndex
+            let isInRange = (0..<calendarInterval).contains(dayIndex)
+            
+            if isInRange {
+                let xPosition = Double((getDayIndex(eventDate: Date(timeIntervalSince1970: event.date), centerDate: centerDate, calendarInterval: calendarInterval) ?? 0) * 60) + 1
+                let yStartPosition = event.event.startTime / 3600 * 100
+                let yOffset = (event.event.endTime - event.event.startTime) / 3600 * 100
+                
+                let eventCell = EventCell(frame: CGRect(x: xPosition, y: yStartPosition, width: 58, height: yOffset))
+                eventCell.configureUI(event: event)
+                eventCell.onSelectEvent = { [weak self] event in
+                    self?.onTap?(event)
+                }
+                eventCell.isUserInteractionEnabled = true
+                addSubview(eventCell)
+            }
+        }
+    }
+    
+    func addRecurringEvent(events: [RecurringEvents], centerDate: Date, calendarInterval: Int) {
+        
+        let calendar = Calendar.current
+        let centerDay = calendar.startOfDay(for: centerDate)
+        let centerIndex = calendarInterval / 2
+        
+        for event in events {
+            let eventDate = Date(timeIntervalSince1970: event.event.startDate)
+            
+            let eventDay = calendar.startOfDay(for: eventDate)
+            
+            let comps = calendar.dateComponents([.day], from: centerDay, to: eventDay)
+            if let dayDiff = comps.day {
+                let dayIndex = dayDiff + centerIndex
+                let isInRange = (0..<calendarInterval).contains(dayIndex)
+                
+                if isInRange {
+                    let xPosition = Double((getDayIndex(eventDate: Date(timeIntervalSince1970: event.date), centerDate: centerDate, calendarInterval: calendarInterval) ?? 0) * 60) + 1
+                    let yStartPosition = event.event.startTime / 3600 * 100
+                    let yOffset = (event.event.endTime - event.event.startTime) / 3600 * 100
+                    
+                    let eventCell = EventCell(frame: CGRect(x: xPosition, y: yStartPosition, width: 58, height: yOffset))
+                    eventCell.configureUI(event: event)
+                    eventCell.onSelectEvent = { [weak self] event in
+                        self?.onTap?(event)
+                    }
+                    eventCell.isUserInteractionEnabled = true
+                    addSubview(eventCell)
+                }
+            }
+        }
+    }
+        
     func getDayIndex(eventDate: Date, centerDate: Date, calendarInterval: Int) -> Int? {
         
-        // Calculate the difference in days between eventDate and centerDate
+        // Calculate the difference in days between the event date and the center date.
         let components = Calendar.current.dateComponents([.day], from: centerDate, to: eventDate)
         guard let dayDifference = components.day else { return nil }
 
-        // Add 30 to adjust for the -30 to +30 range in dayList
-        let dayIndex = dayDifference + 30
+        // Calculate the center index of the date range.
+        let centerIndex = calendarInterval / 2
 
-        // Ensure the index is within the valid range of dayList (0 to 60)
+        // The event's index is its difference from the center, offset by the center's index.
+        let dayIndex = dayDifference + centerIndex
+
+        // Ensure the calculated index is within the valid bounds of the date range.
         guard dayIndex >= 0 && dayIndex < calendarInterval else { return nil }
         
         return dayIndex

@@ -5,12 +5,12 @@
 //  Created by David Medina on 5/4/25.
 //
 
-import FirebaseDatabase
+import FirebaseFirestore
 import FirebaseAuth
 
 protocol AuthServiceProtocol {
     
-    var ref: DatabaseReference { get set }
+    var db: Firestore { get set }
     var auth: Auth             { get set }
     
     func login(email: String, password: String) async throws -> String

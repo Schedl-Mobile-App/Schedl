@@ -1,188 +1,141 @@
+////
+////  ScheduleViewOptions.swift
+////  Schedl
+////
+////  Created by David Medina on 6/15/25.
+////
 //
-//  ScheduleViewOptions.swift
-//  Schedl
+//import UIKit
+//import Foundation
+//import SwiftUI
 //
-//  Created by David Medina on 6/15/25.
+//class ScheduleViewOptions: UIView {
+//    
+//    weak var delegate: ScheduleViewDelegate?
+//    
+//    // UI
+//    private let titleLabel = UILabel()
+//    private let menuButton = UIButton(type: .system)
+//    private let underlineView = UIView() // optional accent that animates on selection
+//    
+//    // State
+//    
+//    
+//    // Icons
+//    
+//    
+//    override init(frame: CGRect) {
+//        super.init(frame: frame)
+//        configureUI()
+//        updateMenu()
+//    }
+//    
+//    required init?(coder: NSCoder) {
+//        super.init(coder: coder)
+//        configureUI()
+//        updateMenu()
+//    }
+//    
+//    private func configureUI() {
+//        translatesAutoresizingMaskIntoConstraints = false
+//        
+//        // Title label (if you want to show a header; currently unused text)
+//        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+//        titleLabel.text = ""
+//        titleLabel.font = .systemFont(ofSize: 12, weight: .medium)
+//        titleLabel.textColor = UIColor(Color(hex: 0x544F47))
+//        
+//        // Menu button
+//        menuButton.translatesAutoresizingMaskIntoConstraints = false
+//        menuButton.configuration = .plain()
+//        menuButton.configuration?.imagePlacement = .leading
+//        menuButton.configuration?.imagePadding = 8
+//        menuButton.configuration?.baseForegroundColor = UIColor(Color(hex: 0x544F47))
+//        menuButton.setTitleColor(UIColor(Color(hex: 0x544F47)), for: .normal)
+//        menuButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+//        menuButton.contentHorizontalAlignment = .leading
+//        menuButton.showsMenuAsPrimaryAction = true
+//        menuButton.changesSelectionAsPrimaryAction = false
+//        
+//        // Optional underline accent
+//        underlineView.translatesAutoresizingMaskIntoConstraints = false
+//        underlineView.backgroundColor = UIColor(Color(hex: 0x544F47)).withAlphaComponent(0.15)
+//        underlineView.layer.cornerRadius = 1
+//        
+//        addSubview(titleLabel)
+//        addSubview(menuButton)
+//        addSubview(underlineView)
+//        
+//        NSLayoutConstraint.activate([
+//            titleLabel.topAnchor.constraint(equalTo: topAnchor),
+//            titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor),
+//            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+//            
+//            menuButton.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
+//            menuButton.leadingAnchor.constraint(equalTo: leadingAnchor),
+//            menuButton.trailingAnchor.constraint(equalTo: trailingAnchor),
+//            menuButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 36),
+//            menuButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2),
+//            
+//            underlineView.topAnchor.constraint(equalTo: menuButton.bottomAnchor, constant: 2),
+//            underlineView.leadingAnchor.constraint(equalTo: leadingAnchor),
+//            underlineView.trailingAnchor.constraint(equalTo: trailingAnchor),
+//            underlineView.heightAnchor.constraint(equalToConstant: 2)
+//        ])
+//        
+//        // Accessibility grouping
+//        isAccessibilityElement = false
+//        accessibilityElements = [titleLabel, menuButton]
+//    }
+//    
+//    private func updateMenu() {
+//        // Actions with checkmark state and SF Symbols
+//        let dayAction = UIAction(title: "Day", image: UIImage(systemName: daySymbol), state: currentSelection == .day ? .on : .off) { [weak self] _ in
+//            self?.handleSelection(.day)
+//        }
+//        let weekAction = UIAction(title: "Week", image: UIImage(systemName: weekSymbol), state: currentSelection == .week ? .on : .off) { [weak self] _ in
+//            self?.handleSelection(.week)
+//        }
+//        let monthAction = UIAction(title: "Month", image: UIImage(systemName: monthSymbol), state: currentSelection == .month ? .on : .off) { [weak self] _ in
+//            self?.handleSelection(.month)
+//        }
+//        
+//        // Year is visually available; no delegate call since enum lacks .year
+//        let yearAction = UIAction(title: "Year", image: UIImage(systemName: yearSymbol), state: .off) { [weak self] _ in
+//            self?.animateSelectionFeedback()
+//            // Optionally show a hint/toast if needed
+//        }
+//        
+//        let menu = UIMenu(title: "", options: .displayInline, children: [dayAction, weekAction, monthAction, yearAction])
+//        menuButton.menu = menu
+//        
+//        // Update button title/icon to match current selection
+//        switch currentSelection {
+//        case .day:
+//            menuButton.setTitle("Day", for: .normal)
+//            menuButton.setImage(UIImage(systemName: daySymbol), for: .normal)
+//        case .week:
+//            menuButton.setTitle("Week", for: .normal)
+//            menuButton.setImage(UIImage(systemName: weekSymbol), for: .normal)
+//        case .month:
+//            menuButton.setTitle("Month", for: .normal)
+//            menuButton.setImage(UIImage(systemName: monthSymbol), for: .normal)
+//        }
+//        
+//        // Ensure image sits to the left
+//        menuButton.configuration?.imagePlacement = .leading
+//        menuButton.configuration?.imagePadding = 8
+//    }
+//    
+//    
 //
-
-import UIKit
-import Foundation
-import SwiftUI
-
-class ScheduleViewOptions: UIStackView {
-    
-    weak var delegate: ScheduleViewDelegate?
-    
-    let dayOption: UIButton!
-    let weekOption: UIButton!
-    let monthOption: UIButton!
-    let yearOption: UIButton!
-    
-    private var selectedOption: UIButton?
-    
-    override init(frame: CGRect) {
-        
-        dayOption = UIButton()
-        weekOption = UIButton()
-        monthOption = UIButton()
-        yearOption = UIButton()
-        
-        super.init(frame: frame)
-        
-        configureUI()
-    }
-    
-    required init(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    private func configureUI() {
-        axis = .vertical
-        distribution = .fillEqually
-        alignment = .fill
-        spacing = 0
-        translatesAutoresizingMaskIntoConstraints = false
-        
-        // Updated background color from your Palette #4
-        backgroundColor = UIColor(Color(hex: 0xF5F3F0))
-        layer.cornerRadius = 12
-        layer.masksToBounds = false
-        
-        // Add subtle shadow
-        layer.shadowColor = UIColor(Color(hex: 0xD1CCC6)).cgColor
-        layer.shadowOffset = CGSize(width: 0, height: 3)
-        layer.shadowRadius = 10
-        layer.shadowOpacity = 0.4
-        
-        // Create title section
-        let titleView = createTitleView()
-        addArrangedSubview(titleView)
-        
-        // Create option buttons
-        let options = [
-            ("Day", dayOption),
-            ("Week", weekOption),
-            ("Month", monthOption),
-            ("Year", yearOption)
-        ]
-        
-        for (title, button) in options {
-            let optionView = createOptionView(title: title, button: button!)
-            addArrangedSubview(optionView)
-        }
-        
-        // Set default selection
-        selectOption(weekOption)
-    }
-    
-    private func createTitleView() -> UIView {
-        let titleView = UIView()
-        titleView.translatesAutoresizingMaskIntoConstraints = false
-        titleView.backgroundColor = UIColor(Color(hex: 0xF5F3F0))
-        titleView.layer.cornerRadius = 12
-        
-        let titleLabel = UILabel()
-        titleLabel.text = "Calendar View"
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.font = .systemFont(ofSize: 15, weight: .bold)
-        titleLabel.textColor = UIColor(Color(hex: 0x6D675F))
-        
-        titleView.addSubview(titleLabel)
-        
-        NSLayoutConstraint.activate([
-            titleLabel.leadingAnchor.constraint(equalTo: titleView.leadingAnchor, constant: 12),
-            titleLabel.trailingAnchor.constraint(equalTo: titleView.trailingAnchor, constant: -18),
-            titleLabel.topAnchor.constraint(equalTo: titleView.topAnchor, constant: 8),
-            titleLabel.bottomAnchor.constraint(equalTo: titleView.bottomAnchor, constant: -8),
-//            titleView.heightAnchor.constraint(equalToConstant: 32)
-        ])
-        
-        return titleView
-    }
-    
-    private func createOptionView(title: String, button: UIButton) -> UIView {
-        let containerView = UIView()
-        containerView.translatesAutoresizingMaskIntoConstraints = false
-        containerView.backgroundColor = .clear
-        containerView.layer.cornerRadius = 8
-        
-        let label = UILabel()
-        label.text = title
-        label.font = .systemFont(ofSize: 15, weight: .medium)
-        label.textColor = UIColor(Color(hex: 0x544F47))
-        label.translatesAutoresizingMaskIntoConstraints = false
-        
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.backgroundColor = .clear
-        button.addTarget(self, action: #selector(optionTapped(_:)), for: .touchUpInside)
-        
-        containerView.addSubview(button)
-        containerView.addSubview(label)
-        
-        NSLayoutConstraint.activate([
-            button.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            button.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            button.topAnchor.constraint(equalTo: containerView.topAnchor),
-            button.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-            
-            label.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 12),
-            label.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
-            
-//            containerView.heightAnchor.constraint(equalToConstant: 40)
-        ])
-        
-        return containerView
-    }
-    
-    private func selectOption(_ button: UIButton) {
-        // Reset all options
-        [dayOption, weekOption, monthOption, yearOption].forEach { btn in
-            btn?.superview?.backgroundColor = .clear
-        }
-        
-        // Highlight selected option
-        button.superview?.backgroundColor = UIColor(Color(hex: 0xE8E4E0))
-        selectedOption = button
-    }
-    
-    @objc
-    func optionTapped(_ sender: UIButton) {
-        selectOption(sender)
-        
-        // Add haptic feedback
-        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-        impactFeedback.impactOccurred()
-        
-        // Animate selection
-        UIView.animate(withDuration: 0.1, animations: {
-            sender.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
-        }) { _ in
-            UIView.animate(withDuration: 0.1) {
-                sender.transform = CGAffineTransform.identity
-                switch self.selectedOption {
-                case self.dayOption:
-                    self.delegate?.didRequestViewTypeChange(to: .day)
-                case self.weekOption:
-                    self.delegate?.didRequestViewTypeChange(to: .week)
-                case self.monthOption:
-                    self.delegate?.didRequestViewTypeChange(to: .month)
-                case .none:
-                    break
-                case .some(_):
-                    break
-                }
-            }
-        }
-    }
-    
-    // Public method to get selected option
-    func getSelectedOption() -> String? {
-        switch selectedOption {
-        case dayOption: return "Day"
-        case weekOption: return "Week"
-        case monthOption: return "Month"
-        case yearOption: return "Year"
-        default: return nil
-        }
-    }
-}
+//    
+//    // Public API to read selection (kept for compatibility; returns string)
+//    func getSelectedOption() -> String? {
+//        switch currentSelection {
+//        case .day: return "Day"
+//        case .week: return "Week"
+//        case .month: return "Month"
+//        }
+//    }
+//}

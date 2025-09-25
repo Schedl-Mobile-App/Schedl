@@ -5,113 +5,119 @@
 //  Created by David Medina on 5/2/25.
 //
 
-import FirebaseDatabase
+import Firebase
+import FirebaseFirestore
 import FirebaseStorage
+import FirebaseFunctions
 import UIKit
+
+struct SetProfileResult: Codable {
+    let status: String
+    let data: User
+}
 
 class UserService: UserServiceProtocol {
     
     static let shared = UserService()
-    let ref: DatabaseReference
+    let db: Firestore
     let storage: Storage
+    let functions: Functions
     
     private init() {
-        ref = Database.database().reference()
+        db = Firestore.firestore()
         storage = Storage.storage()
+        functions = Functions.functions()
     }
     
     func fetchUser(userId: String) async throws -> User {
-        
-        // Store a reference to the child node of the users node in the Firebase DB
-        let userRef = ref.child("users").child(userId)
-        
-        // getData is a Firebase function that returns a DataSnapshot object
-        let snapshot = try await userRef.getData()
-        
-        // The DataSnapshot object is returned as an object with key value pairs as Strings
-        guard let userData = snapshot.value as? [String: Any] else {
-            throw FirebaseError.failedToFetchUser
-        }
-        
-        // only create a user object if we receive all parameters from the DB
-        if
-            let id = userData["id"] as? String,
-            let username = userData["username"] as? String,
-            let displayName = userData["displayName"] as? String,
-            let email = userData["email"] as? String,
-            let profileImage = userData["profileImage"] as? String,
-            let createdAt = userData["creationDate"] as? Double {
-            
-            let user = User(id: id, username: username, email: email, displayName: displayName, profileImage: profileImage, creationDate: createdAt)
+        let userRef = db.collection("users").document(userId)
+        do {
+            let user = try await userRef.getDocument(as: User.self)
             return user
-            
-        } else {
-            print("Invalid data in the fetch user service method")
+        } catch {
+            print("Invalid data in the fetch user service method: \(error.localizedDescription)")
             throw UserServiceError.invalidData
         }
     }
     
-    func fetchUsers(userIds: [String]) async throws -> [User] {
-        var users: [User] = []
+    func fetchUsers(friendIds: [String]) async throws -> [User] {
         
-        try await withThrowingTaskGroup(of: User.self) { group in
-            for id in userIds {
-                group.addTask {
-                    return try await self.fetchUser(userId: id)
-                }
+        if friendIds.isEmpty { return [] }
+        
+        do {
+            let query = db.collection("public_profiles").whereField("id", in: friendIds)
+            let snapshot = try await query.getDocuments()
+            
+            let friends = try snapshot.documents.compactMap { document in
+                try document.data(as: User.self)
             }
             
-            for try await user in group {
-                users.append(user)
-            }
+            return friends
+        } catch {
+            throw UserServiceError.failedToFetchFriends
         }
-        
-        return users
     }
     
-    func saveNewUser(userId: String, username: String, email: String, displayName: String) async throws -> User {
+    // Bridges Cloud Function callback to async/await and decodes { status, data: User }.
+    func setProfileInfo(userId: String, email: String, username: String, displayName: String) async throws -> User {
+        let payload: [String: Any] = [
+            "userId": userId,
+            "email": email,
+            "displayName": displayName,
+            "username": username,
+        ]
         
-        let userObj = User(id: userId, username: username, email: email, displayName: displayName, profileImage: "", creationDate: Date().timeIntervalSince1970)
-        
-        let encoder = JSONEncoder()
         do {
-            // Encode the User object into JSON data
-            let jsonData = try encoder.encode(userObj)
+            let callableResult = try await functions.httpsCallable("setProfileInfo").call(payload)
             
-            // Convert JSON data to a dictionary
-            guard let jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
-                throw UserServiceError.serializationFailed
+            // callableResult.data is Foundation-bridged Any (NSDictionary/NSArray/etc.)
+            // Expecting: { "status": String, "data": { ...User fields... } }
+            guard let dict = callableResult.data as? [String: Any] else {
+                throw UserServiceError.invalidData
             }
             
-            let updates: [String : Any] = [
-                "/users/\(userId)" : jsonDictionary,
-                "/usernames/\(username)" : userId
-            ]
+            // Serialize to JSON Data
+            let jsonData = try JSONSerialization.data(withJSONObject: dict, options: [])
             
-            // Given that we have valid JSON dictionary, let's write to the DB
-            try await ref.updateChildValues(updates)
-            return userObj
+            // Decode into your Codable wrapper
+            let decoded = try JSONDecoder().decode(SetProfileResult.self, from: jsonData)
             
+            // Optionally, you can check decoded.status if you need to validate success
+            // e.g., guard decoded.status == "success" else { throw FirebaseError.failedToCreateUser }
+            
+            return decoded.data
         } catch {
+            print("The following error occured while setting the profile info: \(error.localizedDescription)")
             throw FirebaseError.failedToCreateUser
         }
-        
     }
     
     func updateProfileImage(newImage: UIImage, userId: String) async throws -> URL {
-        let ref = storage.reference(withPath: userId)
-        
-        guard let imageData = newImage.jpegData(compressionQuality: 0.5) else {
-            throw StorageServiceError.failedToCompressImage
-        }
-        
-        ref.putData(imageData, metadata: nil)
-        let imageUrl = try await ref.downloadURL()
-        
-        if let url = URL(string: imageUrl.absoluteString) {
-            return url
-        } else {
-            throw FirebaseError.failedToDownloadImageURL
+        do {
+            let ref = storage.reference(withPath: "users/\(userId)/profileImages/profile_\(UUID().uuidString).jpg")
+            
+            let metadata = StorageMetadata()
+            metadata.contentType = "image/jpeg"
+            
+            guard let imageData = newImage.jpegData(compressionQuality: 0.5) else {
+                throw StorageServiceError.failedToCompressImage
+            }
+                        
+            _ = try await ref.putDataAsync(imageData, metadata: metadata)
+            let imageUrl = try await ref.downloadURL()
+            
+            let batch = db.batch()
+            let userRef = db.collection("users").document(userId)
+            let profileRef = db.collection("public_profiles").document(userId)
+            
+            batch.updateData(["profileImage": imageUrl.absoluteString], forDocument: userRef)
+            batch.updateData((["profileImage": imageUrl.absoluteString]), forDocument: profileRef)
+            
+            try await batch.commit()
+            
+            return imageUrl
+        } catch {
+            throw UserServiceError.failedToUpdateProfileImage
         }
     }
     
@@ -119,124 +125,141 @@ class UserService: UserServiceProtocol {
         var updates: [String : Any] = [:]
         
         if let username = username {
-            updates["/users/\(userId)/username"] = username
+            updates["username"] = username
         }
         if let profileImage = profileImage {
             let url = try await updateProfileImage(newImage: profileImage, userId: userId)
-            updates["/users/\(userId)/profileImage"] = url.absoluteString
+            updates["profileImage"] = url.absoluteString
         }
         if let email = email {
-            updates["/users/\(userId)/email"] = email
+            updates["email"] = email
         }
         
+        guard updates.isEmpty == false else { return }
+        
         do {
-            try await ref.updateChildValues(updates)
+            try await db.collection("users").document(userId).updateData(updates)
         } catch {
             throw FirebaseError.failedToUpdateUserInfo
         }
     }
     
     func fetchUserIdByUsername(username: String) async throws -> String {
-        let userRef = ref.child("usernames").child(username)
-        let snapshot = try await userRef.getData()
-        
-        guard let userId = snapshot.value as? String else {
-            throw FirebaseError.failedToFetchUserByName
+        // Try a mapping collection first
+        let mappingDoc = try await db.collection("usernames").document(username).getDocument()
+        if let data = mappingDoc.data(), let userId = data["userId"] as? String {
+            return userId
         }
-        
-        return userId
+        // Fallback: query users by username field
+        let query = try await db.collection("users").whereField("username", isEqualTo: username).getDocuments()
+        if let doc = query.documents.first {
+            return doc.documentID
+        }
+        throw FirebaseError.failedToFetchUserByName
     }
     
     func fetchNumberOfFriends(userId: String) async throws -> Int {
-        let userRef = ref.child("users").child(userId).child("friends")
-        let snapshot = try await userRef.getData()
-        
-        guard let friends = snapshot.value as? [String : Any] else {
+        let doc = try await db.collection("users").document(userId).getDocument()
+        guard let data = doc.data() else {
             throw UserServiceError.failedToFetchFriends
         }
-        
+        let friends = data["friends"] as? [String: Any] ?? [:]
         return friends.count
     }
     
     func fetchUserFriends(userId: String) async throws -> [User] {
+        let friendsRef = db.collection("users").document(userId).collection("friends")
+        let snapshot = try await friendsRef.getDocuments()
         
-        let userRef = ref.child("users").child(userId).child("friends")
-        let snapshot = try await userRef.getData()
+        let friendIds = snapshot.documents.compactMap { $0.documentID }
         
-        guard let friendsNode = snapshot.value as? [String: Any] else {
-            return []
-        }
+        guard friendIds.isEmpty == false else { return [] }
         
-        let friendIds = Array(friendsNode.keys)
-        
-        var friends: [User] = []
-        
-        if friendIds.isEmpty {
-            return friends
-        } else {
-            try await withThrowingTaskGroup(of: User.self) { group in
-                for id in friendIds {
-                    group.addTask {
-                        try await self.fetchUser(userId: id)
-                    }
-                }
-                
-                for try await friend in group {
-                    friends.append(friend)
-                }
+        do {
+            let query = db.collection("public_profiles").whereField("id", in: friendIds)
+            let snapshot = try await query.getDocuments()
+            
+            let searchInfo = try snapshot.documents.compactMap { document in
+                return try document.data(as: User.self)
             }
             
-            return friends
+            return searchInfo
+            
+        } catch {
+            throw UserServiceError.invalidData
         }
     }
     
     func isFriend(userId: String, otherUserId: String) async throws -> Bool {
-        let userRef = ref.child("users").child(userId).child("friends")
-        let snapshot = try await userRef.getData()
+        let friendsRef = db.collection("users").document(userId).collection("friends").document(otherUserId)
+        let snapshot = try await friendsRef.getDocument()
         
-        let friendsDict = snapshot.value as? [String: Any] ?? [:]
-        
-        return friendsDict.keys.contains(otherUserId)
+        return snapshot.exists
     }
     
     func fetchUserNameById(userId: String) async throws -> String {
-        let userRef = ref.child("users").child(userId)
-        
-        let snapshot = try await userRef.getData()
-        
-        guard let userData = snapshot.value as? [String: Any] else {
+        do {
+            let ref = db.collection("public_profileS").document(userId)
+            let snapshot = try await ref.getDocument()
+            
+            if let data = snapshot.data() {
+                guard let username = data["username"] as? String else {
+                    throw FirebaseError.failedToFetchUserById
+                }
+                return username
+            } else {
+                // Document exists but no data
+                throw FirebaseError.failedToFetchUserById
+            }
+        } catch {
             throw FirebaseError.failedToFetchUserById
         }
-        
-        let username = userData["username"] as? String ?? ""
-        
-        return username
     }
     
     func fetchDisplayNameById(userId: String) async throws -> String {
-        let userRef = ref.child("users").child(userId)
-        
-        let snapshot = try await userRef.getData()
-        
-        guard let userData = snapshot.value as? [String: Any] else {
+        do {
+            let ref = db.collection("public_profiles").document(userId)
+            let snapshot = try await ref.getDocument()
+            
+            if let data = snapshot.data() {
+                guard let displayName = data["displayName"] as? String else {
+                    throw FirebaseError.failedToFetchUserById
+                }
+                return displayName
+            } else {
+                // Document exists but no data
+                throw FirebaseError.failedToFetchUserById
+            }
+        } catch {
             throw FirebaseError.failedToFetchUserById
         }
-        
-        let displayName = userData["displayName"] as? String ?? ""
-        
-        return displayName
     }
     
-    func fetchFriendIds(userId: String) async throws -> [String] {
-        let userRef = ref.child("users").child(userId).child("friends")
-        let snapshot = try await userRef.getData()
-        
-        guard let friendsDict = snapshot.value as? [String: Any] else {
-            throw UserServiceError.failedToFetchFriends
+    func friendRequestPending(fromUserId: String, toUserId: String) async throws -> Bool {
+        do {
+            // Query A: fromUserId -> toUserId
+            let query = db.collection("friend_requests")
+                .whereField("fromUserId", in: [fromUserId, toUserId])
+                .whereField("toUserId", in: [fromUserId, toUserId])
+                .limit(to: 1)
+
+            let snapshot = try await query.getDocuments()
+            return !snapshot.isEmpty
         }
-        
-        let friendsArray = Array(friendsDict.keys)
-        
-        return friendsArray
+    }
+}
+
+// Async wrapper for Storage putData
+private extension StorageReference {
+    func putDataAsync(_ data: Data, metadata: StorageMetadata?) async throws -> StorageMetadata {
+        try await withCheckedThrowingContinuation { continuation in
+            self.putData(data, metadata: metadata) { metadata, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: metadata ?? StorageMetadata())
+                }
+            }
+        }
     }
 }

@@ -88,7 +88,7 @@ class DayViewController: UIViewController {
     }()
     
     let cellRegistration = UICollectionView.CellRegistration<CollectionViewCell, Int> { cell, indexPath, item in
-        cell.configureUI()
+        cell.setupView()
     }
     
     
@@ -385,17 +385,8 @@ class DayViewController: UIViewController {
     @objc
     func showEventSearchMenu() {
         guard let scheduleViewModel = coordinator?.scheduleViewModel else { return }
-        guard let tabBarState = coordinator?.tabBarState else { return }
-        let shouldReloadDataBinding = Binding<Bool>(
-            get: { scheduleViewModel.shouldReloadData },
-            set: { newValue in
-                scheduleViewModel.shouldReloadData = newValue
-            }
-        )
         
-        
-        let eventSearchSheet = EventSearchView(currentUser: scheduleViewModel.currentUser, scheduleEvents: scheduleViewModel.scheduleEvents, shouldReloadData: shouldReloadDataBinding).environmentObject(tabBarState)
-        
+        let eventSearchSheet = EventSearchView(currentUser: scheduleViewModel.currentUser, scheduleEvents: scheduleViewModel.scheduleEvents)
         let eventSearchSheetViewController = UIHostingController(rootView: eventSearchSheet)
         
         if let sheet = eventSearchSheetViewController.sheetPresentationController {
@@ -476,7 +467,9 @@ class DayViewController: UIViewController {
     @objc
     func showCreateEvent() {
         
-        if let scheduleViewModel = coordinator?.scheduleViewModel {
+        if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState  {
+            
+            guard let schedule = scheduleViewModel.selectedSchedule else { return }
             
 //            self.createEventButton.alpha = 0
 //            self.createEventButton.isHidden = true
@@ -484,23 +477,25 @@ class DayViewController: UIViewController {
             // since event details view expects a Binding type, and we can't explicity
             // use the $ binding syntax within a view controller, we can create a
             // binding type manually
-            let shouldReloadDataBinding = Binding<Bool>(
-                get: { scheduleViewModel.shouldReloadData },
-                set: { newValue in
-                    scheduleViewModel.shouldReloadData = newValue
-                }
-            )
+            
+            tabBarState.hideTabbar = true
                         
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(
-                rootView: CreateEventView(currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding)
+                rootView: CreateEventView(currentUser: scheduleViewModel.currentUser, currentScheduleId: schedule.id)
             )
             
+            let title = UILabel()
+            title.text = "Create Event"
+            let preferredFont = UIFont.preferredFont(forTextStyle: .title3)
+            title.font = UIFont.monospacedSystemFont(ofSize: preferredFont.pointSize, weight: .bold)
+            
+            hostingController.navigationItem.titleView = title
+            hostingController.navigationController?.tabBarController?.setTabBarHidden(true, animated: false)
+            hostingController.navigationController?.isToolbarHidden = false
+            hostingController.navigationController?.hidesBarsOnSwipe = true
             navigationController?.pushViewController(hostingController, animated: true)
-            navigationController?.tabBarController?.isTabBarHidden = true
-            navigationController?.toolbar.isHidden = true
-            navigationController?.toolbar.isTranslucent = true
             
             showCreateOptions()
         }
@@ -515,50 +510,39 @@ class DayViewController: UIViewController {
             // since event details view expects a Binding type, and we can't explicity
             // use the $ binding syntax within a view controller, we can create a
             // binding type manually
-            let shouldReloadDataBinding = Binding<Bool>(
-                get: { scheduleViewModel.shouldReloadData },
-                set: { newValue in
-                    scheduleViewModel.shouldReloadData = newValue
-                }
-            )
             
             tabBarState.hideTabbar = true
                         
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
             // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(
-                rootView: CreateBlendView(currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding).environmentObject(tabBarState)
+                rootView: CreateBlendView(currentUser: scheduleViewModel.currentUser)
             )
             
+            let title = UILabel()
+            title.text = "Create Blend"
+            let preferredFont = UIFont.preferredFont(forTextStyle: .title3)
+            title.font = UIFont.monospacedSystemFont(ofSize: preferredFont.pointSize, weight: .bold)
+            
+            hostingController.navigationItem.titleView = title
+            hostingController.navigationController?.tabBarController?.setTabBarHidden(true, animated: false)
+            hostingController.navigationController?.isToolbarHidden = false
+            hostingController.navigationController?.hidesBarsOnSwipe = true
             navigationController?.pushViewController(hostingController, animated: true)
-            navigationController?.tabBarController?.isTabBarHidden = true
-            navigationController?.toolbar.isHidden = true
-            navigationController?.toolbar.isTranslucent = true
             
             showCreateOptions()
         }
     }
     
     func showEventDetails(event: RecurringEvents) {
-        if let scheduleViewModel = coordinator?.scheduleViewModel {
+        if let scheduleViewModel = coordinator?.scheduleViewModel,
+           let tabBarState = coordinator?.tabBarState {
             
-            // since event details view expects a Binding type, and we can't explicity
-            // use the $ binding syntax within a view controller, we can create a
-            // binding type manually
-            let shouldReloadDataBinding = Binding<Bool>(
-                get: { scheduleViewModel.shouldReloadData },
-                set: { newValue in
-                    scheduleViewModel.shouldReloadData = newValue
-                }
-            )
+            guard let schedule = scheduleViewModel.selectedSchedule else { return }
+            
+            tabBarState.hideTabbar = true
                         
-            // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
-            // inject our viewModel explicitly as an environment object
-            let hostingController = UIHostingController(
-                rootView: EventDetailsView(event: event, currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding)
-            )
             
-            navigationController?.pushViewController(hostingController, animated: true)
         }
     }
     

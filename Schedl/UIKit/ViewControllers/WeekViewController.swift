@@ -9,6 +9,13 @@ import UIKit
 import SwiftUI
 import Combine
 
+struct DayInfo {
+    let date: Date
+    let month: Int          // e.g., 8
+    let year: Int           // e.g., 2025
+    let monthString: String // e.g., "August"
+}
+
 class PassthroughView: UIScrollView {
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let view = super.hitTest(point, with: event)
@@ -51,7 +58,7 @@ class WeekViewController: UIViewController {
     var currentDate = Calendar.current.startOfDay(for: Date())
     
     lazy var numberOfTimeIntervals: Int = 24
-    lazy var numberOfDays: Int = 61
+    lazy var numberOfDays: Int = 361
     lazy var itemWidth: CGFloat = 60
     lazy var itemHeight: CGFloat = 100
     lazy var singleDayGroupWidth: CGFloat = itemWidth
@@ -61,7 +68,7 @@ class WeekViewController: UIViewController {
     
     lazy var displayedYear = Calendar.current.component(.year, from: currentDate)
     lazy var displayedMonth = monthsList[Calendar.current.component(.month, from: currentDate)-1]
-    lazy var datesToAdd: Int = 30
+    lazy var datesToAdd: Int = 180
     
     var dayList: [Date] = []
     
@@ -76,7 +83,7 @@ class WeekViewController: UIViewController {
         
         if (currentDate == centerDate) {
             for index in startIndex...endIndex {
-                dayList.append(Calendar.current.date(byAdding: .day, value: index, to: centerDate) ?? Date())
+                dayList.append(Calendar.current.date(byAdding: .day, value: index, to: currentDate) ?? Date())
             }
         }
     }
@@ -113,7 +120,7 @@ class WeekViewController: UIViewController {
     }()
     
     let cellRegistration = UICollectionView.CellRegistration<CollectionViewCell, Int> { cell, indexPath, item in
-        cell.configureUI()
+        cell.setupView()
     }
     
     lazy var eventContainerScrollView: PassthroughView  = {
@@ -148,6 +155,9 @@ class WeekViewController: UIViewController {
     let createScheduleEventButton = UIButton()
     let createScheduleEventLabel = UILabel()
     
+    let createScheduleButton = UIButton()
+    let createScheduleLabel = UILabel()
+    
     let dayHeader = CollectionViewDaysHeader()
     let timeColumn = CollectionViewTimesColumn()
     
@@ -156,7 +166,7 @@ class WeekViewController: UIViewController {
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.isScrollEnabled = false // We'll control this programmatically
         scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.contentSize = CGSize(width: CGFloat(60*61), height: 60)
+        scrollView.contentSize = CGSize(width: CGFloat(60*361), height: 60)
         return scrollView
     }()
 
@@ -173,15 +183,17 @@ class WeekViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        self.extendedLayoutIncludesOpaqueBars = true
                 
         setupViewModelObservation()
                 
-        view.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
+        view.backgroundColor = UIColor(Color("BackgroundColor"))
                     
         view.addSubview(displayedMonthLabel)
         view.addSubview(displayedYearLabel)
         
-        collectionView.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
+        collectionView.backgroundColor = UIColor(Color("BackgroundColor"))
         
         let longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(showCreateEvent))
         collectionView.addGestureRecognizer(longPressGesture)
@@ -190,14 +202,14 @@ class WeekViewController: UIViewController {
         view.addSubview(collectionView)
         
         overlayView.translatesAutoresizingMaskIntoConstraints = false
-        overlayView.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
+        overlayView.backgroundColor = UIColor(Color("BackgroundColor"))
         
         searchButton.configuration = .borderless()
         searchButton.configuration?.image = UIImage(systemName: "magnifyingglass")
         searchButton.translatesAutoresizingMaskIntoConstraints = false
-        searchButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 16, weight: .medium)
+        searchButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)
         searchButton.addTarget(self, action: #selector(showEventSearchMenu), for: .touchUpInside)
-        searchButton.configuration?.baseForegroundColor = UIColor(Color(hex: 0x857F78))
+        searchButton.configuration?.baseForegroundColor = UIColor(Color("ScheduleButtonColors"))
         
         view.addSubview(searchButton)
                         
@@ -206,17 +218,27 @@ class WeekViewController: UIViewController {
         displayedMonthLabel.font = .systemFont(ofSize: 28, weight: .bold)
         displayedMonthLabel.translatesAutoresizingMaskIntoConstraints = false
         displayedMonthLabel.textAlignment = .right
-        displayedMonthLabel.textColor = UIColor(Color(hex: 0x544F47))
+        displayedMonthLabel.textColor = UIColor(Color("ScheduleMonthText"))
         
         displayedYearLabel.text = "\(displayedYear)"
         displayedYearLabel.font = .systemFont(ofSize: 26, weight: .bold)
         displayedYearLabel.translatesAutoresizingMaskIntoConstraints = false
-        displayedYearLabel.textColor = UIColor(Color(hex: 0x544F47))
+        displayedYearLabel.textColor = UIColor(Color("ScheduleMonthText"))
         
         timeColumn.translatesAutoresizingMaskIntoConstraints = false
         dayHeader.translatesAutoresizingMaskIntoConstraints = false
         
-        createEventButton.configuration = .filled()
+        if #available(iOS 26.0, *) {
+            createEventButton.configuration = .borderedProminent()
+            createBlendButton.configuration = .borderedProminent()
+            createScheduleButton.configuration = .borderedProminent()
+            createScheduleEventButton.configuration = .borderedProminent()
+        } else {
+            createEventButton.configuration = .filled()
+            createBlendButton.configuration = .filled()
+            createScheduleButton.configuration = .filled()
+            createScheduleEventButton.configuration = .filled()
+        }
         createEventButton.configuration?.cornerStyle = .capsule
         createEventButton.configuration?.baseBackgroundColor = buttonColors.backgroundColor
         createEventButton.configuration?.image = UIImage(systemName: "plus")
@@ -225,7 +247,6 @@ class WeekViewController: UIViewController {
         createEventButton.translatesAutoresizingMaskIntoConstraints = false
         createEventButton.addTarget(self, action: #selector(showCreateOptions), for: .touchUpInside)
         
-        createBlendButton.configuration = .filled()
         createBlendButton.configuration?.cornerStyle = .capsule
         createBlendButton.configuration?.baseBackgroundColor = buttonColors.backgroundColor
         createBlendButton.configuration?.image = UIImage(systemName: "person.2.badge.plus")
@@ -239,14 +260,32 @@ class WeekViewController: UIViewController {
         createBlendLabel.text = "Create Blend"
         createBlendLabel.font = .systemFont(ofSize: 12, weight: .bold)
         createBlendLabel.translatesAutoresizingMaskIntoConstraints = false
-        createBlendLabel.textColor = UIColor(Color(hex: 0x544F47))
+        createBlendLabel.textColor = .primaryText
         createBlendLabel.isHidden = true
         createBlendLabel.alpha = 0
         
-        createScheduleEventButton.configuration = .filled()
+        
+        createScheduleButton.configuration?.cornerStyle = .capsule
+        createScheduleButton.configuration?.baseBackgroundColor = buttonColors.backgroundColor
+        createScheduleButton.configuration?.image = UIImage(systemName: "calendar.badge.plus")
+        createScheduleButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+        createScheduleButton.configuration?.baseForegroundColor = buttonColors.foregroundColor
+        createScheduleButton.translatesAutoresizingMaskIntoConstraints = false
+        createScheduleButton.addTarget(self, action: #selector(showCreateSchedule), for: .touchUpInside)
+        createScheduleButton.isHidden = true
+        createScheduleButton.alpha = 0
+        
+        createScheduleLabel.text = "Create Schedule"
+        createScheduleLabel.font = .systemFont(ofSize: 12, weight: .bold)
+        createScheduleLabel.translatesAutoresizingMaskIntoConstraints = false
+        createScheduleLabel.textColor = .primaryText
+        createScheduleLabel.isHidden = true
+        createScheduleLabel.alpha = 0
+        
+        
         createScheduleEventButton.configuration?.cornerStyle = .capsule
         createScheduleEventButton.configuration?.baseBackgroundColor = buttonColors.backgroundColor
-        createScheduleEventButton.configuration?.image = UIImage(systemName: "calendar.badge.plus")
+        createScheduleEventButton.configuration?.image = UIImage(systemName: "calendar.day.timeline.left")
         createScheduleEventButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
         createScheduleEventButton.configuration?.baseForegroundColor = buttonColors.foregroundColor
         createScheduleEventButton.translatesAutoresizingMaskIntoConstraints = false
@@ -254,11 +293,10 @@ class WeekViewController: UIViewController {
         createScheduleEventButton.isHidden = true
         createScheduleEventButton.alpha = 0
         
-        
         createScheduleEventLabel.text = "Create Event"
         createScheduleEventLabel.font = .systemFont(ofSize: 12, weight: .bold)
         createScheduleEventLabel.translatesAutoresizingMaskIntoConstraints = false
-        createScheduleEventLabel.textColor = UIColor(Color(hex: 0x544F47))
+        createScheduleEventLabel.textColor = .primaryText
         createScheduleEventLabel.isHidden = true
         createScheduleEventLabel.alpha = 0
         
@@ -287,6 +325,9 @@ class WeekViewController: UIViewController {
         view.addSubview(createBlendButton)
         view.addSubview(createBlendLabel)
         
+        view.addSubview(createScheduleButton)
+        view.addSubview(createScheduleLabel)
+        
         view.addSubview(createScheduleEventButton)
         view.addSubview(createScheduleEventLabel)
         
@@ -304,7 +345,7 @@ class WeekViewController: UIViewController {
             displayedYearLabel.leadingAnchor.constraint(equalTo: displayedMonthLabel.trailingAnchor, constant: 3),
             displayedYearLabel.bottomAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor),
             
-            searchButton.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            searchButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -5),
             searchButton.bottomAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor),
             
             dayHeaderScrollView.topAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor),
@@ -354,20 +395,34 @@ class WeekViewController: UIViewController {
             widthConstraint,
             heightConstraint,
             
-            createBlendButton.bottomAnchor.constraint(equalTo: createBlendLabel.topAnchor, constant: -5),
-            createBlendButton.centerXAnchor.constraint(equalTo: createBlendLabel.centerXAnchor),
+            // Center createBlendButton on the main button
+            createBlendButton.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
+            createBlendButton.centerYAnchor.constraint(equalTo: createEventButton.centerYAnchor),
             createBlendButton.widthAnchor.constraint(equalToConstant: 50),
             createBlendButton.heightAnchor.constraint(equalToConstant: 50),
             
-            createBlendLabel.bottomAnchor.constraint(equalTo: createEventButton.topAnchor),
-            createBlendLabel.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
+            // Position its label
+            createBlendLabel.topAnchor.constraint(equalTo: createBlendButton.bottomAnchor, constant: 2),
+            createBlendLabel.centerXAnchor.constraint(equalTo: createBlendButton.centerXAnchor),
             
-            createScheduleEventButton.trailingAnchor.constraint(equalTo: createEventButton.leadingAnchor),
+            // Center createScheduleButton on the main button
+            createScheduleButton.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
+            createScheduleButton.centerYAnchor.constraint(equalTo: createEventButton.centerYAnchor),
+            createScheduleButton.widthAnchor.constraint(equalToConstant: 50),
+            createScheduleButton.heightAnchor.constraint(equalToConstant: 50),
+            
+            // Position its label
+            createScheduleLabel.topAnchor.constraint(equalTo: createScheduleButton.bottomAnchor, constant: 2),
+            createScheduleLabel.centerXAnchor.constraint(equalTo: createScheduleButton.centerXAnchor),
+            
+            // Center createScheduleEventButton on the main button
+            createScheduleEventButton.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
             createScheduleEventButton.centerYAnchor.constraint(equalTo: createEventButton.centerYAnchor),
             createScheduleEventButton.widthAnchor.constraint(equalToConstant: 50),
             createScheduleEventButton.heightAnchor.constraint(equalToConstant: 50),
             
-            createScheduleEventLabel.topAnchor.constraint(equalTo: createScheduleEventButton.bottomAnchor, constant: 5),
+            // Position its label
+            createScheduleEventLabel.topAnchor.constraint(equalTo: createScheduleEventButton.bottomAnchor, constant: 2),
             createScheduleEventLabel.centerXAnchor.constraint(equalTo: createScheduleEventButton.centerXAnchor),
         ])
         
@@ -379,6 +434,7 @@ class WeekViewController: UIViewController {
         super.viewWillAppear(animated)
         
         self.navigationController?.tabBarController?.isTabBarHidden = false
+        self.navigationController?.navigationBar.isHidden = false
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -400,7 +456,7 @@ class WeekViewController: UIViewController {
     
     private func updateEventsOverlay() {
         if let scheduleViewModel = coordinator?.scheduleViewModel {
-            eventContainer.populateEventCells(rootVC: self, scheduleViewModel: scheduleViewModel, events: scheduleViewModel.scheduleEvents, centerDate: currentDate, calendarInterval: numberOfDays)
+            eventContainer.populateEventCells(events: scheduleViewModel.scheduleEvents, centerDate: currentDate, calendarInterval: numberOfDays)
         }
     }
     
@@ -417,26 +473,9 @@ class WeekViewController: UIViewController {
     
     @objc func showEventSearchMenu() {
         guard let scheduleViewModel = coordinator?.scheduleViewModel else { return }
-        guard let tabBarState = coordinator?.tabBarState else { return }
         
-        let shouldReloadDataBinding = Binding<Bool>(
-            get: { scheduleViewModel.shouldReloadData },
-            set: { newValue in
-                scheduleViewModel.shouldReloadData = newValue
-            }
-        )
+        let eventSearchSheet = EventSearchView(currentUser: scheduleViewModel.currentUser, scheduleEvents: scheduleViewModel.scheduleEvents)
         
-        let eventSearchSheet = EventSearchView(currentUser: scheduleViewModel.currentUser, scheduleEvents: scheduleViewModel.scheduleEvents, shouldReloadData: shouldReloadDataBinding).environmentObject(tabBarState)
-        
-        let eventSearchSheetViewController = UIHostingController(rootView: eventSearchSheet)
-        
-        if let sheet = eventSearchSheetViewController.sheetPresentationController {
-            sheet.detents = [.medium(), .large()]
-            sheet.prefersGrabberVisible = true
-            sheet.prefersScrollingExpandsWhenScrolledToEdge = false
-        }
-                
-        present(eventSearchSheetViewController, animated: true, completion: nil)
     }
     
     func showCreateEventButton(_ button: UIButton) {
@@ -456,6 +495,7 @@ class WeekViewController: UIViewController {
     
     @objc func showCreateOptions() {
         self.isExpanded.toggle()
+        UISelectionFeedbackGenerator().selectionChanged()
         
         delegate?.closeMenus()
         
@@ -465,11 +505,29 @@ class WeekViewController: UIViewController {
             self.navigationController?.tabBarController?.setTabBarHidden(false, animated: true)
         }
         
-        let blendOffset: CGFloat = -20 // Move up
-        let scheduleOffset: CGFloat = -25 // Move left
+        let radius: CGFloat = 112.5
+        let angle1 = 90.0  * .pi / 180.0 // 90 degrees (Up)
+        let angle2 = 135.0 * .pi / 180.0 // 135 degrees (Diagonal)
+        let angle3 = 180.0 * .pi / 180.0 // 180 degrees (Left)
+
         let secondaryAlpha: CGFloat = isExpanded ? 0 : 1
-        let blendTransform = isExpanded ? .identity : CGAffineTransform(translationX: -5, y: blendOffset)
-        let scheduleTransform = isExpanded ? .identity : CGAffineTransform(translationX: scheduleOffset, y: 0)
+
+        // Calculate the transform for each button
+        // Note: We negate the 'y' value because positive 'y' is down in CGAffineTransform
+        let blendTransform = isExpanded ? .identity : CGAffineTransform(
+            translationX: radius * cos(angle1),
+            y: -radius * sin(angle1)
+        )
+
+        let eventTransform = isExpanded ? .identity : CGAffineTransform(
+            translationX: radius * cos(angle2),
+            y: -radius * sin(angle2)
+        )
+
+        let scheduleTransform = isExpanded ? .identity : CGAffineTransform(
+            translationX: radius * cos(angle3),
+            y: -radius * sin(angle3)
+        )
         
         UIView.animate(withDuration: 0.4, delay: 0, options: [.curveEaseInOut], animations: {
             // Animate main button rotation and size
@@ -486,12 +544,20 @@ class WeekViewController: UIViewController {
             self.createBlendLabel.transform = blendTransform
             self.createBlendLabel.alpha = secondaryAlpha
             self.createBlendLabel.isHidden = false
+            
+            // Animate Blend button and label (move up)
+            self.createScheduleButton.transform = scheduleTransform
+            self.createScheduleButton.alpha = secondaryAlpha
+            self.createScheduleButton.isHidden = false
+            self.createScheduleLabel.transform = scheduleTransform
+            self.createScheduleLabel.alpha = secondaryAlpha
+            self.createScheduleLabel.isHidden = false
 
             // Animate Schedule Event button and label (move left)
-            self.createScheduleEventButton.transform = scheduleTransform
+            self.createScheduleEventButton.transform = eventTransform
             self.createScheduleEventButton.alpha = secondaryAlpha
             self.createScheduleEventButton.isHidden = false
-            self.createScheduleEventLabel.transform = scheduleTransform
+            self.createScheduleEventLabel.transform = eventTransform
             self.createScheduleEventLabel.alpha = secondaryAlpha
             self.createScheduleEventLabel.isHidden = false
         }, completion: { [weak self] _ in
@@ -499,6 +565,8 @@ class WeekViewController: UIViewController {
             if isExpanded {
                 self.createBlendButton.isHidden = true
                 self.createBlendLabel.isHidden = true
+                self.createScheduleButton.isHidden = true
+                self.createScheduleLabel.isHidden = true
                 self.createScheduleEventButton.isHidden = true
                 self.createScheduleEventLabel.isHidden = true
             }
@@ -515,67 +583,48 @@ class WeekViewController: UIViewController {
         
         if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState {
             
-//            self.createEventButton.alpha = 0
-//            self.createEventButton.isHidden = true
+            guard let schedule = scheduleViewModel.selectedSchedule else { return }
             
-            // since event details view expects a Binding type, and we can't explicity
-            // use the $ binding syntax within a view controller, we can create a
-            // binding type manually
-            let shouldReloadDataBinding = Binding<Bool>(
-                get: { scheduleViewModel.shouldReloadData },
-                set: { newValue in
-                    scheduleViewModel.shouldReloadData = newValue
-                }
-            )
-                        
-            // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
-            // inject our viewModel explicitly as an environment object
-            let hostingController = UIHostingController(
-                rootView: CreateEventView(currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding).environmentObject(tabBarState)
-            )
+            tabBarState.hideTabbar = true
             
-            navigationController?.pushViewController(hostingController, animated: true)
-            navigationController?.tabBarController?.isTabBarHidden = true
-            navigationController?.toolbar.isHidden = true
-            navigationController?.toolbar.isTranslucent = true
         }
     }
     
     @objc func showCreateBlend() {
         if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState {
             
-//            self.createEventButton.alpha = 0
-//            self.createEventButton.isHidden = true
+            tabBarState.hideTabbar = true
             
-            // since event details view expects a Binding type, and we can't explicity
-            // use the $ binding syntax within a view controller, we can create a
-            // binding type manually
-            let shouldReloadDataBinding = Binding<Bool>(
-                get: { scheduleViewModel.shouldReloadData },
-                set: { newValue in
-                    scheduleViewModel.shouldReloadData = newValue
-                }
-            )
+            showCreateOptions()
+        }
+    }
+    
+    @objc func showCreateSchedule() {
+        if let scheduleViewModel = coordinator?.scheduleViewModel, let tabBarState = coordinator?.tabBarState {
             
             tabBarState.hideTabbar = true
                         
-            // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
-            // inject our viewModel explicitly as an environment object
             let hostingController = UIHostingController(
-                rootView: CreateBlendView(currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding).environmentObject(tabBarState)
+                rootView: CreateScheduleView(scheduleViewModel: scheduleViewModel)
             )
             
+            let title = UILabel()
+            title.text = "Create Schedule"
+            let preferredFont = UIFont.preferredFont(forTextStyle: .title3)
+            title.font = UIFont.monospacedSystemFont(ofSize: preferredFont.pointSize, weight: .bold)
+
+            hostingController.navigationItem.titleView = title
             navigationController?.pushViewController(hostingController, animated: true)
-            navigationController?.tabBarController?.isTabBarHidden = true
-            navigationController?.toolbar.isHidden = true
-            navigationController?.toolbar.isTranslucent = true
             
             showCreateOptions()
         }
     }
     
     func showEventDetails(event: RecurringEvents) {
-        if let scheduleViewModel = coordinator?.scheduleViewModel {
+        if let scheduleViewModel = coordinator?.scheduleViewModel,
+           let _ = coordinator?.tabBarState {
+            
+            guard let schedule = scheduleViewModel.selectedSchedule else { return }
             
             self.createEventButton.alpha = 0
             self.createEventButton.isHidden = true
@@ -583,33 +632,27 @@ class WeekViewController: UIViewController {
             // since event details view expects a Binding type, and we can't explicity
             // use the $ binding syntax within a view controller, we can create a
             // binding type manually
-            let shouldReloadDataBinding = Binding<Bool>(
-                get: { scheduleViewModel.shouldReloadData },
-                set: { newValue in
-                    scheduleViewModel.shouldReloadData = newValue
-                }
-            )
-                        
+//            let shouldReloadDataBinding = Binding<Bool>(
+//                get: { scheduleViewModel.shouldReloadData },
+//                set: { newValue in
+//                    scheduleViewModel.shouldReloadData = newValue
+//                }
+//            )
+            coordinator?.showEventDetails(event: event, currentUser: scheduleViewModel.currentUser, scheduleId: schedule.id)
+                                    
             // wrap our SwiftUI view in a UIHostingController so that we can display it here in our VC
-            // inject our viewModel explicitly as an environment object
-            let hostingController = UIHostingController(
-                rootView: EventDetailsView(event: event, currentUser: scheduleViewModel.currentUser, shouldReloadData: shouldReloadDataBinding)
-            )
-            
-            hostingController.title = "Search for Events"
-            let doneButton = UIBarButtonItem(
-                title: "Done",
-                style: .done,
-                target: self,
-                action: #selector(doneButtonTapped)
-            )
-
-            hostingController.navigationItem.rightBarButtonItem = doneButton
-            
-            navigationController?.pushViewController(hostingController, animated: true)
-            navigationController?.tabBarController?.isTabBarHidden = true
-            navigationController?.toolbar.isHidden = true
-            navigationController?.toolbar.isTranslucent = true
+//            // inject our viewModel explicitly as an environment object
+//            let hostingController = UIHostingController(
+//                rootView: FullEventDetailsView(recurringEvent: event, currentUser: scheduleViewModel.currentUser, currentScheduleId: schedule.id)
+//            )
+//            
+////            let title = UILabel()
+////            title.text = "Event Details"
+////            let preferredFont = UIFont.preferredFont(forTextStyle: .title3)
+////            title.font = UIFont.monospacedSystemFont(ofSize: preferredFont.pointSize, weight: .bold)
+//            
+////            hostingController.navigationItem.titleView = title
+//            navigationController?.pushViewController(hostingController, animated: true)
         }
     }
     
@@ -677,7 +720,7 @@ class WeekViewController: UIViewController {
         
         let section = NSCollectionLayoutSection(group: horizontalGroupContainer)
         
-        let layout = FixedUICollectionViewCompositionalLayout(section: section)
+        let layout = UICollectionViewCompositionalLayout(section: section)
         
         return layout
     }
@@ -802,7 +845,7 @@ extension WeekViewController: UICollectionViewDelegate {
             showCreateOptions()
         }
         
-        // The user wants to scroll on the X axis
+//        // The user wants to scroll on the X axis
         if scrollView.contentOffset.x > positionScroll.x || scrollView.contentOffset.x < positionScroll.x {
             // Reset the Y position of the scrollView to what it was before scrolling started
             scrollView.contentOffset = CGPoint(x: scrollView.contentOffset.x, y: positionScroll.y)
@@ -918,6 +961,7 @@ extension WeekViewController: UICollectionViewDelegate {
             for cell in self.modifiedCells {
                 if let indexPath = self.collectionView.indexPath(for: cell) {
                     // Force layout update for specific cells
+                    print(indexPath)
                     self.collectionView.reloadItems(at: [indexPath])
                 }
             }

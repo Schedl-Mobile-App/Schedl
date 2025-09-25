@@ -27,6 +27,7 @@ class ScheduleViewModel: ObservableObject {
     @Published var activeSidebar = false
     @Published var partionedEvents: [Double : [Event]]?
     @Published var shouldReloadData = true
+    
     private var addedEventsHandler: (DatabaseHandle, String)?
     private var removedEventsHandler: (DatabaseHandle, String)?
     private var updatedEventsHandler: (DatabaseHandle, String)?
@@ -34,6 +35,8 @@ class ScheduleViewModel: ObservableObject {
     private var addedBlendEventsHandler: [DatabaseHandle: String] = [:]
     private var removedBlendEventsHandler: [DatabaseHandle: String] = [:]
     private var updatedBlendEventsHandler: [DatabaseHandle: String] = [:]
+    
+    private var newBlendHandler: DatabaseHandle?
     
     private var addedScheduleIdToBlendHandler: (DatabaseHandle, String)?
     private var removedScheduleIdToBlendHandler: (DatabaseHandle, String)?
@@ -72,14 +75,14 @@ class ScheduleViewModel: ObservableObject {
 
         // 3. (PERFORMANCE) Create a dictionary for exceptions for O(1) lookups.
         //    This is the most significant performance improvement.
-        let exceptionsByDate = Dictionary(uniqueKeysWithValues: event.exceptions.map { ($0.date, $0) })
+//        let exceptionsByDate = Dictionary(uniqueKeysWithValues: event.exceptions.map { ($0.date, $0) })
         
         // 4. Set up loop variables.
         var generatedEvents: [RecurringEvents] = []
         var cursor = Date(timeIntervalSince1970: event.startDate)
         let finalDate = Date(timeIntervalSince1970: endDate)
         
-        var globalException: EventException? = nil
+//        var globalException: EventException? = nil
 
         // 5. Loop through each day in the range.
         while cursor <= finalDate {
@@ -88,19 +91,19 @@ class ScheduleViewModel: ObservableObject {
             // 6. (DRY) First, check if the current day is a day the event should occur on.
             if repeatedDays.contains(weekIndex) {
                 let cursorTimeInterval = cursor.timeIntervalSince1970
-                var eventForThisDay = event // Default to the original event.
+                let  eventForThisDay = event // Default to the original event.
                 // 7. (OPTIMIZED) Now, check for an exception using our fast dictionary lookup.
-                if let exception = exceptionsByDate[cursorTimeInterval] {
-                    // If an exception exists, create a new modified event instance for this occurrence.
-                    // A helper function makes this much cleaner.
-                    
-                    eventForThisDay = createEventInstance(from: event, with: exception)
-                    if exception.futureEventsIncluded {
-                        globalException = exception
-                    }
-                } else if let globalException = globalException {
-                    eventForThisDay = createEventInstance(from: event, with: globalException)
-                }
+//                if let exception = exceptionsByDate[cursorTimeInterval] {
+//                    // If an exception exists, create a new modified event instance for this occurrence.
+//                    // A helper function makes this much cleaner.
+//                    
+//                    eventForThisDay = createEventInstance(from: event, with: exception)
+//                    if exception.futureEventsIncluded {
+//                        globalException = exception
+//                    }
+//                } else if let globalException = globalException {
+//                    eventForThisDay = createEventInstance(from: event, with: globalException)
+//                }
                 
                 generatedEvents.append(RecurringEvents(date: cursorTimeInterval, event: eventForThisDay))
             }
@@ -119,22 +122,20 @@ class ScheduleViewModel: ObservableObject {
     private func createEventInstance(from baseEvent: Event, with exception: EventException) -> Event {
         return Event(
             id: baseEvent.id,
-            userId: baseEvent.userId,
-            scheduleId: baseEvent.scheduleId,
+            ownerId: baseEvent.ownerId,
             title: exception.title ?? baseEvent.title,
             startDate: baseEvent.startDate, // The series start date remains the same
             startTime: exception.startTime ?? baseEvent.startTime,
             endTime: exception.endTime ?? baseEvent.endTime,
-            creationDate: baseEvent.creationDate,
-            locationName: exception.locationName ?? baseEvent.locationName,
-            locationAddress: exception.locationAddress ?? baseEvent.locationAddress,
-            latitude: exception.latitude ?? baseEvent.latitude,
-            longitude: exception.longitude ?? baseEvent.longitude,
-            taggedUsers: baseEvent.taggedUsers,
+            locationName: exception.locationName ?? baseEvent.location.name,
+            locationAddress: exception.locationAddress ?? baseEvent.location.address,
+            latitude: exception.latitude ?? baseEvent.location.latitude,
+            longitude: exception.longitude ?? baseEvent.location.longitude,
+            invitedUsers: baseEvent.invitedUsers,
             color: exception.color ?? baseEvent.color,
             notes: exception.notes ?? baseEvent.notes,
             // The original exceptions list is carried over for context if needed
-            exceptions: baseEvent.exceptions
+//            exceptions: baseEvent.exceptions
         )
     }
     
@@ -181,7 +182,8 @@ class ScheduleViewModel: ObservableObject {
             
             userBlends = try await scheduleService.fetchAllBlendSchedules(userId: currentUser.id)
             
-            observeScheduleChanges()
+//            observeScheduleChanges()
+//            observeNewBlends()
             
             self.isLoading = false
         } catch {
@@ -196,8 +198,8 @@ class ScheduleViewModel: ObservableObject {
         self.errorMessage = nil
         self.isLoading = true
         do {
-            removeScheduleObservers()
-            removeBlendObservers()
+//            removeScheduleObservers()
+//            removeBlendObservers()
             guard let scheduleObj = userSchedules.first(where: {
                 $0.id == id
             }) else { return }
@@ -233,7 +235,7 @@ class ScheduleViewModel: ObservableObject {
                 }
             }
             
-            observeScheduleChanges()
+            /*observeScheduleChanges*/()
             
             self.isLoading = false
         } catch {
@@ -248,26 +250,24 @@ class ScheduleViewModel: ObservableObject {
         self.errorMessage = nil
         self.isLoading = true
         do {
-            removeScheduleObservers()
-            removeBlendObservers()
-            let fetchedBlendSchedule = try await scheduleService.fetchBlendSchedule(blendId: id)
+//            removeScheduleObservers()
+//            removeBlendObservers()
+            guard let fetchedBlendSchedule = try await scheduleService.fetchBlendSchedule(blendId: id) else { return }
             
             self.selectedBlend = fetchedBlendSchedule
             self.selectedSchedule = nil
             
             var allRecurringEvents: [RecurringEvents] = []
             // Fetch events for each scheduleId in the blend schedule
-            for scheduleId in fetchedBlendSchedule.scheduleIds {
-                let events = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
-//                let userId = events.first(where: {
-//                    fetchedBlendSchedule.invitedUsers.contains($0.userId)
-//                })?.userId ?? ""
-                for event in events {
-//                    var copyEvent = event
-//                    copyEvent.color = selectedBlend?.colors[userId] ?? "F7F4F2"
-//                    print(copyEvent.color)
-                    allRecurringEvents.append(contentsOf: parseRecurringEvents(event: event))
-                }
+            let events = try await eventService.fetchEventsByScheduleIds(scheduleIds: fetchedBlendSchedule.scheduleIds)
+//            let userId = events.first(where: {
+//                fetchedBlendSchedule.invitedUsers.contains($0.userId)
+//            })?.userId ?? ""
+            for event in events {
+//                var copyEvent = event
+//                copyEvent.color = selectedBlend?.colors[userId] ?? "F7F4F2"
+//                print(copyEvent.color)
+                allRecurringEvents.append(contentsOf: parseRecurringEvents(event: event))
             }
             self.scheduleEvents = allRecurringEvents.sorted {
                 let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
@@ -277,7 +277,7 @@ class ScheduleViewModel: ObservableObject {
                 return $0.event.startTime < $1.event.startTime
             }
             
-            observeBlendScheduleChanges()
+//            observeBlendScheduleChanges()
             
             self.isLoading = false
         } catch {
@@ -297,7 +297,7 @@ class ScheduleViewModel: ObservableObject {
             self.userSchedules.append(newSchedule)
             self.selectedSchedule = newSchedule
             
-            observeScheduleChanges()
+//            observeScheduleChanges()
             
             self.isLoading = false
         } catch {
@@ -375,275 +375,306 @@ class ScheduleViewModel: ObservableObject {
         }
     }
     
-    @MainActor
-    func observeScheduleChanges() {
-        
-        guard let scheduleId = selectedSchedule?.id else { return }
-        removeScheduleObservers()
-        
-        let addHandle = scheduleService.observeAddedEvents(scheduleId: scheduleId) { [weak self] eventId in
-            guard let self = self else {
-                return
-            }
-            if self.scheduleEvents.contains(where: { $0.event.id == eventId }) {
-                return
-            } else {
-                Task { @MainActor in
-                    do {
-                        let newlyAddedEvent = try await self.eventService.fetchEvent(eventId: eventId)
-                        let modifiedEvent = self.parseRecurringEvents(event: newlyAddedEvent)
-                        self.scheduleEvents.append(contentsOf: modifiedEvent)
-                    } catch {
-                        self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
-                    }
-                }
-            }
-        }
-        
-        addedEventsHandler = (addHandle, scheduleId)
-        
-        let removeHandle = scheduleService.observeRemovedEvents(scheduleId: scheduleId) { [weak self] eventId in
-            guard let self = self else { return }
-            
-            guard let removedEventIndex = self.scheduleEvents.firstIndex(where: { $0.event.id == eventId }) else { return }
-            self.scheduleEvents.remove(at: removedEventIndex)
-            
-        }
-        
-        removedEventsHandler = (removeHandle, scheduleId)
-        
-        let updateHandle = scheduleService.observeUpdatedEvents(scheduleId: scheduleId, completion: { [weak self] eventId in
-            
-            guard let self = self else {
-                return
-            }
-            
-            Task { @MainActor in
-                do {
-                    let updatedEvent = try await self.eventService.fetchEvent(eventId: eventId)
-                    let modifiedEvent = self.parseRecurringEvents(event: updatedEvent)
-                    self.scheduleEvents.removeAll(where: { $0.event.id == eventId })
-                    self.scheduleEvents.append(contentsOf: modifiedEvent)
-                } catch {
-                    self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
-                }
-            }
-        })
-        
-        updatedEventsHandler = (updateHandle, scheduleId)
-    }
-    
-    func removeScheduleObservers() {
-        if let addHandler = addedEventsHandler {
-            scheduleService.removeScheduleObserver(handle: addHandler.0, scheduleId: addHandler.1)
-            addedEventsHandler = nil
-        }
-        
-        if let removeHandler = removedEventsHandler {
-            scheduleService.removeScheduleObserver(handle: removeHandler.0, scheduleId: removeHandler.1)
-            removedEventsHandler = nil
-        }
-        
-        if let updateHandler = updatedEventsHandler {
-            scheduleService.removeScheduleObserver(handle: updateHandler.0, scheduleId: updateHandler.1)
-            updatedEventsHandler = nil
-        }
-    }
-    
-    func observeBlendScheduleChanges() {
-        guard let blendId = selectedBlend?.id, let scheduleIds = selectedBlend?.scheduleIds else { return }
-        
-        removeBlendObservers()
-        
-        let addedScheduleHandler = scheduleService.observeAddedBlendSchedules(blendId: blendId, completion: { [weak self] scheduleId in
-            guard let self = self else { return }
-            
-            if !self.scheduleEvents.isEmpty {
-                return
-            } else {
-                Task { @MainActor in
-                    do {
-                        self.selectedBlend?.scheduleIds.append(scheduleId)
-                        let fetchedEvents = try await self.eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
-                        
-                        var formattedEvents: [RecurringEvents] = []
-                        if !fetchedEvents.isEmpty {
-                            for event in fetchedEvents {
-                                formattedEvents.append(contentsOf: self.parseRecurringEvents(event: event))
-                                //            let currentDay = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
-                            }
-                            
-                            self.scheduleEvents.append(contentsOf: formattedEvents)
-                            self.scheduleEvents = self.scheduleEvents.sorted {
-                                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
-                                
-                                // if the event start dates are different, then we sort by their date
-                                if dayComparison != .orderedSame {
-                                    return dayComparison == .orderedAscending
-                                }
-                                
-                                // if they occur on the same day, then we sort by their start time
-                                return $0.event.startTime < $1.event.startTime
-                            }
-                        }
-                    } catch {
-                        self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
-                    }
-                }
-                
-                let addHandle = scheduleService.observeAddedEvents(scheduleId: scheduleId) { [weak self] eventId in
-                    guard let self = self else {
-                        return
-                    }
-                    if self.scheduleEvents.contains(where: { $0.event.id == eventId }) {
-                        return
-                    } else {
-                        Task { @MainActor in
-                            do {
-                                let newlyAddedEvent = try await self.eventService.fetchEvent(eventId: eventId)
-                                let modifiedEvent = self.parseRecurringEvents(event: newlyAddedEvent)
-                                self.scheduleEvents.append(contentsOf: modifiedEvent)
-                            } catch {
-                                self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
-                            }
-                        }
-                    }
-                }
-                
-                addedBlendEventsHandler[addHandle] = scheduleId
-                
-                let removeHandle = scheduleService.observeRemovedEvents(scheduleId: scheduleId) { [weak self] eventId in
-                    guard let self = self else { return }
-                    
-                    guard let removedEventIndex = self.scheduleEvents.firstIndex(where: { $0.event.id == eventId }) else { return }
-                    self.scheduleEvents.remove(at: removedEventIndex)
-                    
-                }
-                
-                removedBlendEventsHandler[removeHandle] = scheduleId
-            }
-        })
-
-                                                                              
-        self.addedScheduleIdToBlendHandler = (addedScheduleHandler, blendId)
-        
-        let removedScheduleHandler = self.scheduleService.observeRemovedBlendSchedules(blendId: blendId, completion: { [weak self] scheduleId in
-            guard let self = self else { return }
-            
-            self.selectedBlend?.scheduleIds.removeAll(where: { $0 == scheduleId })
-            self.scheduleEvents.removeAll(where: { $0.event.scheduleId == scheduleId })
-            
-            if self.addedBlendEventsHandler.values.contains(scheduleId) {
-                let handle = self.addedBlendEventsHandler.first(where: { $0.value == scheduleId })!.key
-                self.scheduleService.removeScheduleObserver(handle: handle, scheduleId: scheduleId)
-            }
-            
-            if self.updatedBlendEventsHandler.values.contains(scheduleId) {
-                let handle = self.updatedBlendEventsHandler.first(where: { $0.value == scheduleId })!.key
-                self.scheduleService.removeScheduleObserver(handle: handle, scheduleId: scheduleId)
-            }
-            
-            if self.removedBlendEventsHandler.values.contains(scheduleId) {
-                let handle = self.removedBlendEventsHandler.first(where: { $0.value == scheduleId })!.key
-                self.scheduleService.removeScheduleObserver(handle: handle, scheduleId: scheduleId)
-            }
-        })
-        
-        self.removedScheduleIdToBlendHandler = (removedScheduleHandler, blendId)
-        
-        
-        
-        for id in scheduleIds {
-            let addHandle = scheduleService.observeAddedEvents(scheduleId: id) { [weak self] eventId in
-                guard let self = self else {
-                    return
-                }
-                
-                if self.scheduleEvents.contains(where: { $0.event.id == eventId }) {
-                    return
-                } else {
-                    Task { @MainActor in
-                        do {
-                            print("Being called in the observer blend schedule changes")
-                            let newlyAddedEvent = try await self.eventService.fetchEvent(eventId: eventId)
-                            let modifiedEvent = self.parseRecurringEvents(event: newlyAddedEvent)
-                            self.scheduleEvents.append(contentsOf: modifiedEvent)
-                        } catch {
-                            self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
-                        }
-                    }
-                }
-            }
-            
-            addedBlendEventsHandler[addHandle] = id
-            
-            let removeHandle = scheduleService.observeRemovedEvents(scheduleId: id) { [weak self] eventId in
-                guard let self = self else { return }
-                
-                guard let removedEventIndex = self.scheduleEvents.firstIndex(where: { $0.event.id == eventId }) else { return }
-                self.scheduleEvents.remove(at: removedEventIndex)
-                
-            }
-            
-            removedBlendEventsHandler[removeHandle] = id
-            
-            let updateHandle = scheduleService.observeUpdatedEvents(scheduleId: id, completion: { [weak self] eventId in
-                
-                guard let self = self else {
-                    return
-                }
-                
-                Task { @MainActor in
-                    do {
-                        let updatedEvent = try await self.eventService.fetchEvent(eventId: eventId)
-                        let modifiedEvent = self.parseRecurringEvents(event: updatedEvent)
-                        self.scheduleEvents.removeAll(where: { $0.event.id == eventId })
-                        self.scheduleEvents.append(contentsOf: modifiedEvent)
-                    } catch {
-                        self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
-                    }
-                }
-            })
-            
-            updatedBlendEventsHandler[updateHandle] = id
-            
-        }
-    }
-    
-    func removeBlendObservers() {
-        
-        for handle in addedBlendEventsHandler {
-            scheduleService.removeScheduleObserver(handle: handle.key, scheduleId: handle.value)
-        }
-        
-        addedBlendEventsHandler = [:]
-        
-        for handle in updatedBlendEventsHandler {
-            scheduleService.removeScheduleObserver(handle: handle.key, scheduleId: handle.value)
-        }
-        
-        updatedBlendEventsHandler = [:]
-        
-        for handle in removedBlendEventsHandler {
-            scheduleService.removeScheduleObserver(handle: handle.key, scheduleId: handle.value)
-        }
-        
-        removedBlendEventsHandler = [:]
-        
-        if let addHandle = addedScheduleIdToBlendHandler {
-            scheduleService.removeBlendObserver(handle: addHandle.0, blendId: addHandle.1)
-            addedScheduleIdToBlendHandler = nil
-        }
-        
-        if let removeHandle = removedScheduleIdToBlendHandler {
-            scheduleService.removeBlendObserver(handle: removeHandle.0, blendId: removeHandle.1)
-            removedScheduleIdToBlendHandler = nil
-        }
-    }
-    
-    deinit {
-        removeScheduleObservers()
-        removeBlendObservers()
-    }
+//    @MainActor
+//    func observeScheduleChanges() {
+//        
+//        guard let scheduleId = selectedSchedule?.id else { return }
+//        removeScheduleObservers()
+//        
+//        let addHandle = scheduleService.observeAddedEvents(scheduleId: scheduleId) { [weak self] eventId in
+//            guard let self = self else {
+//                return
+//            }
+//            if self.scheduleEvents.contains(where: { $0.event.id == eventId }) {
+//                return
+//            } else {
+//                Task { @MainActor in
+//                    do {
+//                        let newlyAddedEvent = try await self.eventService.fetchEvent(eventId: eventId)
+//                        let modifiedEvent = self.parseRecurringEvents(event: newlyAddedEvent)
+//                        self.scheduleEvents.append(contentsOf: modifiedEvent)
+//                    } catch {
+//                        self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
+//                    }
+//                }
+//            }
+//        }
+//        
+//        addedEventsHandler = (addHandle, scheduleId)
+//        
+//        let removeHandle = scheduleService.observeRemovedEvents(scheduleId: scheduleId) { [weak self] eventId in
+//            guard let self = self else { return }
+//            
+//            guard let removedEventIndex = self.scheduleEvents.firstIndex(where: { $0.event.id == eventId }) else { return }
+//            self.scheduleEvents.remove(at: removedEventIndex)
+//            
+//        }
+//        
+//        removedEventsHandler = (removeHandle, scheduleId)
+//        
+//        let updateHandle = scheduleService.observeUpdatedEvents(scheduleId: scheduleId, completion: { [weak self] eventId in
+//            
+//            guard let self = self else {
+//                return
+//            }
+//            
+//            Task { @MainActor in
+//                do {
+//                    let updatedEvent = try await self.eventService.fetchEvent(eventId: eventId)
+//                    let modifiedEvent = self.parseRecurringEvents(event: updatedEvent)
+//                    self.scheduleEvents.removeAll(where: { $0.event.id == eventId })
+//                    self.scheduleEvents.append(contentsOf: modifiedEvent)
+//                } catch {
+//                    self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
+//                }
+//            }
+//        })
+//        
+//        updatedEventsHandler = (updateHandle, scheduleId)
+//    }
+//    
+//    func removeScheduleObservers() {
+//        if let addHandler = addedEventsHandler {
+//            scheduleService.removeScheduleObserver(handle: addHandler.0, scheduleId: addHandler.1)
+//            addedEventsHandler = nil
+//        }
+//        
+//        if let removeHandler = removedEventsHandler {
+//            scheduleService.removeScheduleObserver(handle: removeHandler.0, scheduleId: removeHandler.1)
+//            removedEventsHandler = nil
+//        }
+//        
+//        if let updateHandler = updatedEventsHandler {
+//            scheduleService.removeScheduleObserver(handle: updateHandler.0, scheduleId: updateHandler.1)
+//            updatedEventsHandler = nil
+//        }
+//    }
+//    
+//    func observeNewBlends() {
+//        removeNewBlendObservers()
+//        
+//        let addHandle = scheduleService.observeCreatedBlend(userId: currentUser.id, completion: { [weak self] blendId in
+//            guard let self = self else {
+//                return
+//            }
+//            if self.userBlends.contains(where: { $0.id == blendId }) {
+//                return
+//            } else {
+//                Task { @MainActor in
+//                    do {
+//                        let newBlend = try await self.scheduleService.fetchBlendSchedule(blendId: blendId)
+//                        self.userBlends.append(newBlend)
+//                    } catch {
+//                        self.errorMessage = "Unable to load blend schedule: \(error.localizedDescription)"
+//                    }
+//                }
+//            }
+//        })
+//        
+//        newBlendHandler = addHandle
+//    }
+//    
+//    func observeBlendScheduleChanges() {
+//        guard let blendId = selectedBlend?.id, let scheduleIds = selectedBlend?.scheduleIds else { return }
+//        
+//        removeBlendObservers()
+//        
+//        let addedScheduleHandler = scheduleService.observeAddedBlendSchedules(blendId: blendId, completion: { [weak self] scheduleId in
+//            guard let self = self else { return }
+//            
+//            if !self.scheduleEvents.isEmpty {
+//                return
+//            } else {
+//                Task { @MainActor in
+//                    do {
+//                        self.selectedBlend?.scheduleIds.append(scheduleId)
+//                        let fetchedEvents = try await self.eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
+//                        
+//                        var formattedEvents: [RecurringEvents] = []
+//                        if !fetchedEvents.isEmpty {
+//                            for event in fetchedEvents {
+//                                formattedEvents.append(contentsOf: self.parseRecurringEvents(event: event))
+//                                //            let currentDay = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+//                            }
+//                            
+//                            self.scheduleEvents.append(contentsOf: formattedEvents)
+//                            self.scheduleEvents = self.scheduleEvents.sorted {
+//                                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+//                                
+//                                // if the event start dates are different, then we sort by their date
+//                                if dayComparison != .orderedSame {
+//                                    return dayComparison == .orderedAscending
+//                                }
+//                                
+//                                // if they occur on the same day, then we sort by their start time
+//                                return $0.event.startTime < $1.event.startTime
+//                            }
+//                        }
+//                    } catch {
+//                        self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
+//                    }
+//                }
+//                
+//                let addHandle = scheduleService.observeAddedEvents(scheduleId: scheduleId) { [weak self] eventId in
+//                    guard let self = self else {
+//                        return
+//                    }
+//                    if self.scheduleEvents.contains(where: { $0.event.id == eventId }) {
+//                        return
+//                    } else {
+//                        Task { @MainActor in
+//                            do {
+//                                let newlyAddedEvent = try await self.eventService.fetchEvent(eventId: eventId)
+//                                let modifiedEvent = self.parseRecurringEvents(event: newlyAddedEvent)
+//                                self.scheduleEvents.append(contentsOf: modifiedEvent)
+//                            } catch {
+//                                self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
+//                            }
+//                        }
+//                    }
+//                }
+//                
+//                addedBlendEventsHandler[addHandle] = scheduleId
+//                
+//                let removeHandle = scheduleService.observeRemovedEvents(scheduleId: scheduleId) { [weak self] eventId in
+//                    guard let self = self else { return }
+//                    
+//                    guard let removedEventIndex = self.scheduleEvents.firstIndex(where: { $0.event.id == eventId }) else { return }
+//                    self.scheduleEvents.remove(at: removedEventIndex)
+//                    
+//                }
+//                
+//                removedBlendEventsHandler[removeHandle] = scheduleId
+//            }
+//        })
+//
+//                                                                              
+//        self.addedScheduleIdToBlendHandler = (addedScheduleHandler, blendId)
+//        
+//        let removedScheduleHandler = self.scheduleService.observeRemovedBlendSchedules(blendId: blendId, completion: { [weak self] scheduleId in
+//            guard let self = self else { return }
+//            
+//            self.selectedBlend?.scheduleIds.removeAll(where: { $0 == scheduleId })
+//            self.scheduleEvents.removeAll(where: { $0.event.scheduleId == scheduleId })
+//            
+//            if self.addedBlendEventsHandler.values.contains(scheduleId) {
+//                let handle = self.addedBlendEventsHandler.first(where: { $0.value == scheduleId })!.key
+//                self.scheduleService.removeScheduleObserver(handle: handle, scheduleId: scheduleId)
+//            }
+//            
+//            if self.updatedBlendEventsHandler.values.contains(scheduleId) {
+//                let handle = self.updatedBlendEventsHandler.first(where: { $0.value == scheduleId })!.key
+//                self.scheduleService.removeScheduleObserver(handle: handle, scheduleId: scheduleId)
+//            }
+//            
+//            if self.removedBlendEventsHandler.values.contains(scheduleId) {
+//                let handle = self.removedBlendEventsHandler.first(where: { $0.value == scheduleId })!.key
+//                self.scheduleService.removeScheduleObserver(handle: handle, scheduleId: scheduleId)
+//            }
+//        })
+//        
+//        self.removedScheduleIdToBlendHandler = (removedScheduleHandler, blendId)
+//        
+//        
+//        
+//        for id in scheduleIds {
+//            let addHandle = scheduleService.observeAddedEvents(scheduleId: id) { [weak self] eventId in
+//                guard let self = self else {
+//                    return
+//                }
+//                
+//                if self.scheduleEvents.contains(where: { $0.event.id == eventId }) {
+//                    return
+//                } else {
+//                    Task { @MainActor in
+//                        do {
+//                            print("Being called in the observer blend schedule changes")
+//                            let newlyAddedEvent = try await self.eventService.fetchEvent(eventId: eventId)
+//                            let modifiedEvent = self.parseRecurringEvents(event: newlyAddedEvent)
+//                            self.scheduleEvents.append(contentsOf: modifiedEvent)
+//                        } catch {
+//                            self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
+//                        }
+//                    }
+//                }
+//            }
+//            
+//            addedBlendEventsHandler[addHandle] = id
+//            
+//            let removeHandle = scheduleService.observeRemovedEvents(scheduleId: id) { [weak self] eventId in
+//                guard let self = self else { return }
+//                
+//                guard let removedEventIndex = self.scheduleEvents.firstIndex(where: { $0.event.id == eventId }) else { return }
+//                self.scheduleEvents.remove(at: removedEventIndex)
+//                
+//            }
+//            
+//            removedBlendEventsHandler[removeHandle] = id
+//            
+//            let updateHandle = scheduleService.observeUpdatedEvents(scheduleId: id, completion: { [weak self] eventId in
+//                
+//                guard let self = self else {
+//                    return
+//                }
+//                
+//                Task { @MainActor in
+//                    do {
+//                        let updatedEvent = try await self.eventService.fetchEvent(eventId: eventId)
+//                        let modifiedEvent = self.parseRecurringEvents(event: updatedEvent)
+//                        self.scheduleEvents.removeAll(where: { $0.event.id == eventId })
+//                        self.scheduleEvents.append(contentsOf: modifiedEvent)
+//                    } catch {
+//                        self.errorMessage = "Unable to load schedule events: \(error.localizedDescription)"
+//                    }
+//                }
+//            })
+//            
+//            updatedBlendEventsHandler[updateHandle] = id
+//            
+//        }
+//    }
+//    
+//    func removeBlendObservers() {
+//        
+//        for handle in addedBlendEventsHandler {
+//            scheduleService.removeScheduleObserver(handle: handle.key, scheduleId: handle.value)
+//        }
+//        
+//        addedBlendEventsHandler = [:]
+//        
+//        for handle in updatedBlendEventsHandler {
+//            scheduleService.removeScheduleObserver(handle: handle.key, scheduleId: handle.value)
+//        }
+//        
+//        updatedBlendEventsHandler = [:]
+//        
+//        for handle in removedBlendEventsHandler {
+//            scheduleService.removeScheduleObserver(handle: handle.key, scheduleId: handle.value)
+//        }
+//        
+//        removedBlendEventsHandler = [:]
+//        
+//        if let addHandle = addedScheduleIdToBlendHandler {
+//            scheduleService.removeBlendObserver(handle: addHandle.0, blendId: addHandle.1)
+//            addedScheduleIdToBlendHandler = nil
+//        }
+//        
+//        if let removeHandle = removedScheduleIdToBlendHandler {
+//            scheduleService.removeBlendObserver(handle: removeHandle.0, blendId: removeHandle.1)
+//            removedScheduleIdToBlendHandler = nil
+//        }
+//    }
+//    
+//    func removeNewBlendObservers() {
+//        if let handle = newBlendHandler {
+//            scheduleService.removeNewBlendObserver(handle: handle, userId: currentUser.id)
+//            newBlendHandler = nil
+//        }
+//    }
+//    
+//    deinit {
+//        removeScheduleObservers()
+//        removeBlendObservers()
+//    }
 }
 

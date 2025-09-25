@@ -9,205 +9,148 @@ import SwiftUI
 
 struct EditEventView: View {
     
-    @ObservedObject var eventViewModel: EventViewModel
+    @ObservedObject var vm: EventViewModel
     @Environment(\.dismiss) var dismiss
         
     @FocusState var isFocused: EventInfoFields?
     
     var body: some View {
         ZStack {
-            Color(hex: 0xf7f4f2)
+            Color("BackgroundColor")
                 .ignoresSafeArea()
             
-            VStack(alignment: .center, spacing: 15) {
-                ZStack {
-                    Text("Edit Event")
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .frame(maxWidth: .infinity, alignment: .center)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .center, spacing: 10) {
                     
-                    HStack {
-                        Button(action: {
-                            dismiss()
-                        }, label: {
-                            Image(systemName: "chevron.left")
-                                .fontWeight(.bold)
-                                .imageScale(.large)
-                                .labelStyle(.iconOnly)
-                                .foregroundStyle(Color.primary)
-                        })
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            Task {
-//                                await eventViewModel.deleteEvent()
-                                if eventViewModel.shouldDismiss {
-                                    dismiss()
-                                }
-                            }
-                        }, label: {
-                            Image(systemName: "trash")
-                                .fontWeight(.bold)
-                                .font(.system(size: 24))
-                                .labelStyle(.iconOnly)
-                                .foregroundStyle(Color(hex: 0x333333))
-                        })
-                    }
-                }
-                .padding([.horizontal, .top])
-                .frame(maxWidth: .infinity)
-                
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .center, spacing: 10) {
-                        
+                    VStack(spacing: 0) {
                         // view for event title input
-                        EventTitleView(title: $eventViewModel.title, isFocused: $isFocused, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, titleError: $eventViewModel.titleError)
+                        EventTitleView(title: $vm.title, isFocused: $isFocused, hasTriedSubmitting: $vm.hasTriedSubmitting, titleError: $vm.titleError)
                         
                         // view for event date and recurring days seletion
-                        EventDateView(eventDate: $eventViewModel.eventDate, eventEndDate: $eventViewModel.eventEndDate, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, startDateError: $eventViewModel.startDateError, endDateError: $eventViewModel.endDateError, repeatedDays: $eventViewModel.repeatedDays)
+                        EventDateView(eventDate: $vm.eventDate, eventEndDate: $vm.eventEndDate, hasTriedSubmitting: $vm.hasTriedSubmitting, startDateError: $vm.startDateError, endDateError: $vm.endDateError, repeatedDays: $vm.repeatedDays)
                         
                         // view for start time selection
-                        EventStartTimeView(startTime: $eventViewModel.startTime, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, startTimeError: $eventViewModel.startTimeError)
+                        EventStartTimeView(startTime: $vm.startTime, hasTriedSubmitting: $vm.hasTriedSubmitting, startTimeError: $vm.startTimeError)
                         
                         // view for end time selection
-                        EventEndTimeView(endTime: $eventViewModel.endTime, endTimeError: $eventViewModel.endTimeError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting)
+                        EventEndTimeView(endTime: $vm.endTime, endTimeError: $vm.endTimeError, hasTriedSubmitting: $vm.hasTriedSubmitting)
                         
                         // view for location selection
-                        EventLocationView(selectedPlacemark: $eventViewModel.selectedPlacemark, locationError: $eventViewModel.locationError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting)
+                        EventLocationView(selectedPlacemark: $vm.selectedPlacemark, locationError: $vm.locationError, hasTriedSubmitting: $vm.hasTriedSubmitting)
                         
                         // view for inviting friends selection
-                        EventInviteesView(selectedFriends: $eventViewModel.selectedFriends, showInviteUsersSheet: $eventViewModel.showInviteUsersSheet)
-                            .sheet(isPresented: $eventViewModel.showInviteUsersSheet) {
-                                AddInvitedUsers(eventViewModel: eventViewModel)
+                        EventInviteesView(selectedFriends: $vm.selectedFriends, showInviteUsersSheet: $vm.showInviteUsersSheet)
+                            .sheet(isPresented: $vm.showInviteUsersSheet) {
+                                AddInvitedUsers(currentUser: vm.currentUser, selectedFriends: $vm.selectedFriends)
                             }
                         
                         // view for event notes input
-                        EventNotesView(notes: $eventViewModel.notes, notesError: $eventViewModel.notesError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
+                        EventNotesView(notes: $vm.notes, notesError: $vm.notesError, hasTriedSubmitting: $vm.hasTriedSubmitting, isFocused: $isFocused)
                         
-                        EventColorView(eventColor: $eventViewModel.eventColor)
-                        
-                        VStack(spacing: 6) {
-                            Text(eventViewModel.submitError)
-                                .font(.footnote)
-                                .foregroundStyle(.red)
-                                .opacity(eventViewModel.hasTriedSubmitting && !eventViewModel.submitError.isEmpty ? 1 : 0)
-                                .animation(.easeInOut(duration: 0.2), value: eventViewModel.hasTriedSubmitting)
-                            
-                            Button(action: {
-                                if eventViewModel.isRecurringEvent {
-                                    eventViewModel.showSaveChangesModal.toggle()
-                                } else {
-                                    Task {
-                                        await eventViewModel.updateEvent()
-                                    }
-                                }
-                            }, label: {
-                                Text("Save Changes")
-                                    .foregroundColor(Color(hex: 0xf7f4f2))
-                                    .font(.headline)
-                                    .fontWeight(.bold)
-                                    .fontDesign(.monospaced)
-                                    .tracking(0.1)
-                            })
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color(hex: 0x3C859E))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .padding(.vertical, 8)
-                        }
+                        EventColorView(eventColor: $vm.eventColor)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.vertical)
-                    .padding(.horizontal, 25)
-                    .simultaneousGesture(TapGesture().onEnded {
-                        if eventViewModel.hasTriedSubmitting {
-                            print("In sim gesture")
-                            eventViewModel.hasTriedSubmitting = false
-                        }
-                    })
+                    
+                    VStack(spacing: 6) {
+                        Text(vm.submitError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .opacity(vm.hasTriedSubmitting && !vm.submitError.isEmpty ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.2), value: vm.hasTriedSubmitting)
+                        
+                        Button(action: {
+                            if !vm.checkValidInputs() { return }
+                            if vm.shouldShowEditRecurringModal {
+                                vm.showSaveChangesModal = true
+                            } else {
+                                Task {
+                                    await vm.updateEvent()
+                                }
+                            }
+                        }, label: {
+                            Text("Save Changes")
+                                .foregroundColor(Color.white)
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .fontDesign(.monospaced)
+                                .tracking(-0.25)
+                        })
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color("ButtonColors"))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .padding(.vertical, 8)
+                    }
                 }
-                .defaultScrollAnchor(.top, for: .initialOffset)
-                .defaultScrollAnchor(.bottom, for: .sizeChanges)
-                .scrollDismissesKeyboard(.interactively)
-                .onTapGesture {
-                    isFocused = nil
-                }
-                .padding(.top)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.vertical)
+                .padding(.horizontal, 25)
+                .simultaneousGesture(TapGesture().onEnded {
+                    if vm.hasTriedSubmitting {
+                        vm.hasTriedSubmitting = false
+                        vm.resetErrors()
+                    }
+                })
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            
-            ZStack {
-                Color(.black.opacity(0.7))
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture {}
-                
-                SaveEditedEventModal(eventViewModel: eventViewModel)
+            .defaultScrollAnchor(.top, for: .initialOffset)
+            .scrollDismissesKeyboard(.interactively)
+            .onTapGesture {
+                isFocused = nil
             }
-            .zIndex(1)
-            .hidden(!eventViewModel.showSaveChangesModal)
-            .allowsHitTesting(eventViewModel.showSaveChangesModal)
+            .padding(.top)
         }
-        .navigationBarBackButtonHidden(true)
+        .alert(isPresented: $vm.showDeleteEventModal) {
+            Alert(title: Text("Delete Event"),
+                  message: Text("If you delete this event, you and other invited users will no longer be able to see it. This cannot be undone."),
+                  primaryButton: .cancel(Text("Cancel"), action: {
+                vm.showDeleteEventModal = false
+            }), secondaryButton: .destructive(Text("Delete").foregroundStyle(Color("ErrorTextColor")), action: {
+                Task {
+                    await vm.deleteEvent()
+                    vm.showDeleteEventModal = false
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        vm.shouldDismissToRoot = true
+                    }
+                }
+            }))
+        }
+        .onAppear {
+            vm.setInitialValues()
+        }
+        .onDisappear {
+            vm.resetErrors()
+        }
+        .navigationBarBackButtonHidden(false)
         .toolbar(.hidden, for: .tabBar)
-        .onChange(of: eventViewModel.shouldDismiss) {
-            dismiss()
-        }
+        .modifier(EditEventViewModifier(showDeleteEventModal: $vm.showDeleteEventModal))
     }
 }
 
-struct SaveEditedEventModal: View {
+struct EditEventViewModifier: ViewModifier {
     
-    @ObservedObject var eventViewModel: EventViewModel
+    @Binding var showDeleteEventModal: Bool
     
-    var body: some View {
-        VStack(alignment: .center, spacing: 20) {
-            Text("Do you want to save these changes to all future events or just this one?")
-                .font(.system(size: 16, weight: .medium, design: .monospaced))
-                .multilineTextAlignment(.center)
-            HStack(alignment: .center, spacing: 15) {
-                Button(action: {
-                    Task {
-                        await eventViewModel.updateRecurringEvent()
-                    }
-                }) {
-                    Text("Single")
-                        .font(.system(size: 16, weight: .medium, design: .monospaced))
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(Color(hex: 0x333333))
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Edit Event")
+                        .foregroundStyle(Color("PrimaryText"))
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .fontDesign(.monospaced)
                 }
-                .frame(maxWidth: .infinity, maxHeight: 50)
-                .background {
-                    RoundedRectangle(cornerRadius: 15)
-                        .fill(Color.black.opacity(0.1))
-                }
-                
-                Button(action: {
-                    Task {
-                        await eventViewModel.updateAllFutureRecurringEvent()
-                    }
-                }) {
-                    Text("All")
-                        .font(.system(size: 16, weight: .medium, design: .monospaced))
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(Color(hex: 0xf7f4f2))
-                }
-                .frame(maxWidth: .infinity, maxHeight: 50)
-                .background {
-                    RoundedRectangle(cornerRadius: 15)
-                        .fill(Color(hex: 0x6d8a96))
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: {
+                        showDeleteEventModal = true
+                    }, label: {
+                        Image(systemName: "trash")
+                            .fontWeight(.bold)
+                            .font(.system(size: 20))
+                            .labelStyle(.iconOnly)
+                            .foregroundStyle(Color("IconColors"))
+                    })
                 }
             }
-        }
-        .padding()
-        .background {
-            RoundedRectangle(cornerRadius: 15)
-                .fill(Color(hex: 0xe0dad5))
-        }
-        .padding(.horizontal, UIScreen.main.bounds.width * 0.075)
     }
 }

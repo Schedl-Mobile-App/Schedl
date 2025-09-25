@@ -6,218 +6,328 @@
 //
 
 import SwiftUI
+import Kingfisher
 
-struct UserSearchCell: View {
-   
-    @Binding var selectedUser: User?
-    let searchInfo: SearchInfo
-    @Binding var navigateToUserProfile: Bool
+struct UserCell: View {
+    
+    let user: User
+    @State private var imageLoadingError = false
 
     var body: some View {
-        Button(action: {
-            selectedUser = searchInfo.user
-            navigateToUserProfile = true
-        }) {
-           HStack(spacing: 15) {
-               Circle()
-                   .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
-                   .background(Color.clear)
-                   .frame(width: 55.75, height: 55.75)
-                   .overlay {
-                       AsyncImage(url: URL(string: searchInfo.user.profileImage)) { image in
-                           image
-                               .resizable()
-                               .scaledToFill()
-                               .frame(width: 54, height: 54)
-                               .clipShape(Circle())
-                       } placeholder: {
-                           // Show while loading or if image fails to load
-                           Circle()
-                               .fill(Color(hex: 0xe0dad5))
-                               .frame(width: 54, height: 54)
-                               .overlay {
-                                   Text("\(searchInfo.user.displayName.first?.uppercased() ?? "J")\(searchInfo.user.displayName.last?.uppercased() ?? "D")")
-                                       .font(.title3)
-                                       .fontWeight(.bold)
-                                       .fontDesign(.monospaced)
-                                       .tracking(-0.25)
-                                       .foregroundStyle(Color(hex: 0x333333))
-                                       .multilineTextAlignment(.center)
-                               }
-                       }
-                   }
-               
-               VStack(alignment: .leading, spacing: 1) {
-                   Text("\(searchInfo.user.displayName)")
-                       .font(.subheadline)
-                       .fontWeight(.bold)
-                       .fontDesign(.monospaced)
-                       .tracking(-0.10)
-                       .foregroundStyle(Color(hex: 0x333333))
-                       .multilineTextAlignment(.leading)
-                   HStack(spacing: 0) {
-                       Text("@")
-                           .font(.footnote)
-                           .fontWeight(.medium)
-                           .fontDesign(.rounded)
-                           .foregroundStyle(Color.black.opacity(0.50))
-                           .multilineTextAlignment(.leading)
-                       Text("\(searchInfo.user.username)")
-                           .font(.footnote)
-                           .fontWeight(.medium)
-                           .fontDesign(.rounded)
-                           .tracking(1.05)
-                           .foregroundStyle(Color.black.opacity(0.50))
-                           .multilineTextAlignment(.leading)
-                   }
-                   Text("\(searchInfo.numOfFriends) friends | \(searchInfo.numOfPosts) posts")
-                       .font(.footnote)
-                       .fontWeight(.medium)
-                       .fontDesign(.monospaced)
-                       .tracking(-0.25)
-                       .fixedSize()
-                       .foregroundStyle(Color(hex: 0x333333))
-                       .multilineTextAlignment(.leading)
-               }
-               .fixedSize(horizontal: true, vertical: false)
-           }
-           .frame(maxWidth: .infinity, alignment: .leading)
-           .clipShape(RoundedRectangle(cornerRadius: 12))
-           .padding(.horizontal)
-       }
+        HStack(spacing: 15) {
+            ThumbnailProfileImageView(profileImage: user.profileImage, displayName: user.displayName)
+                .alignmentGuide(.listRowSeparatorLeading) {
+                    $0[.leading]
+                }
+            
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(user.displayName)")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
+                    .foregroundStyle(Color("PrimaryText"))
+                    .multilineTextAlignment(.leading)
+                HStack(spacing: 0) {
+                    Text("@")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .fontDesign(.rounded)
+                        .foregroundStyle(Color("SecondaryText"))
+                        .multilineTextAlignment(.leading)
+                    Text("\(user.username)")
+                        .font(.footnote)
+                        .fontWeight(.medium)
+                        .fontDesign(.rounded)
+                        .tracking(1.05)
+                        .foregroundStyle(Color("SecondaryText"))
+                        .multilineTextAlignment(.leading)
+                }
+                Text("\(user.numOfFriends) friends | \(user.numOfPosts) posts")
+                    .font(.footnote)
+                    .fontWeight(.medium)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
+                    .foregroundStyle(Color("PrimaryText"))
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            Spacer()
+            Image(systemName: "chevron.right")
+                .imageScale(.small)
+                .alignmentGuide(.listRowSeparatorTrailing) {
+                    $0[.trailing]
+                }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
+
+struct RecentSearches {
+    static private let key = "recent_searches"
+    static private let maxCount = 10
+    
+    static func save(_ searchedUser: User) {
+        var searches = getRecentSearches()
+        
+        // Remove if already exists (to move to front)
+        searches.removeAll { $0.id == searchedUser.id }
+        
+        // Add to front
+        searches.insert(searchedUser, at: 0)
+        
+        // Limit count
+        if searches.count > maxCount {
+            searches = Array(searches.prefix(maxCount))
+        }
+        
+        let encoder = JSONEncoder()
+        guard let encodedData = try? encoder.encode(searches) else {
+            return
+        }
+        
+        UserDefaults.standard.set(encodedData, forKey: key)
+    }
+    
+    static func delete(at offsets: IndexSet) {
+        var searches = getRecentSearches()
+        
+        searches.remove(atOffsets: offsets)
+        
+        let encoder = JSONEncoder()
+        guard let encodedData = try? encoder.encode(searches) else {
+            return
+        }
+        
+        UserDefaults.standard.set(encodedData, forKey: key)
+    }
+    
+    static func getRecentSearches() -> [User] {
+        let decoder = JSONDecoder()
+        
+        if let encodedData = UserDefaults.standard.data(forKey: key) {
+            guard let recentSearches = try? decoder.decode([User].self, from: encodedData) else {
+                return []
+            }
+            
+            return recentSearches
+        }
+        
+        return []
+    }
+    
+    static func clearAll() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+}
+
+enum SearchDestinations: Hashable {
+    case profileView(User)
 }
 
 struct SearchView: View {
     
     @EnvironmentObject var tabBarState: TabBarState
     
-    @StateObject var searchViewModel: SearchViewModel
-    @FocusState var isFocused: Bool?
-    
-    @State var navigateToUserProfile = false
+    @StateObject var vm: SearchViewModel
     
     init(currentUser: User) {
-        _searchViewModel = StateObject(wrappedValue: SearchViewModel(currentUser: currentUser))
+        _vm = StateObject(wrappedValue: SearchViewModel(currentUser: currentUser))
     }
 
     var body: some View {
         ZStack {
-            Color(hex: 0xf7f4f2)
+            Color("BackgroundColor")
                 .ignoresSafeArea()
-            VStack(spacing: 10) {
-                HStack(alignment: .center, spacing: 10) {
-                    Button {}
-                    label : {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.gray)
-                            .imageScale(.medium)
-                    }
-                    
-                    TextField("Search friends", text: $searchViewModel.searchText)
-                        .focused($isFocused, equals: true)
-                        .textFieldStyle(.plain)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .autocorrectionDisabled(true)
-                        .textInputAutocapitalization(.never)
-                    
-                    Spacer()
-                    
-                    Button("Clear", action: {
-                        searchViewModel.searchText = ""
-                        searchViewModel.searchResults = []
-                    })
+            if vm.isLoading {
+                FriendsLoadingView(showSearchTitle: true)
+            } else if let error = vm.errorMessage {
+                Text("\(error)")
                     .font(.subheadline)
-                    .fontWeight(.bold)
+                    .fontWeight(.medium)
                     .fontDesign(.monospaced)
                     .tracking(-0.25)
-                    .foregroundStyle(Color(hex: 0x3C859E))
-                    .opacity(!searchViewModel.searchText.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: searchViewModel.searchText)
-                }
-                .padding()
-                .background(Color.gray.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 25))
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal)
-                .padding(.top)
-                
-                if searchViewModel.isLoading {
-                    FriendsLoadingView()
-                        .padding(.horizontal)
-                        .padding(.bottom, 1)
-                } else if let error = searchViewModel.errorMessage {
-                    Spacer()
-                    Text("\(error)")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x666666))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    Spacer()
-                } else if searchViewModel.searchResults != nil && searchViewModel.searchResults!.isEmpty {
-                    Spacer()
-                    Text("No users matching the username entered were found.")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x666666))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    Spacer()
-                } else if searchViewModel.searchResults == nil {
-                    Spacer()
-                    Text("Search for your friends using their unique username!")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x666666))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    Spacer()
-                } else if let searchResults = searchViewModel.searchResults {
-                    ScrollView(.vertical, showsIndicators: false) {
-                        LazyVStack(spacing: 25) {
-                            ForEach (searchResults) { searchInfo in
-                                UserSearchCell(selectedUser: $searchViewModel.selectedUser, searchInfo: searchInfo, navigateToUserProfile: $navigateToUserProfile)
-                            }
+                    .foregroundStyle(Color("SecondaryText"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            } else if vm.isSearching && vm.searchText.isEmpty {
+                if vm.recentSearches.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 44, weight: .semibold))
+                            .foregroundStyle(Color("ScheduleButtonColors"))
+                        VStack {
+                            Text("No Recent Searches")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundStyle(Color("SecondaryText"))
+                            Text("Your recent searches will\nappear here")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
                         }
-                        .padding(.vertical)
                     }
-                    .scrollDismissesKeyboard(.interactively)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                } else {
+                    List {
+                        Section(content: {
+                            ForEach(vm.recentSearches, id: \.id) { user in
+                                NavigationLink(value: SearchDestinations.profileView(user), label: {
+                                    UserCell(user: user)
+                                        .listRowBackground(Color.clear)
+                                })
+                            }
+                            .onDelete(perform: vm.delete)
+                            
+                        }, header: {
+                            HStack(alignment: .center) {
+                                Text("Recently Searched")
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .fontDesign(.rounded)
+                                    .foregroundStyle(Color("PrimaryText"))
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    vm.showClearSearchesAlert = true
+                                }) {
+                                    Text("Clear")
+                                        .font(.subheadline)
+                                        .fontWeight(.bold)
+                                        .fontDesign(.rounded)
+                                        .foregroundStyle(Color("ErrorTextColor"))
+                                }
+                                .alert("Clear Searches", isPresented: $vm.showClearSearchesAlert) {
+                                    Button("Clear Searches", role: .destructive) {
+                                        withAnimation {
+                                            vm.recentSearches.removeAll()
+                                        }
+                                        RecentSearches.clearAll()
+                                    }
+                                    Button("Cancel", role: .cancel) {
+                                        vm.showClearSearchesAlert = false
+                                    }
+                                } message: {
+                                    Text("Clearing your searches will remove your search history from this device.")
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                        })
+                        .listSectionSeparator(.hidden, edges: .top)
+                    }
+                    .listStyle(.plain)
+                    .scrollDismissesKeyboard(.immediately)
+                    .scrollBounceBehavior(.basedOnSize)
                 }
-                
+            } else if vm.searchResults != nil && vm.searchResults!.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 44, weight: .semibold))
+                        .foregroundStyle(Color("ScheduleButtonColors"))
+                    VStack {
+                        Text("No Results for \"\(vm.searchText)\"")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color("SecondaryText"))
+                        Text("Check the spelling or\ntry a new search.")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else if !vm.isSearching {
+                Text("Search for your friends using their unique username!")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
+                    .foregroundStyle(Color("SecondaryText"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            } else if let searchResults = vm.searchResults {
+                List {
+                    if #available(iOS 26.0, *) {
+                        Section(content: {
+                            ForEach(searchResults, id: \.id) { user in
+                                UserCell(user: user)
+                                    .listRowBackground(Color.clear)
+                            }
+                        }, header: {
+                            HStack {
+                                Text("Search")
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .fontDesign(.monospaced)
+                                    .foregroundStyle(Color("NavItemsColors"))
+                                
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        })
+                        .listSectionMargins(.top, -12.5)
+                    } else {
+                        Section(content: {
+                            ForEach(searchResults, id: \.id) { user in
+                                UserCell(user: user)
+                                    .listRowBackground(Color.clear)
+                            }
+                        }, header: {
+                            EmptyView()
+                        })
+                        .listSectionSeparator(.hidden, edges: .top)
+                    }
+                }
+                .listStyle(.plain)
+                .listSectionSpacing(0)
+                .scrollDismissesKeyboard(.immediately)
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .padding(.bottom, 0.5)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .onChange(of: searchViewModel.searchText) {
-                searchViewModel.debounceSearch()
-            }
+        }
+        .task {
+            vm.recentSearches = RecentSearches.getRecentSearches()
+        }
+        .onChange(of: vm.searchText) {
+            vm.debounceSearch()
         }
         .onAppear {
             tabBarState.hideTabbar = false
         }
-        .onTapGesture {
-            isFocused = nil
-        }
-        .navigationDestination(isPresented: $navigateToUserProfile) {
-            if let user = searchViewModel.selectedUser {
-                ProfileView(currentUser: searchViewModel.currentUser, profileUser: user)
-                    .environmentObject(tabBarState)
+        .navigationDestination(for: SearchDestinations.self, destination: { destination in
+            switch destination {
+            case .profileView(let user):
+                ProfileView(currentUser: vm.currentUser, profileUser: user, preferBackButton: true)
             }
-        }
+        })
+        .navigationBarBackButtonHidden(true)
         .toolbar(tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
+        .searchable(text: $vm.searchText, isPresented: $vm.isSearching, prompt: Text("Search"))
+        .modifier(SearchViewModifier())
+    }
+}
+
+struct SearchViewModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .navigationTitle("Search")
+                .toolbarTitleDisplayMode(.inlineLarge)
+        } else {
+            content
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Text("Search")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+                }
+        }
     }
 }
 

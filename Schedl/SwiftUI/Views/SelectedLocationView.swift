@@ -12,11 +12,8 @@ struct SelectedLocationView: View {
     
     @State private var cameraPosition: MapCameraPosition
     @State private var visibleRegion: MKCoordinateRegion
-    @State private var searchText: String = ""
-    @State private var selectedPlacemark: MTPlacemark?
-    @State private var listPlacemarks: [MTPlacemark] = [] // Added missing property
-    @State private var detailPlacemark: MTPlacemark? // Added missing property
-    @State private var showLocationDetail = false // Add this for automatic sheet presentation
+    @State private var selectedPlacemark: MTPlacemark
+    @State private var showLocationDetail: Bool // Add this for automatic sheet presentation
     let manager = LocationManager()
     
     init(desiredPlacemark: MTPlacemark) {
@@ -37,16 +34,15 @@ struct SelectedLocationView: View {
     var body: some View {
         if manager.isAuthorized {
             Map(position: $cameraPosition) {
-                if let placemark = selectedPlacemark {
-                    Annotation(placemark.name, coordinate: placemark.coordinate) {
-                        Button {
-                            showLocationDetail.toggle()
-                        } label: {
-                            Image(systemName: "mappin.circle.fill")
-                                .foregroundColor(.red)
-                                .font(.title2)
-                                .background(Circle().fill(.white))
-                        }
+                UserAnnotation()
+                Annotation(selectedPlacemark.name, coordinate: selectedPlacemark.coordinate) {
+                    Button {
+                        showLocationDetail.toggle()
+                    } label: {
+                        Image(systemName: "mappin.circle.fill")
+                            .foregroundColor(.red)
+                            .font(.title2)
+                            .background(Circle().fill(.white))
                     }
                 }
             }
@@ -61,64 +57,9 @@ struct SelectedLocationView: View {
                 // and showLocationDetail is true
             }
             .sheet(isPresented: $showLocationDetail) {
-                if let placemark = selectedPlacemark {
-                    LocationDetailView(
-                        selectedPlacemark: placemark,
-                    )
+                LocationDetailView(selectedPlacemark: selectedPlacemark)
                     .presentationDetents([.medium])
-                }
             }
-            .safeAreaInset(edge: .bottom) {
-                HStack(alignment: .center, spacing: 10) {
-                    Button(action: {
-                        Task {
-                            listPlacemarks = await MapManager.searchPlaces(
-                                searchText: searchText,
-                                visibleRegion: visibleRegion
-                            )
-                            cameraPosition = .automatic
-                        }
-                    }) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.gray)
-                            .font(.system(size: 16))
-                    }
-                    
-                    TextField("Search", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .font(.system(size: 15, weight: .regular, design: .monospaced))
-                        .onSubmit {
-                            Task {
-                                listPlacemarks = await MapManager.searchPlaces(
-                                    searchText: searchText,
-                                    visibleRegion: visibleRegion
-                                )
-                                cameraPosition = .automatic
-                            }
-                        }
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        searchText = ""
-                        listPlacemarks.removeAll()
-                    }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color(hex: 0x333333))
-                    }
-                    .font(.system(size: 16, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color(hex: 0x3C859E))
-                }
-                .padding()
-                .background(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 25))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-            }
-            .scrollDismissesKeyboard(.interactively)
         } else {
             LocationDeniedView()
         }

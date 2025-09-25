@@ -1,130 +1,152 @@
-
 import SwiftUI
 
 class TabBarState: ObservableObject {
     @Published var hideTabbar: Bool = false
 }
 
+enum MainTab: Hashable {
+    case feed, schedule, search, profile
+}
+
+enum ScheduleDestinations: Hashable {
+    // You'll need to make RecurringEvents Hashable
+    case eventDetails(event: RecurringEvents, currentUser: User, scheduleId: String)
+    case editEvent(vm: EventViewModel)
+}
+
 struct MainTabBarView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject var tabBarState: TabBarState = TabBarState()
-    @State private var selectedTab = 0
-    @State private var previousTab = 0
+    @State var searchText = ""
+    @State var activeTab: MainTab = .feed
+    
+    @State private var path = NavigationPath()
     
     var body: some View {
         if let user = authViewModel.currentUser {
-            TabView(selection: $selectedTab) {
-                NavigationStack {
-                    FeedView(currentUser: user)
+            TabView(selection: $activeTab) {
+                if #available(iOS 26.0, *) {
+                    Tab("Feed", systemImage: "house", value: MainTab.feed) {
+                        NavigationStack {
+                            FeedView(currentUser: user)
+                                .environmentObject(tabBarState)
+                        }
+                    }
+                } else {
+                    Tab("Feed", systemImage: "house", value: MainTab.feed) {
+                        NavigationStack {
+                            FeedView(currentUser: user)
+                                .environmentObject(tabBarState)
+                        }
+                    }
                 }
-                .tabItem {
-                    Label("Feed", systemImage: "house.fill")
-                }
-                .tag(0)
                 
-                ZStack {
-                    Color(hex: 0xf7f4f2)
-                        .ignoresSafeArea()
+                Tab("Schedule", systemImage: "calendar", value: MainTab.schedule) {
+                    NavigationStack(path: $path) {
+                        ZStack {
+                            Color(hex: 0xf7f4f2)
+                                .ignoresSafeArea()
+                            
+                            ScheduleView(currentUser: user, onShowEventDetails: { event, currentUser, scheduleId in
+                                path.append(ScheduleDestinations.eventDetails(event: event, currentUser: currentUser, scheduleId: scheduleId))
+                            })
+                                .ignoresSafeArea(edges: [.top, .bottom])
+                                .background { Color("BackgroundColor") }
+                                .environmentObject(tabBarState)
+                                .navigationTitle("Schedule")
+                                .navigationDestination(for: ScheduleDestinations.self) { destination in
+                                    switch destination {
+                                    case .eventDetails(let event, let user, let scheduleId):
+                                        FullEventDetailsView(recurringEvent: event, currentUser: user, currentScheduleId: scheduleId)
+                                    case .editEvent(vm: let vm):
+                                        EditEventView(vm: vm)
+                                    }
+                                }
+                        }
+                    }
+                }
+                
+                if #available(iOS 26.0, *) {
+                    Tab("Profile", systemImage: "person", value: MainTab.profile) {
+                        NavigationStack {
+                            ProfileView(currentUser: user, profileUser: user, preferBackButton: false)
+                                .environmentObject(authViewModel)
+                                .environmentObject(tabBarState)
+                        }
+                    }
                     
-                    ScheduleView(currentUser: user)
-                        .ignoresSafeArea(edges: [.top, .bottom])
-                        .environmentObject(tabBarState)
+                    Tab("Search", systemImage: "magnifyingglass", value: MainTab.search, role: .search) {
+                        NavigationStack {
+                            SearchView(currentUser: user)
+                                .environmentObject(authViewModel)
+                                .environmentObject(tabBarState)
+                        }
+                    }
+                } else {
+                    Tab("Search", systemImage: "magnifyingglass", value: MainTab.search, role: .search) {
+                        NavigationStack {
+                            SearchView(currentUser: user)
+                                .environmentObject(authViewModel)
+                                .environmentObject(tabBarState)
+                        }
+                    }
+                    
+                    Tab("Profile", systemImage: "person", value: MainTab.profile) {
+                        NavigationStack {
+                            ProfileView(currentUser: user, profileUser: user, preferBackButton: false)
+                                .environmentObject(authViewModel)
+                                .environmentObject(tabBarState)
+                        }
+                    }
                 }
-                .tabItem {
-                    Label("Schedule", systemImage: "calendar")
-                }
-                .tag(1)
-                
-                NavigationStack {
-                    SearchView(currentUser: user)
-                        .environmentObject(authViewModel)
-                        .environmentObject(tabBarState)
-                }
-                .tabItem {
-                    Label("Search", systemImage: "magnifyingglass")
-                }
-                .tag(2)
-                
-                NavigationStack {
-                    ProfileView(currentUser: user, profileUser: user)
-                        .environmentObject(authViewModel)
-                        .environmentObject(tabBarState)
-                }
-                .tabItem {
-                    Label("Profile", systemImage: "person")
-                }
-                .tag(3)
             }
+            .tint(Color("AccentColor"))
             .navigationBarBackButtonHidden(true)
-            .onChange(of: selectedTab) { _, oldValue in
-                // Animate tab bar items (this requires accessing the UITabBar)
-                DispatchQueue.main.async {
-                    animateTabBarSelection()
-                }
-                
-                previousTab = oldValue
-            }
-            .onAppear {
-                setupTabBarAppearance()
-            }
+            .modifier(TabbarViewModifier(activeTab: $activeTab))
         } else {
             LoginView()
+        }
+    }
+}
+
+
+struct TabbarViewModifier: ViewModifier {
+    @Binding var activeTab: MainTab
+    
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .tabBarMinimizeBehavior(.onScrollDown)
+        } else {
+            content
+                .onAppear {
+                    setupTabBarAppearance()
+                }
         }
     }
     
     private func setupTabBarAppearance(transparentBackground: Bool = false) {
         let tabBarAppearance = UITabBarAppearance()
-//        tabBarAppearance.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
-//        tabBarAppearance.shadowColor = .clear
-//        tabBarAppearance.shadowImage = UIImage()
-        tabBarAppearance.configureWithTransparentBackground()
+        tabBarAppearance.configureWithOpaqueBackground()
+        tabBarAppearance.backgroundColor = UIColor(Color("BackgroundColor"))
+        tabBarAppearance.shadowColor = nil
+        tabBarAppearance.shadowImage = nil
+        
+        let navBarAppearance = UINavigationBarAppearance()
+        navBarAppearance.configureWithOpaqueBackground()
+        navBarAppearance.backgroundColor = UIColor(Color("BackgroundColor"))
+        navBarAppearance.shadowColor = nil
+        navBarAppearance.shadowImage = nil
+        
+        let compactAppearance = UINavigationBarAppearance()
+        compactAppearance.configureWithTransparentBackground()
         
         UITabBar.appearance().standardAppearance = tabBarAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
-    }
-    
-    private func animateTabBarSelection() {
-        // Find the current tab bar
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first,
-           let tabBar = findTabBar(in: window) {
-            
-            // Animate the selected tab item
-            animateSelectedTabBarItem(tabBar: tabBar, selectedIndex: selectedTab)
-        }
-    }
-    
-    private func findTabBar(in view: UIView) -> UITabBar? {
-        if let tabBar = view as? UITabBar {
-            return tabBar
-        }
         
-        for subview in view.subviews {
-            if let tabBar = findTabBar(in: subview) {
-                return tabBar
-            }
-        }
-        
-        return nil
-    }
-    
-    private func animateSelectedTabBarItem(tabBar: UITabBar, selectedIndex: Int) {
-        // Get all tab bar button views
-        let tabBarItemViews = tabBar.subviews.filter {
-            $0.isKind(of: NSClassFromString("UITabBarButton")!)
-        }
-        
-        guard selectedIndex < tabBarItemViews.count else { return }
-        
-        let selectedItemView = tabBarItemViews[selectedIndex]
-        
-        // Apply pulse animation
-        UIView.animate(withDuration: 0.15, delay: 0, options: [.curveEaseInOut], animations: {
-            selectedItemView.transform = CGAffineTransform(scaleX: 0.9, y: 1.1)
-        }) { _ in
-            UIView.animate(withDuration: 0.15, delay: 0, options: [.curveEaseInOut], animations: {
-                selectedItemView.transform = CGAffineTransform.identity
-            })
-        }
+        UINavigationBar.appearance().standardAppearance = navBarAppearance
+        UINavigationBar.appearance().compactScrollEdgeAppearance = compactAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = compactAppearance
     }
 }
+

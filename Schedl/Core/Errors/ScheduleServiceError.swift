@@ -6,14 +6,15 @@
 //
 
 enum ScheduleServiceError: Error {
+    case failedToFetchAllSchedules
+    case failedToFetchSchedule
+    case failedToFetchScheduleEvents
+    case failedToDeleteSchedule
+    case failedToUpdateSchedule
+    case failedToFetchAllBlends
+    case failedToFetchBlend
+    
     case scheduleDataSerializationFailed
     case invalidScheduleData
-    case failedToUpdateSchedule
-    case failedToDeleteSchedule
-    case failedToDeleteEventsOfDeletedSchedule
-    case failedToDeleteEventFromScheduleDeletion
-    case failedToDeleteScheduleFromUser
-    case failedToFetchScheduleFromUser
-    case failedToFindScheduleId
-    case failedToFetchScheduleEvents
+
 }

@@ -6,17 +6,17 @@
 //
 
 import FirebaseAuth
-import FirebaseDatabase
+import FirebaseFirestore
 import Foundation
 
 class AuthService: AuthServiceProtocol {
     
     static let shared = AuthService()
-    var ref: DatabaseReference
+    var db: Firestore
     var auth: Auth
     
     private init() {
-        ref = Database.database().reference()
+        db = Firestore.firestore()
         auth = Auth.auth()
     }
     
@@ -26,17 +26,18 @@ class AuthService: AuthServiceProtocol {
             let userId = authResult.user.uid
             return userId
         } catch {
+            print("failing here")
+            print("The folowing error occured: \(error.localizedDescription)")
             throw AuthServiceError.failedToLogin
         }
     }
     
     func signUp(email: String, password: String) async throws -> String {
         do {
-            let authResult = try await auth.createUser(withEmail: email, password: password)
-            let userId = authResult.user.uid
-            return userId
-            
+            let result = try await auth.createUser(withEmail: email, password: password)
+            return result.user.uid
         } catch {
+            print("Error in sign up: \(error.localizedDescription)")
             throw AuthServiceError.failedToSignUp
         }
     }

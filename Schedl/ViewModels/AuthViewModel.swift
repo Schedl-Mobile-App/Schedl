@@ -36,6 +36,7 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
                     currentUser = try await userService.fetchUser(userId: cachedUserId)
                     isLoggedIn = true
                 } catch {
+                    print("Error in persistent login")
                     // handle fetch error
                 }
                 self.isLoadingLaunchScreen = false
@@ -49,6 +50,7 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     
     @MainActor
     func login(email: String, password: String) async {
+        if isLoadingLogin { return }
         self.isLoadingLogin = true
         self.errorMessage = nil
         do {
@@ -64,11 +66,12 @@ class AuthViewModel: ObservableObject, AuthViewModelProtocol {
     
     @MainActor
     func signUp(username: String, displayName: String, email: String, password: String) async {
+        if isLoadingLogin { return }
         isLoadingLogin = true
         errorMessage = nil
         do {
             let userId = try await authService.signUp(email: email, password: password)
-            currentUser = try await userService.saveNewUser(userId: userId, username: username, email: email, displayName: displayName)
+            currentUser = try await userService.setProfileInfo(userId: userId, email: email, username: username, displayName: displayName)
             isLoggedIn = true
             isLoadingLogin = false
         } catch {

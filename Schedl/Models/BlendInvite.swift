@@ -6,9 +6,9 @@
 //
 
 struct BlendInvite: Codable {
-    var blendId: String
     var fromUserId: String
     var toUserId: String
+    var blendId: String
     var senderName: String
     var senderProfileImage: String
 }

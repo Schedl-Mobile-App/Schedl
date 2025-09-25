@@ -19,7 +19,7 @@ struct ColorPickerSheet: View {
                             .fontWeight(.semibold)
                             .fontDesign(.monospaced)
                             .tracking(-0.25)
-                            .foregroundStyle(Color(hex: 0x333333))
+                            .foregroundStyle(Color("PrimaryText"))
                             .padding(.leading)
                         
                         ScrollView(sheetPresentationState == .large ? .vertical : .horizontal, showsIndicators: false) {

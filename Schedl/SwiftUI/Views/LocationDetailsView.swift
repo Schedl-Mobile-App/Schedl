@@ -31,6 +31,7 @@ struct LocationDetailView: View {
                         .font(.title2)
                         .fontWeight(.semibold)
                         .fontDesign(.rounded)
+                        .foregroundStyle(Color("PrimaryText"))
                     Text(selectedPlacemark?.address ?? "")
                         .font(.headline)
                         .foregroundStyle(.secondary)
@@ -42,36 +43,36 @@ struct LocationDetailView: View {
                 Spacer()
                 
                 Button(action: {
-                    if let onCancel {
-                        onCancel()
-                        dismiss()
-                    } else {
-                        dismiss()
-
-                    }
+                    dismiss()
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .imageScale(.large)
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(Color("IconColors"))
                 }
-                .padding(.top, 5)
             }
             .padding(.top)
             
             if let scene = lookaroundScene {
                 LookAroundPreview(initialScene: scene)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 250)
                     .clipShape(RoundedRectangle(cornerRadius: 15))
             } else {
                 ContentUnavailableView("No preview available", systemImage: "eye.slash")
             }
             
-            if let onConfirm {
-                Button(action: {
-                    onConfirm()
-                    dismiss()
-                }) {
+            Button(action: {
+                if onConfirm == nil {
+                    if let selectedPlacemark {
+                        let placemark = MKPlacemark(coordinate: selectedPlacemark.coordinate)
+                        let mapItem = MKMapItem(placemark: placemark)
+                        mapItem.name = selectedPlacemark.name
+                        mapItem.openInMaps()
+                    }
+                } else {
+                    onConfirm!()
+                }
+            }) {
+                if onConfirm != nil {
                     HStack(spacing: 6) {
                         Image(systemName: "location.fill")
                             .imageScale(.medium)
@@ -82,23 +83,14 @@ struct LocationDetailView: View {
                     .fontDesign(.monospaced)
                     .tracking(-0.25)
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(Color(hex: 0xf7f4f2))
+                    .foregroundStyle(Color.white)
                     .padding()
-                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .frame(maxWidth: .infinity)
                     .background(
-                         RoundedRectangle(cornerRadius: 15)
-                            .fill(Color(hex: 0x3C859E))
+                        RoundedRectangle(cornerRadius: 15)
+                            .fill(Color("ButtonColors"))
                     )
-                }
-            } else {
-                Button(action: {
-                    if let selectedPlacemark {
-                        let placemark = MKPlacemark(coordinate: selectedPlacemark.coordinate)
-                        let mapItem = MKMapItem(placemark: placemark)
-                        mapItem.name = selectedPlacemark.name
-                        mapItem.openInMaps()
-                    }
-                }) {
+                } else {
                     HStack(spacing: 6) {
                         Image(systemName: "map")
                             .imageScale(.medium)
@@ -111,10 +103,10 @@ struct LocationDetailView: View {
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Color(hex: 0xf7f4f2))
                     .padding()
-                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .frame(maxWidth: .infinity)
                     .background(
-                         RoundedRectangle(cornerRadius: 15)
-                            .fill(Color(hex: 0x3C859E))
+                        RoundedRectangle(cornerRadius: 15)
+                            .fill(Color("ButtonColors"))
                     )
                 }
             }
@@ -128,9 +120,6 @@ struct LocationDetailView: View {
                 name = selectedPlacemark.name
                 address = selectedPlacemark.address
             }
-        }
-        .onDisappear {
-            selectedPlacemark = nil
         }
     }
     

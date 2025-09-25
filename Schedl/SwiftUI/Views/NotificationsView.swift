@@ -7,327 +7,303 @@
 
 import SwiftUI
 
-struct NotificationCell: View {
-    let notificationViewModel: NotificationViewModel
-    let notification: Notification
+import Kingfisher
+
+struct ThumbnailProfileImageView: View {
+    
+    @State private var imageLoadingError = false
+    var profileImage: String
+    var displayName: String
     
     var body: some View {
-        HStack(spacing: 10) {
-            // sender profile image
+        if !imageLoadingError {
+            KFImage.url(URL(string: profileImage))
+                .placeholder {
+                    ProgressView()
+                }
+                .loadDiskFileSynchronously()
+                .fade(duration: 0.25)
+                .onProgress { receivedSize, totalSize in  }
+                .onSuccess { result in  }
+                .onFailure { _ in
+                    self.imageLoadingError = true
+                }
+                .resizable() // Makes the image resizable
+                .scaledToFill() // Fills the frame, preventing distortion
+                .frame(width: 55.75, height: 55.75) // Sets a square frame for the circle
+                .clipShape(Circle()) // Clips the view into a circle shape
+                .alignmentGuide(.listRowSeparatorLeading) {
+                                    $0[.leading]
+                                }
+        } else {
             Circle()
-                .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
+                .strokeBorder(Color("ButtonColors"), lineWidth: 1.75)
                 .background(Color.clear)
-                .frame(width: 56.75, height: 56.75)
+                .frame(width: 55.75, height: 55.75)
                 .overlay {
-                    Group {
-                        switch notification.notificationPayload {
-                        case .friendRequest(let friendRequest):
-                            AsyncImage(url: URL(string: friendRequest.senderProfileImage)) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 55, height: 55)
-                                    .clipShape(Circle())
-                            } placeholder: {
-                                Circle()
-                                    .fill(Color(hex: 0xe0dad5))
-                                    .frame(width: 55, height: 55)
-                                    .overlay {
-                                        let splitName = friendRequest.senderName.split(separator: " ")
-                                        Text("\(splitName[0].first?.uppercased() ?? "")\(splitName[0].first?.uppercased() ?? "")")
-                                            .font(.headline)
-                                            .fontWeight(.bold)
-                                            .fontDesign(.monospaced)
-                                            .tracking(-0.25)
-                                            .foregroundStyle(Color(hex: 0x333333))
-                                            .multilineTextAlignment(.center)
-                                    }
-                            }
-                        case .eventInvite(let eventInvite):
-                            AsyncImage(url: URL(string: eventInvite.senderProfileImage)) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 55, height: 55)
-                                    .clipShape(Circle())
-                            } placeholder: {
-                                Circle()
-                                    .fill(Color(hex: 0xe0dad5))
-                                    .frame(width: 55, height: 55)
-                                    .overlay {
-                                        let splitName = eventInvite.senderName.split(separator: " ")
-                                        Text("\(splitName[0].first?.uppercased() ?? "")\(splitName[0].first?.uppercased() ?? "")")
-                                            .font(.title3)
-                                            .fontWeight(.bold)
-                                            .fontDesign(.monospaced)
-                                            .tracking(-0.25)
-                                            .foregroundStyle(Color(hex: 0x333333))
-                                            .multilineTextAlignment(.center)
-                                    }
-                            }
-                            
-                        case .blend(let blendInvite):
-                            AsyncImage(url: URL(string: blendInvite.senderProfileImage)) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 55, height: 55)
-                                    .clipShape(Circle())
-                            } placeholder: {
-                                Circle()
-                                    .fill(Color(hex: 0xe0dad5))
-                                    .frame(width: 55, height: 55)
-                                    .overlay {
-                                        let splitName = blendInvite.senderName.split(separator: " ")
-                                        Text("\(splitName[0].first?.uppercased() ?? "")\(splitName[0].first?.uppercased() ?? "")")
-                                            .font(.title3)
-                                            .fontWeight(.bold)
-                                            .fontDesign(.monospaced)
-                                            .tracking(-0.25)
-                                            .foregroundStyle(Color(hex: 0x333333))
-                                            .multilineTextAlignment(.center)
-                                    }
-                            }
-                        }
-                    }
-                }
-            
-            // notification description
-            VStack(alignment: .leading, spacing: 12) {
-                switch notification.notificationPayload {
-                case .friendRequest(let fr):
-                    Text("\(fr.senderName) sent you a friend request!")
-                        .font(.footnote)
-                        .fontWeight(.semibold)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    HStack(spacing: 20) {
-                        Button(action: {
-                            Task {
-                                await notificationViewModel.handleNotificationResponse(
-                                    id: notification.id,
-                                    responseStatus: false
-                                )
-                            }
-                        }) {
-                            Text("Decline")
-                                .font(.footnote)
-                                .fontWeight(.heavy)
+                    // Show while loading or if image fails to load
+                    Circle()
+                        .fill(Color("SectionalColors"))
+                        .frame(width: 54, height: 54)
+                        .overlay {
+                            Text("\(displayName.first?.uppercased() ?? "J")\(displayName.last?.uppercased() ?? "D")")
+                                .font(.title3)
+                                .fontWeight(.bold)
                                 .fontDesign(.monospaced)
+                                .tracking(-0.25)
+                                .foregroundStyle(Color("PrimaryText"))
                                 .multilineTextAlignment(.center)
-                                .foregroundColor(Color(hex: 0x333333))
-                                .padding(.horizontal)
-                                .frame(maxWidth: .infinity, minHeight: 30)
-                                .background(
-                                     RoundedRectangle(cornerRadius: 5)
-                                         .fill(Color.black.opacity(0.1))
-                                         .stroke(Color(hex: 0x666666), lineWidth: 1)
-                                )
                         }
-                        
-                        Button(action: {
-                            Task {
-                                await notificationViewModel.handleNotificationResponse(
-                                    id: notification.id,
-                                    responseStatus: true
-                                )
-                            }
-                        }) {
-                            Text("Accept")
-                                .font(.footnote)
-                                .fontWeight(.heavy)
-                                .fontDesign(.monospaced)
-                                .multilineTextAlignment(.center)
-                                .foregroundColor(Color(hex: 0xf7f4f2))
-                                .padding(.horizontal)
-                                .frame(maxWidth: .infinity, minHeight: 30)
-                                .background(
-                                     RoundedRectangle(cornerRadius: 5)
-                                         .fill(Color(hex: 0x3C859E))
-                                         .stroke(Color(hex: 0x666666), lineWidth: 1)
-                                )
-                        }
-                    }
-                case .eventInvite(let ev):
-                    Text("\(ev.senderName) invited you to an event!")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .frame(maxWidth: .infinity)
-                    
-                    Button(action: {
-                        Task {
-                            await notificationViewModel.handleNotificationResponse(
-                                id: notification.id,
-                                responseStatus: true
-                            )
-                        }
-                    }) {
-                        Text("View Event")
-                            .font(.footnote)
-                            .fontWeight(.heavy)
-                            .fontDesign(.monospaced)
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(Color(hex: 0xf7f4f2))
-                            .padding(.horizontal)
-                            .frame(maxWidth: .infinity, minHeight: 35)
-                            .background(
-                                 RoundedRectangle(cornerRadius: 15)
-                                     .fill(Color(hex: 0x3C859E))
-                                     .stroke(Color(hex: 0x666666), lineWidth: 1)
-                            )
-                    }
-                case .blend(let blend):
-                    Text("\(blend.senderName) invited you to a blend!")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .frame(maxWidth: .infinity)
-                    
-                    Button(action: {
-                        Task {
-                            await notificationViewModel.handleNotificationResponse(
-                                id: notification.id,
-                                responseStatus: true
-                            )
-                        }
-                    }) {
-                        Text("View Blend")
-                            .font(.footnote)
-                            .fontWeight(.heavy)
-                            .fontDesign(.monospaced)
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(Color(hex: 0xf7f4f2))
-                            .padding(.horizontal)
-                            .frame(maxWidth: .infinity, minHeight: 35)
-                            .background(
-                                 RoundedRectangle(cornerRadius: 15)
-                                     .fill(Color(hex: 0x3C859E))
-                                     .stroke(Color(hex: 0x666666), lineWidth: 1)
-                            )
-                    }
                 }
-            }
-            .frame(maxWidth: .infinity)
         }
-        .padding([.top, .horizontal])
     }
 }
 
+struct FriendRequestNotificationView: View {
+    
+    var friendRequest: FriendRequest
+    
+    var fromUser: User {
+        return User(id: friendRequest.fromUserId, email: nil, displayName: friendRequest.senderName, username: nil, profileImage: friendRequest.senderProfileImage, numOfEvents: nil, numOfFriends: nil, numOfPosts: nil)
+    }
+    
+    var body: some View {
+        NavigationLink(value: NotificationDestination.profileView(fromUser), label: {
+            HStack(spacing: 15) {
+                ThumbnailProfileImageView(profileImage: friendRequest.senderProfileImage, displayName: friendRequest.senderName)
+                    .alignmentGuide(.listRowSeparatorLeading) {
+                        $0[.leading]
+                    }
+                
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(friendRequest.senderName) sent you a friend request.")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .fontDesign(.monospaced)
+                        .tracking(-0.10)
+                        .foregroundStyle(Color("PrimaryText"))
+                        .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .imageScale(.small)
+                    .alignmentGuide(.listRowSeparatorTrailing) {
+                        $0[.trailing]
+                    }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        })
+    }
+}
+
+struct EventInviteNotificationView: View {
+    
+    var eventInvite: EventInvite
+    
+    var body: some View {
+        NavigationLink(value: NotificationDestination.eventDetails, label: {
+            HStack(spacing: 15) {
+                ThumbnailProfileImageView(profileImage: eventInvite.senderProfileImage, displayName: eventInvite.senderName)
+                    .alignmentGuide(.listRowSeparatorLeading) {
+                        $0[.leading]
+                    }
+                
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(eventInvite.senderName) sent you an event invite. Click here to see the event.")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .fontDesign(.monospaced)
+                        .tracking(-0.25)
+                        .foregroundStyle(Color("PrimaryText"))
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .imageScale(.small)
+                    .alignmentGuide(.listRowSeparatorTrailing) {
+                        $0[.trailing]
+                    }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        })
+    }
+}
+
+struct BlendInviteNotificationView: View {
+    
+    var blendInvite: BlendInvite
+    
+    var body: some View {
+        NavigationLink(value: NotificationDestination.blendDetails, label: {
+            HStack(spacing: 15) {
+                ThumbnailProfileImageView(profileImage: blendInvite.senderProfileImage, displayName: blendInvite.senderName)
+                    .alignmentGuide(.listRowSeparatorLeading) {
+                        $0[.leading]
+                    }
+                
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(blendInvite.senderName) sent you an blend invite. Click here to see the blend.")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .fontDesign(.monospaced)
+                        .tracking(-0.25)
+                        .foregroundStyle(Color("PrimaryText"))
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .imageScale(.small)
+                    .alignmentGuide(.listRowSeparatorTrailing) {
+                        $0[.trailing]
+                    }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        })
+    }
+}
+
+struct NotificationCell: View {
+    
+    let notification: Notification
+    
+    var body: some View {
+        switch notification.notificationPayload {
+        case .friendRequest(let friendRequest):
+            FriendRequestNotificationView(friendRequest: friendRequest)
+            
+        case .eventInvite(let eventInvite):
+            EventInviteNotificationView(eventInvite: eventInvite)
+            
+        case .blendInvite(let blendInvite):
+            BlendInviteNotificationView(blendInvite: blendInvite)
+            
+        case .unknown:
+            EmptyView()
+        }
+    }
+}
+
+enum NotificationDestination: Hashable {
+    case profileView(User)
+    case eventDetails
+    case blendDetails
+}
 
 struct NotificationsView: View {
-    @StateObject var notificationViewModel: NotificationViewModel
-    @State var showTabBar: Bool = false
+    
     @Environment(\.dismiss) var dismiss
+    
+    @StateObject var notificationViewModel: NotificationViewModel
     
     init(currentUser: User) {
         _notificationViewModel = StateObject(wrappedValue: NotificationViewModel(currentUser: currentUser))
     }
     
+    func formattedDayString(from date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return "Today" }
+        if calendar.isDateInTomorrow(date) { return "Tomorrow" }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        return formatter.string(from: date)
+    }
+    
+    func delete(at offsets: IndexSet) {
+        notificationViewModel.notifications.remove(atOffsets: offsets)
+    }
+    
     var body: some View {
-        ZStack {
-            Color(hex: 0xf7f4f2)
+        ZStack(alignment: .topLeading) {
+            Color("BackgroundColor")
                 .ignoresSafeArea()
             
-            VStack {
-                ZStack(alignment: .leading) {
-                    Button(action: {
-                        showTabBar.toggle()
-                        dismiss()
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .fontWeight(.bold)
-                            .imageScale(.large)
-                            .labelStyle(.iconOnly)
-                            .foregroundStyle(Color(hex: 0x333333))
+            if notificationViewModel.isLoading {
+                ProgressView("Loading...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else if let error = notificationViewModel.errorMessage {
+                Text(error)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
+                    .foregroundStyle(Color("SecondaryText"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            } else if notificationViewModel.notifications.isEmpty {
+                Text("You have no new notifications.")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
+                    .foregroundStyle(Color("SecondaryText"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            } else {
+                List {
+                    ForEach(notificationViewModel.notifications, id: \.id) { notification in
+                        if notificationViewModel.notifications.first == notification {
+                            NotificationCell(notification: notification)
+                                .listRowSeparator(.hidden, edges: .top)
+                                .listRowBackground(Color.clear)
+                        } else {
+                            NotificationCell(notification: notification)
+                                .listRowBackground(Color.clear)
+                            
+                        }
                     }
-                    
-                    
+                    .onDelete(perform: delete)
+                }
+                .listStyle(.plain)
+                .scrollDismissesKeyboard(.immediately)
+                .refreshable {
+                    await notificationViewModel.fetchNotifications()
+                }
+            }
+        }
+        .navigationDestination(for: NotificationDestination.self) { destination in
+            switch destination {
+            case .profileView(let user):
+                ProfileView(currentUser: notificationViewModel.currentUser, profileUser: user, preferBackButton: true)
+            case .eventDetails:
+                EmptyView()
+            case .blendDetails:
+                EmptyView()
+            }
+        }
+        .task {
+            await notificationViewModel.fetchNotifications()
+        }
+        .navigationBarBackButtonHidden(false)
+        .toolbar {
+            if #available(iOS 26.0, *) {
+                ToolbarItem(placement: .subtitle) {
                     Text("Notifications")
-                        .foregroundStyle(Color(hex: 0x333333))
+                        .foregroundStyle(Color("PrimaryText"))
                         .font(.title3)
                         .fontWeight(.bold)
                         .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .frame(maxWidth: .infinity, alignment: .center)
                 }
-                .padding()
-                
-                if notificationViewModel.isLoading {
-                    Spacer()
-                    ProgressView("Loading...")
-                    Spacer()
-                } else if let error = notificationViewModel.errorMessage {
-                    Spacer()
-                    Text(error)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+            } else {
+                ToolbarItem(placement: .title) {
+                    Text("Notifications")
+                        .foregroundStyle(Color("PrimaryText"))
+                        .font(.title3)
+                        .fontWeight(.bold)
                         .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x666666))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    Spacer()
-                } else if notificationViewModel.notifications.isEmpty {
-                    Spacer()
-                    Text("You have no new notifications.")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x666666))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    Spacer()
-                } else {
-                    ScrollView(.vertical, showsIndicators: false) {
-                        Text("Today")
-                            .foregroundStyle(Color(hex: 0x333333))
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .fontDesign(.monospaced)
-                            .tracking(-0.25)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal)
-                        LazyVStack(spacing: 16) {
-                            ForEach(notificationViewModel.notifications.reversed(), id: \.id) { notification in
-                                NotificationCell(notificationViewModel: notificationViewModel, notification: notification)
-                                Divider()
-                                    .background(Color(hex: 0xc0b8b2))
-                                    .frame(maxWidth: .infinity, maxHeight: 1.25)
-                            }
-                        }
-                        .onChange(of: notificationViewModel.notifications) {
-                            print("LazyVStack now has \(notificationViewModel.notifications.count) items")
-                        }
-                    }
                 }
-            }
-            .padding(.bottom, 0.5)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .task {
-                await notificationViewModel.fetchNotifications()
-            }
-            .onAppear{
-                notificationViewModel.setupNotificationObserver()
-            }
-            .onDisappear {
-                notificationViewModel.removeNotificationObserver()
-            }
-            .onChange(of: notificationViewModel.notifications) {
-                print("Capturing the changes in the view")
             }
         }
-        .navigationBarBackButtonHidden(true)
     }
 }
+

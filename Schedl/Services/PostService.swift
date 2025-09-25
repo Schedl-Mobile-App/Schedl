@@ -5,6 +5,7 @@
 //  Created by David Medina on 9/23/24.
 //
 
+import Firebase
 import FirebaseDatabase
 import FirebaseStorage
 

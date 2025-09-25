@@ -39,7 +39,7 @@ class TimeLabel: UIView {
         let label = InsetLabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textAlignment = .center
-        label.font = UIFont.monospacedSystemFont(ofSize: 12, weight: .semibold)
+        label.font = UIFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
         return label
     }()
     
@@ -54,7 +54,7 @@ class TimeLabel: UIView {
     
     private func setupView() {
         
-        label.textColor = UIColor(Color(hex: 0x6D675F))
+        label.textColor = UIColor(Color("ScheduleSecondaryText"))
         
         addSubview(label)
         NSLayoutConstraint.activate([
@@ -94,7 +94,7 @@ class CollectionViewTimesColumn: UIView {
         stackView.distribution = .fillEqually
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.layer.borderColor = UIColor.clear.cgColor
-        stackView.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
+        stackView.backgroundColor = UIColor(Color("BackgroundColor"))
         addSubview(stackView)
         
         NSLayoutConstraint.activate([

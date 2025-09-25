@@ -13,11 +13,11 @@ enum EventSearchFilter: CaseIterable {
     var filterTypeName: String {
         switch self {
         case .title:
-            "Title"
+            "title"
         case .location:
-            "Location"
+            "location"
         case .invited:
-            "Invited Users"
+            "invited users"
         }
     }
     
@@ -38,19 +38,17 @@ struct EventSearchView: View {
     
     @EnvironmentObject var tabBarState: TabBarState
     @StateObject var searchViewModel: SearchViewModel
-    @State var scheduleEvents: [RecurringEvents]
+    var scheduleEvents: [RecurringEvents]
     @Environment(\.dismiss) var dismiss
     @State var selectedFilter: EventSearchFilter = .title
     @State var shouldNavigate: Bool = false
     @State var selectedEvent: RecurringEvents?
-    @Binding var shouldReloadData: Bool
     
     @FocusState var isFocused: Bool
     
-    init(currentUser: User, scheduleEvents: [RecurringEvents], shouldReloadData: Binding<Bool>) {
+    init(currentUser: User, scheduleEvents: [RecurringEvents]) {
         _searchViewModel = StateObject(wrappedValue: SearchViewModel(currentUser: currentUser))
-        _scheduleEvents = State(initialValue: scheduleEvents)
-        _shouldReloadData = Binding(projectedValue: shouldReloadData)
+        self.scheduleEvents = scheduleEvents
     }
     
     var filteredEvents: [Double : [RecurringEvents]] {
@@ -82,9 +80,9 @@ struct EventSearchView: View {
                 
             case .location:
                 let filteredResults = scheduleEvents.filter { event in
-                    let startsWith = event.event.locationName.lowercased().hasPrefix(searchViewModel.searchText.lowercased()) || event.event.locationAddress.lowercased().hasPrefix(searchViewModel.searchText.lowercased())
-                    let endsWith = event.event.locationName.lowercased().hasSuffix(searchViewModel.searchText.lowercased()) ||
-                        event.event.locationAddress.lowercased().hasSuffix(searchViewModel.searchText.lowercased())
+                    let startsWith = event.event.location.name.lowercased().hasPrefix(searchViewModel.searchText.lowercased()) || event.event.location.address.lowercased().hasPrefix(searchViewModel.searchText.lowercased())
+                    let endsWith = event.event.location.name.lowercased().hasSuffix(searchViewModel.searchText.lowercased()) ||
+                        event.event.location.address.lowercased().hasSuffix(searchViewModel.searchText.lowercased())
                     
                     return startsWith || endsWith
                 }
@@ -98,31 +96,42 @@ struct EventSearchView: View {
                 }
                 
             case .invited:
-                Task {
-                    searchViewModel.debounceEventSearch()
-                    
-                    let filteredResults = scheduleEvents.filter { $0.event.taggedUsers.count > 0 }.filter { event in
-                        event.event.taggedUsers.contains(searchViewModel.matchedUsers)
-                    }
-                                        
-                    let rawGroups = Dictionary(
-                        grouping: filteredResults,
-                        by: \.date,
-                    )
-                    return rawGroups.mapValues { recurringEvent in
-                        recurringEvent.sorted { $0.event.startTime < $1.event.startTime }
-                    }
+                let rawGroups = Dictionary(
+                    grouping: scheduleEvents,
+                    by: \.date,
+                )
+                return rawGroups.mapValues { recurringEvent in
+                    recurringEvent.sorted { $0.event.startTime < $1.event.startTime }
                 }
+//                Task {
+//                    searchViewModel.debounceEventSearch()
+//                    
+//                    let filteredResults = scheduleEvents.filter { event in
+//                        // Now, check if the taggedUsers array contains any element
+//                        // where its userId is present in our fast lookup Set.
+//                        event.event.invitedUsers.contains { invitedUser in
+//                            searchViewModel.matchedUsers.contains(invitedUser.userId)
+//                        }
+//                    }
+//                                        
+//                    let rawGroups = Dictionary(
+//                        grouping: filteredResults,
+//                        by: \.date,
+//                    )
+//                    return rawGroups.mapValues { recurringEvent in
+//                        recurringEvent.sorted { $0.event.startTime < $1.event.startTime }
+//                    }
+//                }
             }
         }
         
-        let rawGroups = Dictionary(
-            grouping: scheduleEvents,
-            by: \.date,
-        )
-        return rawGroups.mapValues { recurringEvent in
-            recurringEvent.sorted { $0.event.startTime < $1.event.startTime }
-        }
+//        let rawGroups = Dictionary(
+//            grouping: scheduleEvents,
+//            by: \.date,
+//        )
+//        return rawGroups.mapValues { recurringEvent in
+//            recurringEvent.sorted { $0.event.startTime < $1.event.startTime }
+//        }
     }
     
     var centerDateIndex: Int {
@@ -137,125 +146,64 @@ struct EventSearchView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 10) {
-                HStack(alignment: .center, spacing: 10) {
-                    Button {}
-                    label : {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.gray)
-                            .imageScale(.medium)
+            VStack {
+                Picker("", selection: $selectedFilter) {
+                    ForEach(EventSearchFilter.allCases, id: \.self) { filter in
+                        Text(filter.filterTypeName.localizedCapitalized)
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .fontDesign(.rounded)
                     }
-                    
-                    TextField("Search by \(selectedFilter.searchFilterName)", text: $searchViewModel.searchText)
-                        .textFieldStyle(.plain)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .autocorrectionDisabled(true)
-                        .focused($isFocused)
-                        .textInputAutocapitalization(.never)
-                    
-                    Spacer()
-                    
-                    Button("Clear", action: {
-                        searchViewModel.searchText = ""
-                    })
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .fontDesign(.monospaced)
-                    .tracking(-0.25)
-                    .foregroundStyle(Color(hex: 0x3C859E))
-                    .opacity(!searchViewModel.searchText.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: searchViewModel.searchText)
                 }
-                .padding()
-                .background(Color.gray.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 25))
-                .frame(maxWidth: .infinity, alignment: .top)
+                .pickerStyle(SegmentedPickerStyle())
                 
-                HStack(spacing: 0) {
-                    ForEach(Array(EventSearchFilter.allCases.enumerated()), id: \.offset) { index, filter in
-                        Button(action: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                selectedFilter = filter
-                                selectedIndex = index
-                            }
-                        }) {
-                            Text(filter.filterTypeName)
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .fontDesign(.monospaced)
-                                .tracking(-0.25)
-                                .lineLimit(1)
-                                .foregroundColor(selectedIndex == index ? .primary : .secondary)
-                                .padding(.vertical, 10)
-                                .frame(maxWidth: .infinity)
-                                .background {
-                                    if selectedIndex == index {
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color.black.opacity(0.12))
-                                            .matchedGeometryEffect(id: "highlight", in: namespace)
-                                    }
-                                }
-                                .contentShape(Rectangle())
-                                .padding(4)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .scaleEffect(selectedIndex == index ? 1.05 : 1.0)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedIndex)
-                    }
-                }
-                .background {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.regularMaterial)
-                        .shadow(color: Color.black.opacity(0.08), radius: 2, x: 0, y: 1)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                
-                ScrollViewReader { proxy in
-                    ScrollView(.vertical) {
-                        LazyVStack(alignment: .leading, spacing: 5, pinnedViews: [.sectionHeaders]) {
-                            let sortedKeys = Array(filteredEvents.keys).sorted(by: <)
-                            ForEach(sortedKeys, id: \.self) { key in
-                                let recurringEvents: [RecurringEvents] = filteredEvents[key]!
-                                // Convert Double to Date for display
-                                let date = Date(timeIntervalSince1970: key)
-
-                                // Header
-                                Section(header: SearchSectionHeaderView(date: date)) {
-                                    VStack(spacing: 0) {
-                                        ForEach(recurringEvents, id: \.id) { event in
-                                            EventCard(event: event, navigateToEventDetails: $shouldNavigate, selectedEvent: $selectedEvent)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .onAppear {
-                        let sortedKeys = Array(filteredEvents.keys).sorted(by: <)
-                        let todayTimestamp = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
-                        if let todayKey = sortedKeys.first(where: { $0 >= todayTimestamp }) {
-                            proxy.scrollTo(todayKey, anchor: .top)
-                        }
-                    }
-                }
-                .scrollDismissesKeyboard(.interactively)
+//                ScrollViewReader { proxy in
+//                    ScrollView(.vertical) {
+//                        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+////                            let sortedKeys = Array(filteredEvents.keys).sorted(by: <)
+////                            ForEach(sortedKeys, id: \.self) { key in
+////                                let recurringEvents: [RecurringEvents] = filteredEvents[key]!
+//                                // Convert Double to Date for display
+////                                let date = Date(timeIntervalSince1970: key)
+//                                
+//                                // Header
+////                                Section(header: SearchSectionHeaderView(date: date)) {
+////                                    VStack(spacing: 8) {
+//                            ForEach(scheduleEvents, id: \.self.event.id) { event in
+//                                EventCard(event: event, navigateToEventDetails: $shouldNavigate, selectedEvent: $selectedEvent)
+//                                    .allowsHitTesting(false)
+//                            }
+////                                    }
+////                                }
+////                            }
+//                        }
+//                    }
+////                    .onAppear {
+////                        let sortedKeys = Array(filteredEvents.keys).sorted(by: <)
+////                        let todayTimestamp = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+////                        if let todayKey = sortedKeys.first(where: { $0 >= todayTimestamp }) {
+////                            proxy.scrollTo(todayKey, anchor: .top)
+////                        }
+////                    }
+//                    .scrollIndicators(.hidden)
+//                }
+//                .scrollDismissesKeyboard(.immediately)
             }
             .padding(.horizontal)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .navigationTitle("Search for Events")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        Text("Done")
+                            .foregroundStyle(Color("PrimaryText"))
                     }
                 }
             }
         }
+        .searchable(text: $searchViewModel.searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search events by \(selectedFilter.filterTypeName)")
     }
 }
 
@@ -282,12 +230,9 @@ struct SearchSectionHeaderView: View {
             Text(formattedDayString(from: date))
                 .font(.title2)
                 .fontWeight(.semibold)
-            Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical)
-        .background(Color.primary
-            .colorInvert()
-            .opacity(0.75))
     }
 }
 
