@@ -10,26 +10,8 @@ import SwiftUI
 struct ProfileLoadingView: View {
     
     var body: some View {
-        VStack(alignment: .center, spacing: 20) {
-            ZStack {
-                HStack {
-                    ShimmerEffectBox()
-                        .cornerRadius(15)
-                        .frame(width: 60, height: 15, alignment: .leading)
-                    Spacer()
-                    ShimmerEffectBox()
-                        .cornerRadius(30)
-                        .frame(width: 30, height: 30)
-                }
-                .frame(maxWidth: .infinity)
-                
-                ShimmerEffectBox()
-                    .cornerRadius(15)
-                    .frame(width: 100, height: 20)
-            }
-            .padding()
-            
-            VStack(spacing: 12) {
+        VStack(alignment: .center, spacing: 15) {
+            VStack(spacing: 8) {
                 
                 // profile view
                 ShimmerEffectBox()
@@ -38,7 +20,7 @@ struct ProfileLoadingView: View {
                 
                 ShimmerEffectBox()
                     .cornerRadius(15)
-                    .frame(width: 140, height: 20)
+                    .frame(width: 140, height: 25)
             }
             
             Rectangle()
@@ -48,13 +30,13 @@ struct ProfileLoadingView: View {
                         .cornerRadius(15)
                         .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: 70, alignment: .center)
-                .padding(.horizontal, 50)
+                .frame(maxWidth: .infinity, maxHeight: 75, alignment: .center)
+                .padding(.horizontal, 60)
             
             ShimmerEffectBox()
                 .cornerRadius(30)
                 .frame(maxWidth: .infinity, maxHeight: 45, alignment: .center)
-                .padding(.horizontal, 25)
+                .padding(.horizontal, 20)
             
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 15) {
@@ -71,6 +53,7 @@ struct ProfileLoadingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.top)
     }
 }
 

@@ -6,7 +6,7 @@ import UIKit
 struct ScheduleView: UIViewControllerRepresentable {
     
     @StateObject var scheduleViewModel: ScheduleViewModel
-    @EnvironmentObject var tabBarState: TabBarState
+    @Environment(\.router) var coordinator: Router
     
     init(currentUser: User) {
         _scheduleViewModel = StateObject(wrappedValue: ScheduleViewModel(currentUser: currentUser))
@@ -14,19 +14,19 @@ struct ScheduleView: UIViewControllerRepresentable {
     
     class Coordinator {
         var scheduleViewModel: ScheduleViewModel
-        var tabBarState: TabBarState
+        var coordinator: Router
         
-        init(scheduleViewModel: ScheduleViewModel, tabBarState: TabBarState) {
+        init(scheduleViewModel: ScheduleViewModel, coordinator: Router) {
             self.scheduleViewModel = scheduleViewModel
-            self.tabBarState = tabBarState
+            self.coordinator = coordinator
         }
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(scheduleViewModel: scheduleViewModel, tabBarState: tabBarState)
+        Coordinator(scheduleViewModel: scheduleViewModel, coordinator: coordinator)
     }
     
-    func makeUIViewController(context: Context) -> UINavigationController {
+    func makeUIViewController(context: Context) -> UIViewController {
         let scheduleView = ScheduleViewController()
         
         // anytime that a specific action occurs, particularly in the
@@ -35,11 +35,16 @@ struct ScheduleView: UIViewControllerRepresentable {
         scheduleView.coordinator = context.coordinator
         
         let navController = UINavigationController(rootViewController: scheduleView)
-        
-        navController.setNavigationBarHidden(true, animated: false)
+//        navController.view.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
+//        navController.navigationController?.navigationBar.barTintColor = .yellow
         navController.hidesBottomBarWhenPushed = true
+        if #available(iOS 26.0, *) {
+            navController.tabBarController?.tabBarMinimizeBehavior = .onScrollDown
+        } else {
+            // Fallback on earlier versions
+        }
         
-        return navController
+        return scheduleView
     }
     
     func updateUIViewController(_ uiViewController: UIViewControllerType, context: Context) {

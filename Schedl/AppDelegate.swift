@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Firebase
+import FirebaseDatabase
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
@@ -19,6 +20,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         #endif
         
         FirebaseApp.configure()
+        
+        Database.database().isPersistenceEnabled = true
           
         return true
     }

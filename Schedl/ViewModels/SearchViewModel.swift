@@ -14,20 +14,22 @@ import Observation
 class SearchViewModel: ObservableObject {
     
     var currentUser: User
-    @Published var showPopUp = false
+    
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
-    @Published var searchResults: [SearchInfo]? = nil
     
-    @Published var matchedUsers: [String] = []
+    @Published var searchText: String = ""
+    @Published var searchResults: [User]?
+    @Published var matchedUsers: Set<String> = []
+    @Published var isSearching = false
+    @Published var recentSearches: [User] = []
+    
+    @Published var userToShow: User?
+    @Published var showClearSearchesAlert = false
     
     private var searchService: SearchServiceProtocol
     private var userService: UserServiceProtocol
     private var postService: PostServiceProtocol
-    
-    @Published var searchText: String = ""
-    
-    @Published var selectedUser: User?
     
     var searchTask: Task<Void, Never>?
         
@@ -100,7 +102,8 @@ class SearchViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         do {
-            matchedUsers = try await searchService.fetchMatchingUsers(username: searchText)
+            let matchedUsers = try await searchService.fetchUserSearchInfo(username: searchText)
+            self.matchedUsers = Set(matchedUsers.map(\.id))
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription
@@ -108,5 +111,9 @@ class SearchViewModel: ObservableObject {
         }
     }
     
+    func delete(at offsets: IndexSet) {
+        RecentSearches.delete(at: offsets)
+        recentSearches.remove(atOffsets: offsets)
+    }
     
 }

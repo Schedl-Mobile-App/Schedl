@@ -5,126 +5,72 @@
 //  Created by David Medina on 5/5/25.
 //
 
-import FirebaseDatabase
+import Firebase
 import FirebaseCore
+import FirebaseFirestore
+import FirebaseFirestore
 
 class ScheduleService: ScheduleServiceProtocol {
     
     static let shared = ScheduleService()
-    let ref: DatabaseReference
+    let fs: Firestore
     
     private init() {
-        ref = Database.database().reference()
+        fs = Firestore.firestore()
     }
-    
+        
     func fetchAllSchedules(userId: String) async throws -> [Schedule] {
-        let userScheduleRef = ref.child("users").child(userId).child("scheduleIds")
-        let userSnapshot = try await userScheduleRef.getData()
-        
-        guard let scheduleIdsDict = userSnapshot.value as? [String: Any] else {
-            return []
-        }
-        
-        let scheduleIds = Array(scheduleIdsDict.keys)
-        
-        var schedules: [Schedule] = []
-        
-        try await withThrowingTaskGroup(of: Schedule.self) { group in
-            for id in scheduleIds {
-                group.addTask {
-                    try await self.fetchSchedule(scheduleId: id)
-                }
+        do {
+            let scheduleRef = fs.collection("schedules").whereField("ownerId", isEqualTo: userId)
+            let snapshot = try await scheduleRef.getDocuments()
+            
+            
+            // 3. Use a compactMap with the built-in Codable support.
+            //    The `data(as:)` method attempts to decode each document into a Schedule object.
+            //    `compactMap` will automatically discard any documents that fail to decode.
+            let schedules = try snapshot.documents.compactMap { document in
+                try document.data(as: Schedule.self)
             }
             
-            for try await schedule in group {
-                schedules.append(schedule)
-            }
+            return schedules
+        } catch {
+            throw ScheduleServiceError.failedToFetchAllSchedules
         }
-        
-        return schedules
     }
     
     func fetchSchedule(scheduleId: String) async throws -> Schedule {
-        
-        // Store a reference to the child node of the schedules node in the Firebase DB
-        let scheduleRef = ref.child("schedules").child(scheduleId)
-        
-        // getData is a Firebase function that returns a DataSnapshot object
-        let scheduleSnapshot = try await scheduleRef.getData()
-        
-        // The DataSnapshot object is returned as an object with key value pairs as Strings
-        guard let scheduleData = scheduleSnapshot.value as? [String: Any] else {
-            throw FirebaseError.failedToFetchSchedule
-        }
-        
-        if
-            let id = scheduleData["id"] as? String,
-            let userId = scheduleData["userId"] as? String,
-            let title = scheduleData["title"] as? String,
-            let createdAt = scheduleData["creationDate"] as? Double {
-            
-            let schedule = Schedule(id: id, userId: userId, title: title, creationDate: createdAt)
+        do {
+            let schedule = try await fs.collection("schedules").document(scheduleId).getDocument(as: Schedule.self)
             return schedule
-            
-        } else {
-            throw ScheduleServiceError.invalidScheduleData
+        } catch {
+            throw ScheduleServiceError.failedToFetchSchedule
         }
-        
     }
     
     func fetchScheduleId(userId: String) async throws -> String {
-        let userRef = ref.child("users").child(userId).child("scheduleIds")
-        let snapshot = try await userRef.getData()
-        
-        guard let scheduleIds = snapshot.value as? [String: Any] else {
-            throw ScheduleServiceError.failedToFetchScheduleFromUser
-        }
-        
-        return scheduleIds.keys.first!
-    }
-    
-    func fetchScheduleIds(userIds: [String]) async throws -> [String] {
-        
-        var scheduleIds: [String] = []
-        
-        try await withThrowingTaskGroup(of: String.self) { group in
-            for id in userIds {
-                group.addTask {
-                    try await self.fetchScheduleId(userId: id)
-                }
-            }
-            
-            for try await scheduleId in group {
-                scheduleIds.append(scheduleId)
-            }
-        }
-        
-        return scheduleIds
-    }
-    
-    func createSchedule(userId: String, title: String) async throws -> Schedule {
-        
-        let id = ref.child("schedules").childByAutoId().key ?? UUID().uuidString
-        let createdAt = Date().timeIntervalSince1970
-        
-        let scheduleObj = Schedule(id: id, userId: userId, title: title, creationDate: createdAt)
-        
-        let encoder = JSONEncoder()
         do {
-            // Encode the Schedule object into JSON data
-            let jsonData = try encoder.encode(scheduleObj)
+            let snapshot = try await fs.collection("schedules").whereField("ownerId", isEqualTo: userId).limit(to: 1).getDocuments()
+            let scheduleIds = snapshot.documents.compactMap { document in
+                let dict = document.data()
+                let id = dict["id"] as! String
+                return id
+            }
             
-            // Convert JSON data to a dictionary
-            guard let jsonDictionary = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] else {
+            guard scheduleIds.isEmpty == false else {
                 throw ScheduleServiceError.scheduleDataSerializationFailed
             }
             
-            let updates: [String: Any] = [
-                "/schedules/\(id)" : jsonDictionary,
-                "/users/\(userId)/scheduleIds/\(id)" : true
-            ]
+            return scheduleIds.first!
+        }
+    }
+    
+    func createSchedule(userId: String, title: String) async throws -> Schedule {
+        let scheduleRef = fs.collection("schedules").document()
+        
+        let scheduleObj = Schedule(id: scheduleRef.documentID, ownerId: userId, title: title, createdAt: Date.now)
+        do {
+            try scheduleRef.setData(from: scheduleObj)
             
-            try await ref.updateChildValues(updates)
             return scheduleObj
         } catch {
             throw FirebaseError.failedToCreateSchedule
@@ -132,161 +78,173 @@ class ScheduleService: ScheduleServiceProtocol {
     }
     
     func updateSchedule(scheduleId: String, title: String) async throws -> Void {
-        let scheduleRef = ref.child("schedules").child(scheduleId).child("title")
-        
+        let scheduleDoc = fs.collection("schedules").document(scheduleId)
         do {
-            try await scheduleRef.setValue(title)
+            try await scheduleDoc.updateData([
+                "title": title
+            ])
         } catch {
             throw ScheduleServiceError.failedToUpdateSchedule
         }
     }
     
     func deleteSchedule(scheduleId: String, userId: String) async throws -> Void {
-        let scheduleRef = ref.child("schedules").child(scheduleId)
-        let userRef = ref.child("users").child(userId).child("scheduleIds").child(scheduleId)
+        let scheduleDoc = fs.collection("schedules").document(scheduleId)
         
         do {
-            try await scheduleRef.removeValue()
-            try await userRef.removeValue()
+            try await scheduleDoc.delete()
         } catch {
             throw ScheduleServiceError.failedToDeleteSchedule
         }
     }
     
-    func createBlendSchedule(ownerId: String, scheduleId: String, title: String, invitedUsers: [String], colors: [String: String]) async throws -> String {
-        let blendId = ref.child("blends").childByAutoId().key ?? UUID().uuidString
-        
-        var invitedUsersDict: [String: Bool] = [:]
-        for id in invitedUsers {
-            invitedUsersDict[id] = true
-        }
-        
-        var scheduleDict: [String: Bool] = [:]
-        scheduleDict[scheduleId] = true
-        
-        let blendDict: [String: Any] = [
-            "id": blendId,
-            "userId": ownerId,
-            "title": title,
-            "invitedUsers": invitedUsersDict,
-            "scheduleIds": scheduleDict,
-            "blendColors": colors,
-        ]
+    // MARK: - Firestore: Blends
+    
+    func createBlendSchedule(ownerId: String, scheduleId: String, title: String, invitedUsers: [InvitedUser], colors: [UserMappedBlendColor]) async throws -> Void {
         
         do {
+            let blendRef = fs.collection("blends").document()
             
-            var updates: [String: Any] = [
-                "/blends/\(blendId)" : blendDict,
-                "/users/\(ownerId)/blendIds/\(blendId)": true,
-            ]
+            let blend = Blend(
+                id: blendRef.documentID,
+                ownerId: ownerId,
+                title: title,
+                invitedUsers: invitedUsers,
+                scheduleIds: [scheduleId],
+                colors: colors
+            )
             
-            try await ref.updateChildValues(updates)
-            return blendId
+            try blendRef.setData(from: blend)
         } catch {
             throw FirebaseError.failedToCreateSchedule
         }
     }
     
     func fetchAllBlendSchedules(userId: String) async throws -> [Blend] {
-        
-        var blends: [Blend] = []
-        
-        let userRef = ref.child("users").child(userId).child("blendIds")
-        let snapshot = try await userRef.getData()
-        
-        guard let blendDict = snapshot.value as? [String: Any] else {
-            return blends
-        }
-        
-        let blendIds = Array(blendDict.keys)
-        
-        try await withThrowingTaskGroup(of: Blend.self) { group in
-            for id in blendIds {
-                group.addTask { [self] in
-                    try await fetchBlendSchedule(blendId: id)
-                }
-            }
-            for try await blend in group {
-                blends.append(blend)
-            }
-        }
-        return blends
-    }
-    
-    func fetchBlendSchedule(blendId: String) async throws -> Blend {
-        let blendRef = ref.child("blends").child(blendId)
-        let snapshot = try await blendRef.getData()
-        
-        guard let blendDict = snapshot.value as? [String: Any] else {
-            throw ScheduleServiceError.failedToFetchScheduleEvents
-        }
-        
-        if let blendId = blendDict["id"] as? String,
-           let userId = blendDict["userId"] as? String,
-           let title = blendDict["title"] as? String,
-           let invitedUsers = blendDict["invitedUsers"] as? [String: Bool],
-           let scheduleIds = blendDict["scheduleIds"] as? [String: Bool],
-           let colors = blendDict["blendColors"] as? [String: String] {
+        do {
+            let query = fs.collection("blends").whereField("participants", arrayContains: userId)
             
-            return Blend(id: blendId, userId: userId, title: title, invitedUsers: Array(invitedUsers.keys), scheduleIds: Array(scheduleIds.keys), colors: colors)
-        } else {
-            throw ScheduleServiceError.failedToFetchScheduleEvents
+            let snapshot = try await query.getDocuments()
+            let blends = try snapshot.documents.compactMap { document in
+                let blend = try document.data(as: Blend.self)
+                return blend
+            }
+            
+            return blends
+            
+        } catch {
+            throw ScheduleServiceError.failedToFetchAllBlends
         }
     }
     
-    // schedule observers
-    func observeAddedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
-        let eventsRef = ref.child("scheduleEvents").child(scheduleId)
-        
-        return eventsRef.observe(.childAdded) { snapshot in
-            let eventId = snapshot.key
-            completion(eventId)
+    func fetchBlendSchedule(blendId: String) async throws -> Blend? {
+        do {
+            let query = fs.collection("blends").document(blendId)
+            let snapshot = try await query.getDocument()
+            guard snapshot.exists else {
+                throw ScheduleServiceError.failedToFetchBlend
+            }
+            
+            return try snapshot.data(as: Blend.self)
+            
+        } catch {
+            throw ScheduleServiceError.failedToFetchBlend
         }
     }
     
-    func observeRemovedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
-        let eventsRef = ref.child("scheduleEvents").child(scheduleId)
-        
-        return eventsRef.observe(.childRemoved) { snapshot in
-            let eventId = snapshot.key
-            completion(eventId)
+    // MARK: - Firestore Listeners
+    
+    // Events: listen to events where scheduleId == scheduleId
+    func observeAddedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> ListenerRegistration {
+        let query = fs.collection("events").whereField("scheduleId", isEqualTo: scheduleId)
+        let listener = query.addSnapshotListener { snapshot, _ in
+            guard let snapshot else { return }
+            for change in snapshot.documentChanges where change.type == .added {
+                completion(change.document.documentID)
+            }
         }
+        return listener
     }
     
-    func observeUpdatedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
-        let eventsRef = ref.child("scheduleEvents").child(scheduleId)
-        
-        return eventsRef.observe(.childChanged) { snapshot in
-            let eventId = snapshot.key
-            completion(eventId)
+    func observeRemovedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> ListenerRegistration {
+        let query = fs.collection("events").whereField("scheduleId", isEqualTo: scheduleId)
+        let listener = query.addSnapshotListener { snapshot, _ in
+            guard let snapshot else { return }
+            for change in snapshot.documentChanges where change.type == .removed {
+                completion(change.document.documentID)
+            }
         }
+        return listener
     }
     
-    func removeScheduleObserver(handle: DatabaseHandle, scheduleId: String) {
-        let eventsRef = ref.child("scheduleEvents").child(scheduleId)
-        eventsRef.removeObserver(withHandle: handle)
-    }
-    
-    func observeAddedBlendSchedules(blendId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
-        let blendRef = ref.child("blends").child(blendId).child("scheduleIds")
-        
-        return blendRef.observe(.childAdded) { snapshot in
-            let scheduleId = snapshot.key
-            completion(scheduleId)
+    func observeUpdatedEvents(scheduleId: String, completion: @escaping (String) -> Void) -> ListenerRegistration {
+        let query = fs.collection("events").whereField("scheduleId", isEqualTo: scheduleId)
+        let listener = query.addSnapshotListener { snapshot, _ in
+            guard let snapshot else { return }
+            for change in snapshot.documentChanges where change.type == .modified {
+                completion(change.document.documentID)
+            }
         }
+        return listener
     }
     
-    func observeRemovedBlendSchedules(blendId: String, completion: @escaping (String) -> Void) -> DatabaseHandle {
-        let blendRef = ref.child("blends").child(blendId).child("scheduleIds")
-        
-        return blendRef.observe(.childRemoved) { snapshot in
-            let scheduleId = snapshot.key
-            completion(scheduleId)
+    func removeScheduleObserver(listener: ListenerRegistration) {
+        listener.remove()
+    }
+    
+    // New blends for a user: diff users/{userId}.blendIds map
+    func observeCreatedBlend(userId: String, completion: @escaping (String) -> Void) -> ListenerRegistration {
+        var previousIds: Set<String> = []
+        let listener = fs.collection("users").document(userId).addSnapshotListener { snapshot, _ in
+            guard let data = snapshot?.data() else { return }
+            let map = data["blendIds"] as? [String: Any] ?? [:]
+            let current = Set(map.keys)
+            let added = current.subtracting(previousIds)
+            previousIds = current
+            for id in added {
+                completion(id)
+            }
         }
+        return listener
     }
     
-    func removeBlendObserver(handle: DatabaseHandle, blendId: String) {
-        let blendRef = ref.child("blends").child(blendId).child("scheduleIds")
-        blendRef.removeObserver(withHandle: handle)
+    // Blend scheduleIds: diff blends/{blendId}.scheduleIds map
+    func observeAddedBlendSchedules(blendId: String, completion: @escaping (String) -> Void) -> ListenerRegistration {
+        var previousIds: Set<String> = []
+        let listener = fs.collection("blends").document(blendId).addSnapshotListener { snapshot, _ in
+            guard let data = snapshot?.data() else { return }
+            let map = data["scheduleIds"] as? [String: Any] ?? [:]
+            let current = Set(map.keys)
+            let added = current.subtracting(previousIds)
+            previousIds = current
+            for id in added {
+                completion(id)
+            }
+        }
+        return listener
+    }
+    
+    func observeRemovedBlendSchedules(blendId: String, completion: @escaping (String) -> Void) -> ListenerRegistration {
+        var previousIds: Set<String> = []
+        let listener = fs.collection("blends").document(blendId).addSnapshotListener { snapshot, _ in
+            guard let data = snapshot?.data() else { return }
+            let map = data["scheduleIds"] as? [String: Any] ?? [:]
+            let current = Set(map.keys)
+            let removed = previousIds.subtracting(current)
+            previousIds = current
+            for id in removed {
+                completion(id)
+            }
+        }
+        return listener
+    }
+    
+    func removeNewBlendObserver(listener: ListenerRegistration) {
+        listener.remove()
+    }
+    
+    func removeBlendObserver(listener: ListenerRegistration) {
+        listener.remove()
     }
 }
+

@@ -9,69 +9,92 @@ import SwiftUI
 
 struct ProfileInformatics: View {
     
-    @EnvironmentObject var tabBarState: TabBarState
+    @Environment(\.router) var coordinator: Router
     
-    @ObservedObject var profileViewModel: ProfileViewModel
-    @Binding var navigateToFriends: Bool
+    let friendsCount: Int
+    let eventsCount: Int
+    let postsCount: Int
+    let profileUser: User
     
     var body: some View {
-        Rectangle()
-            .fill(Color(hex: 0xe0dad5))
-            .cornerRadius(15)
-            .overlay {
-                HStack {
-                    Button(action: {
-                        tabBarState.hideTabbar = true
-                        navigateToFriends = true
-                    }) {
-                        VStack(alignment: .center, spacing: 6) {
-                            Text("\(profileViewModel.friends.count)")
-                                .font(.system(size: 18, weight: .bold, design: .monospaced))
-                                .foregroundStyle(Color(hex: 0x333333))
-                            Text("Friends")
-                                .font(.system(size: 14, weight: .medium, design: .monospaced))
-                                .foregroundStyle(Color(hex: 0x666666))
-                                .tracking(0.01)
-                                .fixedSize()
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    Divider()
-                        .foregroundStyle(Color(hex: 0xc0b8b2))
-                        .frame(maxWidth: 1.75, maxHeight: 50)
-                        .background(Color(hex: 0xc0b8b2))
-                    VStack(alignment: .center, spacing: 6) {
-                        Text("\(profileViewModel.userEvents.count)")
-                            .font(.system(size: 18, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x333333))
-                        Text("Events")
-                            .font(.system(size: 14, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x666666))
-                            .tracking(0.01)
-                            .fixedSize()
-                    }
-                    .frame(maxWidth: .infinity)
-                    Divider()
-                        .foregroundStyle(Color(hex: 0xc0b8b2))
-                        .frame(maxWidth: 1.75, maxHeight: 50)
-                        .background(Color(hex: 0xc0b8b2))
-                    
-                    VStack(alignment: .center, spacing: 6) {
-                        Text("\(profileViewModel.userPosts.count)")
-                            .font(.system(size: 18, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x333333))
-                        Text("Posts")
-                            .font(.system(size: 14, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Color(hex: 0x666666))
-                            .tracking(0.01)
-                            .fixedSize()
-                    }
-                    .frame(maxWidth: .infinity)
+        
+        HStack(spacing: 20) {
+            Button(action: {
+                coordinator.push(page: .friends(profileUser: profileUser))
+            }, label: {
+                VStack(alignment: .center, spacing: 6) {
+                    Text("\(friendsCount)")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .monospacedDigit()
+                        .foregroundStyle(Color("PrimaryText"))
+                    Text("Friends")
+                        .font(.subheadline)
+                        .fontDesign(.monospaced)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color("SecondaryText"))
+                        .tracking(-0.25)
+                        .fixedSize()
                 }
-                .padding(.horizontal)
-                
+                .frame(minWidth: 60)
+            })
+            
+            Divider()
+                .frame(width: 0.5, height: 40)
+            
+            
+            VStack(alignment: .center, spacing: 6) {
+                Text("\(eventsCount)")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+                    .foregroundStyle(Color("PrimaryText"))
+                Text("Events")
+                    .font(.subheadline)
+                    .fontDesign(.monospaced)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color("SecondaryText"))
+                    .tracking(-0.25)
+                    .fixedSize()
             }
-            .frame(maxWidth: .infinity, maxHeight: 70, alignment: .center)
-            .padding(.horizontal, 50)
+            .frame(minWidth: 60)
+            
+            Divider()
+                .frame(width: 0.5, height: 40)
+            
+            
+            VStack(alignment: .center, spacing: 6) {
+                Text("\(postsCount)")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+                    .foregroundStyle(Color("PrimaryText"))
+                Text("Posts")
+                    .font(.subheadline)
+                    .fontDesign(.monospaced)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color("SecondaryText"))
+                    .tracking(-0.25)
+                    .fixedSize()
+            }
+        }
+        .padding()
+        .frame(minWidth: 60)
+        .modifier(ProfileInformaticsModifier())
+    }
+}
+
+struct ProfileInformaticsModifier: ViewModifier {
+    
+    @Environment(\.colorScheme) var colorScheme
+    
+    func body(content: Content) -> some View {
+        if colorScheme == .dark {
+            content
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 15))
+        } else {
+            content
+                .background(Color("SectionalColors"), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
     }
 }

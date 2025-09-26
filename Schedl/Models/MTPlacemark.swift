@@ -8,8 +8,7 @@
 import Foundation
 import MapKit
 
-struct MTPlacemark: Identifiable, Hashable {
-    let id = UUID()
+struct MTPlacemark: Codable, Hashable {
     let name: String
     let address: String
     let latitude: Double

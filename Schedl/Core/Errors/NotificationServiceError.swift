@@ -13,4 +13,8 @@ enum NotificationServiceError: Error {
     case failedToSendFriendRequest
     case failedToSendEventInvites
     case failedToDecodeNotification
+    
+    case failedToFetchNotification
+    case failedToFetchAllNotifications
+    case failedToCreateFriendRequest
 }

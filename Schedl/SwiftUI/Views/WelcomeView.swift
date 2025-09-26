@@ -27,38 +27,39 @@ struct WelcomeView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            Color(hex: 0xf7f4f2)
+            Color("BackgroundColor")
                 .ignoresSafeArea()
-            ScrollView(.vertical) {
-                Spacer(minLength: (UIScreen.current?.bounds.height ?? 0) * 0.175)
-                VStack {
-                    VStack(alignment: .center, spacing: 8) {
-                        Text("Schedl")
-                            .font(.custom("GillSans-Bold", size: 36))
-                            .foregroundStyle(Color(hex: 0x333333))
-                        
-                        Text("Create an Account")
-                            .font(.headline)
-                            .fontWeight(.medium)
-                            .fontDesign(.monospaced)
-                            .foregroundStyle(Color(hex: 0x666666))
-                            .tracking(-0.25)
-                    }
+            VStack(spacing: 10) {
+                Spacer()
+                VStack(alignment: .center, spacing: 8) {
+                    Text("Schedl")
+                        .font(.custom("GillSans-Bold", size: 36))
+                        .foregroundStyle(Color("PrimaryText"))
                     
+                    Text("Create an Account")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                        .foregroundStyle(Color("SecondaryText"))
+                        .tracking(-0.25)
+                }
+                
+                VStack(spacing: 0) {
                     DisplayNameField(displayName: $displayName, displayNameError: $displayNameError, hasTriedSubmitting: $hasTriedSubmitting, isFocused: $isFocused)
                     UsernameField(username: $username, usernameError: $usernameError, hasTriedSubmitting: $hasTriedSubmitting, isFocused: $isFocused)
                     EmailField(email: $email, emailError: $emailError, hasTriedSubmitting: $hasTriedSubmitting, isFocused: $isFocused)
                     PasswordField(password: $password, passwordError: $passwordError, hasTriedSubmitting: $hasTriedSubmitting, isFocused: $isFocused)
-                    .padding(.bottom, passwordError.isEmpty ? 0 : 4)
-                    
-                    if let error = authViewModel.errorMessage {
-                        Text(error)
-                            .foregroundStyle(Color(hex: 0xE84D3D))
-                            .font(.footnote)
-                            .padding(.top, 2)
-                    }
-                    
-                    Button(action: {
+                }
+            
+//                if let error = authViewModel.errorMessage {
+//                    Text(error)
+//                        .foregroundStyle(Color(hex: 0xE84D3D))
+//                        .font(.footnote)
+//                        .padding(.vertical, 2)
+//                }
+                
+                Button(action: {
+                    withAnimation {
                         usernameError = ""
                         displayNameError = ""
                         emailError = ""
@@ -92,75 +93,68 @@ struct WelcomeView: View {
                             hasTriedSubmitting = true
                             return
                         }
-                        
-                        let validUsername = username!
-                        let validDisplayName = displayName!
-                        let validEmail = email!
-                        let validPassword = password!
-                        
-                        Task {
-                            await authViewModel.signUp(username: validUsername, displayName: validDisplayName, email: validEmail, password: validPassword)
-                        }
-                    }, label: {
-                        Text("Sign Up")
-                            .foregroundColor(Color(hex: 0xf7f4f2))
-                            .font(.headline)
-                            .fontWeight(.bold)
-                            .fontDesign(.monospaced)
-                            .tracking(-0.25)
-                    })
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color(hex: 0x3C859E))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .padding(.vertical, 4)
+                    }
                     
-                    HStack {
-                        Text("Already have an account?")
+                    guard let username = username, let displayName = displayName, let email = email, let password = password else { return }
+                    
+                    Task {
+                        await authViewModel.signUp(username: username, displayName: displayName, email: email, password: password)
+                    }
+                }, label: {
+                    Text("Sign Up")
+                        .foregroundColor(Color.white)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .fontDesign(.monospaced)
+                        .tracking(-0.25)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color("ButtonColors"))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                })
+                
+                HStack {
+                    Text("Already have an account?")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                        .foregroundStyle(Color("PrimaryText"))
+                        .tracking(-0.25)
+                    NavigationLink(destination: LoginView()) {
+                        Text("Login")
                             .font(.headline)
                             .fontWeight(.medium)
                             .fontDesign(.monospaced)
-                            .foregroundStyle(Color(hex: 0x666666))
                             .tracking(-0.25)
-                        NavigationLink(destination: LoginView()) {
-                            Text("Login")
-                                .font(.headline)
-                                .fontWeight(.medium)
-                                .fontDesign(.monospaced)
-                                .tracking(-0.25)
-                                .underline()
-                                .foregroundStyle(Color(hex: 0x47a2be))
-                        }
+                            .underline()
+                            .foregroundStyle(Color("SecondaryText"))
                     }
-                    .frame(maxWidth: .infinity, alignment: .center)
                 }
-                .padding(.horizontal, 25)
-                .keyboardHeight($keyboardHeight)
-                .animation(.easeIn(duration: 0.16), value: keyboardHeight)
-                .offset(y: -keyboardHeight / 2)
+                .frame(maxWidth: .infinity, alignment: .center)
+                Spacer()
             }
+            .padding(.horizontal, 25)
+            .frame(maxHeight: .infinity)
             .onChange(of: isFocused) {
-                hasTriedSubmitting = false
-                usernameError = ""
-                displayNameError = ""
-                emailError = ""
-                passwordError = ""
-                authViewModel.errorMessage = nil
-            }
-            .onTapGesture {
-                isFocused = nil
-            }
-            .toolbar {
-                ToolbarItem(placement: .keyboard) {
-                    Button("Done") {
-                        isFocused = nil
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                withAnimation {
+                    hasTriedSubmitting = false
+                    usernameError = ""
+                    displayNameError = ""
+                    emailError = ""
+                    passwordError = ""
+                    authViewModel.errorMessage = nil
                 }
             }
-            .scrollDismissesKeyboard(.interactively)
         }
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .keyboard) {
+                Spacer()
+                Button("Done", action: {
+                    isFocused = nil
+                })
+            }
+        }
     }
 }
 
@@ -180,68 +174,75 @@ struct UsernameField: View {
         )
     }
     
+    private var isLabelFloating: Bool {
+        isFocused.wrappedValue == .username || username != nil
+    }
+    
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 0) {
-            
-                TextField("Username", text: usernameBinding)
+                
+                TextField("", text: usernameBinding, prompt:
+                            Text("Username")
+                                .font(.subheadline)
+                                .fontDesign(.monospaced)
+                                .foregroundStyle(Color("SecondaryText"))
+                                .tracking(-0.25))
                     .textFieldStyle(.plain)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(Color(hex: 0x333333))
-                    .tracking(0.1)
+                    .foregroundStyle(Color("PrimaryText"))
+                    .tracking(-0.25)
                     .focused(isFocused, equals: .username)
                     .autocorrectionDisabled(true)
+                    .textInputAutocapitalization(.never)
+                    .textContentType(.username)
                 
                 Spacer()
                 Button(action: {
-                    username = nil
+                    withAnimation {
+                        username = nil
+                    }
                 }) {
                     Image(systemName: "xmark")
                         .imageScale(.small)
-                        .foregroundStyle(Color(hex: 0x333333))
+                        .foregroundStyle(Color("IconColors"))
                 }
-                .hidden(username == nil)
+                .opacity(username == nil ? 0 : 1)
+                .animation(.easeInOut(duration: 0.4), value: username)
             }
             .padding(.vertical, 16)
             .padding(.horizontal, 20)
             .background {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
-                    .stroke(hasTriedSubmitting && username == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    .stroke(hasTriedSubmitting && username == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
             }
-            
-            
-            GeometryReader { geometry in
+            .overlay(alignment: .topLeading) {
+                // This HStack creates the label with padding for the background.
                 HStack(spacing: 0) {
-                    Spacer()
-                        .frame(width: 4)
                     Text("Username")
                         .font(.footnote)
                         .fontWeight(.medium)
                         .fontDesign(.monospaced)
-                    Spacer()
-                        .frame(width: 4)
+                        .padding(.horizontal, 4)
+                        .background(Color("BackgroundColor")) // This background cuts the border
+                        .offset(y: -8) // Move label up or keep it centered
+                        .padding(.leading, 16)
                 }
-                .background {
-                    Color(hex: 0xf7f4f2)
-                }
-                .padding(.leading)
-                .offset(y: -10)
-                .opacity(isFocused.wrappedValue == .username || username != nil ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue)
-                
-                Text(usernameError)
-                    .font(.footnote)
-                    .padding(.leading)
-                    .offset(y: geometry.size.height * CGFloat(1.05))
-                    .foregroundStyle(.red)
-                    .opacity(hasTriedSubmitting && !usernameError.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+                .opacity(isLabelFloating ? 1 : 0) // Show label only when floating
+                .animation(.easeInOut(duration: 0.2), value: isLabelFloating)
             }
+            
+            Text(usernameError.isEmpty ? " " : usernameError)
+                .font(.footnote)
+                .padding(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(Color("ErrorTextColor"))
+                .opacity(usernameError.isEmpty ? 0 : 1)
+                .animation(.easeInOut(duration: 0.2), value: usernameError.isEmpty)
         }
-        .padding(.vertical, 6)
-        .padding(.bottom, hasTriedSubmitting && !usernameError.isEmpty ? 8 : 0)
+        .padding(.top, 8)
     }
 }
 
@@ -261,67 +262,74 @@ struct DisplayNameField: View {
         )
     }
     
+    private var isLabelFloating: Bool {
+        isFocused.wrappedValue == .displayName || displayName != nil
+    }
+    
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 0) {
             
-                TextField("First and Last Name", text: displayNameBinding)
+                TextField("", text: displayNameBinding, prompt:
+                            Text("First and Last Name")
+                                .font(.subheadline)
+                                .fontDesign(.monospaced)
+                                .foregroundStyle(Color("SecondaryText"))
+                                .tracking(-0.25))
                     .textFieldStyle(.plain)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(Color(hex: 0x333333))
-                    .tracking(0.1)
+                    .foregroundStyle(Color("PrimaryText"))
+                    .tracking(-0.25)
                     .focused(isFocused, equals: .displayName)
                     .autocorrectionDisabled(true)
+                    .textInputAutocapitalization(.words)
+                    .textContentType(.name)
                 
                 Spacer()
                 Button(action: {
-                    displayName = nil
+                    withAnimation {
+                        displayName = nil
+                    }
                 }) {
                     Image(systemName: "xmark")
                         .imageScale(.small)
-                        .foregroundStyle(Color(hex: 0x333333))
+                        .foregroundStyle(Color("IconColors"))
                 }
-                .hidden(displayName == nil)
+                .opacity(displayName == nil ? 0 : 1)
+                .animation(.easeInOut(duration: 0.4), value: displayName)
             }
             .padding(.vertical, 16)
             .padding(.horizontal, 20)
             .background {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
-                    .stroke(hasTriedSubmitting && displayName == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    .stroke(hasTriedSubmitting && displayName == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
             }
-            
-            
-            GeometryReader { geometry in
+            .overlay(alignment: .topLeading) {
+                // This HStack creates the label with padding for the background.
                 HStack(spacing: 0) {
-                    Spacer()
-                        .frame(width: 4)
                     Text("Display Name")
                         .font(.footnote)
                         .fontWeight(.medium)
                         .fontDesign(.monospaced)
-                    Spacer()
-                        .frame(width: 4)
+                        .padding(.horizontal, 4)
+                        .background(Color("BackgroundColor")) // This background cuts the border
+                        .offset(y: -9) // Move label up or keep it centered
+                        .padding(.leading, 16)
                 }
-                .background {
-                    Color(hex: 0xf7f4f2)
-                }
-                .padding(.leading)
-                .offset(y: -10)
-                .opacity(isFocused.wrappedValue == .displayName || displayName != nil ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue)
-                
-                Text(displayNameError)
-                    .font(.footnote)
-                    .padding(.leading)
-                    .offset(y: geometry.size.height * CGFloat(1.05))
-                    .foregroundStyle(.red)
-                    .opacity(hasTriedSubmitting && !displayNameError.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+                .opacity(isLabelFloating ? 1 : 0) // Show label only when floating
+                .animation(.easeInOut(duration: 0.2), value: isLabelFloating)
             }
+            
+            Text(displayNameError.isEmpty ? " " : displayNameError)
+                .font(.footnote)
+                .padding(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(Color("ErrorTextColor"))
+                .opacity(displayNameError.isEmpty ? 0 : 1)
+                .animation(.easeInOut(duration: 0.2), value: displayNameError.isEmpty)
         }
-        .padding(.vertical, 6)
-        .padding(.bottom, hasTriedSubmitting && !displayNameError.isEmpty ? 8 : 0)
+        .padding(.top, 8)
     }
 }

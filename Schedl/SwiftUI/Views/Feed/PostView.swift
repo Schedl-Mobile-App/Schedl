@@ -114,7 +114,7 @@ struct PostView: View {
                     .font(.body)
                     .fontWeight(.medium)
                     .fontDesign(.rounded)
-                    .tracking(1.15) +
+                    .tracking(1.15) + 
                 Text("What an amazing sight that I've caught on my camera today!")
                     .font(.body)
                     .fontWeight(.medium)

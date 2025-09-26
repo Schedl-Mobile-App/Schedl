@@ -6,377 +6,210 @@
 //
 
 import SwiftUI
-
-private let mockUser = User(
-    id: "mock-id",
-    username: "mockuser",
-    email: "mock@email.com",
-    displayName: "Mock User",
-    profileImage: "https://example.com/mock-profile.png",
-    creationDate: Date().timeIntervalSince1970
-)
+import Kingfisher
 
 struct CreateEventView: View {
     
-    @EnvironmentObject var tabBarState: TabBarState
-    
     @StateObject var eventViewModel: EventViewModel
     @Environment(\.dismiss) var dismiss
-    @Binding var shouldReloadData: Bool
     
     @FocusState var isFocused: EventInfoFields?
     
-    init(currentUser: User, shouldReloadData: Binding<Bool>) {
-        _eventViewModel = StateObject(wrappedValue: EventViewModel(currentUser: currentUser))
-        _shouldReloadData = Binding(projectedValue: shouldReloadData)
+    init(currentUser: User, currentScheduleId: String) {
+        _eventViewModel = StateObject(wrappedValue: EventViewModel(currentUser: currentUser, currentScheduleId: currentScheduleId))
     }
     
     var body: some View {
         ZStack {
-            Color(hex: 0xf7f4f2)
+            Color("BackgroundColor")
                 .ignoresSafeArea()
             
-            VStack(spacing: 10) {
-                ZStack(alignment: .leading) {
-                    Button(action: {
-                        tabBarState.hideTabbar = false
-                        dismiss()
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .fontWeight(.bold)
-                            .imageScale(.large)
-                            .labelStyle(.iconOnly)
-                            .foregroundStyle(Color.primary)
-                    }
-                    
-                    
-                    Text("Create Event")
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .font(.title3)
-                        .fontWeight(.bold)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .center, spacing: 10) {
+                    Text("Fill out the details below to create your event!")
+                        .font(.body)
+                        .fontWeight(.medium)
                         .fontDesign(.monospaced)
                         .tracking(-0.25)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .padding([.horizontal, .top])
-                .frame(maxWidth: .infinity)
-                
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .center, spacing: 10) {
-                        Text("Fill out the details below to create your event!")
-                            .font(.body)
-                            .fontWeight(.medium)
-                            .fontDesign(.monospaced)
-                            .tracking(-0.25)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(Color(hex: 0x333333))
-                            .padding(.vertical, 8)
-                        
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color("PrimaryText"))
+                        .padding(.vertical, 8)
+                    
+                    VStack(spacing: 0) {
                         // view for event title input
                         EventTitleView(title: $eventViewModel.title, isFocused: $isFocused, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, titleError: $eventViewModel.titleError)
                         
                         // view for event date and recurring days seletion
-                        EventDateView(eventDate: $eventViewModel.eventDate, eventEndDate: $eventViewModel.eventEndDate, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, startDateError: $eventViewModel.startDateError, endDateError: $eventViewModel.endDateError, repeatedDays: $eventViewModel.repeatedDays)
+                        EventDateView(eventDate: $eventViewModel.eventDate, eventEndDate: $eventViewModel.eventEndDate, repeatedDays: $eventViewModel.repeatedDays, hasTriedSubmitting: eventViewModel.hasTriedSubmitting, startDateError: eventViewModel.startDateError, endDateError: eventViewModel.endDateError)
                         
                         // view for start time selection
-                        EventStartTimeView(startTime: $eventViewModel.startTime, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, startTimeError: $eventViewModel.startTimeError)
+                        EventStartTimeView(startTime: $eventViewModel.startTime, hasTriedSubmitting: eventViewModel.hasTriedSubmitting, startTimeError: eventViewModel.startTimeError)
                         
                         // view for end time selection
-                        EventEndTimeView(endTime: $eventViewModel.endTime, endTimeError: $eventViewModel.endTimeError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting)
+                        EventEndTimeView(endTime: $eventViewModel.endTime, endTimeError: eventViewModel.endTimeError, hasTriedSubmitting: eventViewModel.hasTriedSubmitting)
                         
                         // view for location selection
-                        EventLocationView(selectedPlacemark: $eventViewModel.selectedPlacemark, locationError: $eventViewModel.locationError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting)
+                        EventLocationView(selectedPlacemark: $eventViewModel.selectedPlacemark, locationError: eventViewModel.locationError, hasTriedSubmitting: eventViewModel.hasTriedSubmitting)
                         
                         // view for inviting friends selection
-                        EventInviteesView(selectedFriends: $eventViewModel.selectedFriends, showInviteUsersSheet: $eventViewModel.showInviteUsersSheet)
-                            .sheet(isPresented: $eventViewModel.showInviteUsersSheet) {
-                                AddInvitedUsers(eventViewModel: eventViewModel)
-                            }
+                        EventInviteesView(selectedFriends: $eventViewModel.selectedFriends, currentUser: eventViewModel.currentUser)
                         
                         // view for event notes input
-                        EventNotesView(notes: $eventViewModel.notes, notesError: $eventViewModel.notesError, hasTriedSubmitting: $eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
+                        EventNotesView(notes: $eventViewModel.notes, notesError: eventViewModel.notesError, hasTriedSubmitting: eventViewModel.hasTriedSubmitting, isFocused: $isFocused)
                         
                         // view for event color selection
                         EventColorView(eventColor: $eventViewModel.eventColor)
-                        
-                        Button(action: {
-                            Task {
-                                await eventViewModel.createEvent()
-                                if eventViewModel.shouldDismiss {
-                                    shouldReloadData = true
-                                    dismiss()
-                                }
-                            }
-                        }, label: {
-                            Text("Create Event")
-                                .foregroundColor(Color(hex: 0xf7f4f2))
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .fontDesign(.monospaced)
-                                .tracking(0.1)
-                        })
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color(hex: 0x3C859E))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .padding(.vertical, 8)
-                        
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.vertical)
-                    .padding(.horizontal, 25)
-                    .simultaneousGesture(TapGesture().onEnded {
+                    
+                    Button(action: {
+                        Task {
+                            await eventViewModel.createEvent()
+                            if eventViewModel.shouldDismiss {
+                                dismiss()
+                            }
+                        }
+                    }, label: {
+                        Text("Create Event")
+                            .foregroundColor(Color.white)
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
+                    })
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color("ButtonColors"))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.top, 10)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, 25)
+                .simultaneousGesture(TapGesture().onEnded {
+                    withAnimation {
                         isFocused = nil
+                        eventViewModel.resetErrors()
                         if eventViewModel.hasTriedSubmitting {
                             eventViewModel.hasTriedSubmitting = false
                         }
-                    })
-                }
-                .defaultScrollAnchor(.top, for: .initialOffset)
-                .defaultScrollAnchor(.bottom, for: .sizeChanges)
-                .scrollDismissesKeyboard(.interactively)
-                .onTapGesture {
-                    isFocused = nil
-                }
+                    }
+                })
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .defaultScrollAnchor(.top, for: .initialOffset)
+            .scrollDismissesKeyboard(.interactively)
         }
-        .navigationBarBackButtonHidden(true)
-        .onAppear {
-            shouldReloadData = false
-            tabBarState.hideTabbar = true
+        .navigationBarBackButtonHidden(false)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Create Event")
+                    .foregroundStyle(Color("PrimaryText"))
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .fontDesign(.monospaced)
+            }
         }
-        .onDisappear {
-            shouldReloadData = true
-        }
-        .toolbar(tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
     }
 }
 
 struct AddInvitedUsers: View {
     
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var eventViewModel: EventViewModel
-    @State var searchText: String = ""
-    @FocusState var isSearching: Bool?
-    private var filteredUsers: [User] {
-        if searchText.isEmpty {
-            return eventViewModel.userFriends
-        } else {
-            let filteredResults = eventViewModel.userFriends.filter { user in
-                let startsWith = user.displayName.lowercased().hasPrefix(searchText.lowercased())
-                let endsWith = user.displayName.lowercased().hasSuffix(searchText.lowercased())
-                
-                return startsWith || endsWith
-            }
-            
-            return filteredResults
-        }
+    
+    @StateObject var vm: FriendViewModel
+    @Binding var selectedFriends: [User]
+        
+    init(currentUser: User, selectedFriends: Binding<[User]>) {
+        _vm = StateObject(wrappedValue: FriendViewModel(profileUser: currentUser))
+        _selectedFriends = Binding(projectedValue: selectedFriends)
     }
     
     var body: some View {
         NavigationView {
             Group {
-                if eventViewModel.isLoading {
-                    VStack(spacing: 0) {
-                        HStack(alignment: .center, spacing: 10) {
-                            Button(action: {}) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundStyle(.gray)
-                                    .imageScale(.medium)
-                            }
-                            
-                            TextField("Search friends", text: $searchText)
-                                .textFieldStyle(.plain)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .fontDesign(.monospaced)
-                                .tracking(-0.25)
-                                .foregroundStyle(Color(hex: 0x333333))
-                                .disabled(true)
-                            
-                            Spacer()
-                            
-                            Button("Clear", action: {
-                                searchText = ""
-                            })
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .fontDesign(.monospaced)
-                            .tracking(-0.25)
-                            .foregroundStyle(Color(hex: 0x3C859E))
-                            .opacity(!searchText.isEmpty ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.2), value: searchText)
-                        }
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 25))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                                                
-                        FriendsLoadingView()
-                    }
-                } else if let error = eventViewModel.errorMessage {
-                    VStack(spacing: 0) {
-                        HStack(alignment: .center, spacing: 10) {
-                            Button(action: {}) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundStyle(.gray)
-                                    .imageScale(.medium)
-                            }
-                            
-                            TextField("Search friends", text: $searchText)
-                                .textFieldStyle(.plain)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .fontDesign(.monospaced)
-                                .tracking(-0.25)
-                                .foregroundStyle(Color(hex: 0x333333))
-                                .disabled(true)
-                            
-                            Spacer()
-                            
-                            Button("Clear", action: {
-                                searchText = ""
-                            })
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .fontDesign(.monospaced)
-                            .tracking(-0.25)
-                            .foregroundStyle(Color(hex: 0x3C859E))
-                            .opacity(!searchText.isEmpty ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.2), value: searchText)
-                        }
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 25))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        
-                        Spacer()
-                        
-                        Text(error)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .fontDesign(.monospaced)
-                            .foregroundStyle(Color(hex: 0x666666))
-                            .tracking(-0.25)
-                            .multilineTextAlignment(.center)
-                        Spacer()
-                    }
-                } else if eventViewModel.userFriends.isEmpty {
-                    VStack(spacing: 0) {
-                        HStack(alignment: .center, spacing: 10) {
-                            Button(action: {}) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundStyle(.gray)
-                                    .imageScale(.medium)
-                            }
-                            
-                            TextField("Search friends", text: $searchText)
-                                .textFieldStyle(.plain)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .fontDesign(.monospaced)
-                                .tracking(-0.25)
-                                .foregroundStyle(Color(hex: 0x333333))
-                                .disabled(true)
-                            
-                            Spacer()
-                            
-                            Button("Clear", action: {
-                                searchText = ""
-                            })
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .fontDesign(.monospaced)
-                            .tracking(-0.25)
-                            .foregroundStyle(Color(hex: 0x3C859E))
-                            .opacity(!searchText.isEmpty ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.2), value: searchText)
-                        }
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 25))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                                      
-                        Spacer()
-                        
-                        Text("No friends found. Add your first friend by clicking the Search icon below!")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .fontDesign(.monospaced)
-                            .foregroundStyle(Color(hex: 0x666666))
-                            .tracking(-0.25)
-                            .multilineTextAlignment(.center)
-                        Spacer()
-                    }
+                if vm.isLoading {
+                    FriendsLoadingView()
+                } else if let error = vm.errorMessage {
+                    Text(error)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                        .foregroundStyle(Color("SecondaryText"))
+                        .tracking(-0.25)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                } else if vm.friends.isEmpty {
+                    Text("No friends found. Add your first friend by clicking the Search icon below!")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                        .foregroundStyle(Color("SecondaryText"))
+                        .tracking(-0.25)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                 } else {
-                    VStack(spacing: 0) {
-                        HStack(alignment: .center, spacing: 10) {
-                            Button(action: {}) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundStyle(.gray)
-                                    .imageScale(.medium)
+                    List {
+                        Section(content: {
+                            ForEach(vm.friends, id: \.id) { friend in
+                                Button(action: {
+                                    withAnimation {
+                                        if isContained(friend.id) {
+                                            selectedFriends.removeAll { $0.id == friend.id }
+                                        } else {
+                                            selectedFriends.append(friend)
+                                        }
+                                    }
+                                }, label: {
+                                    InvitedUserCell(friend: friend, isAvailable: true)
+                                        .listRowBackground(Color.clear)
+//                                        .listRowBackground {
+//                                            isContained(id: friend.id) ?
+//                                            RoundedRectangle(cornerRadius: 10)
+//                                                .stroke(Color("BackgroundColor"), style: .continuous) :
+//                                            RoundedRectangle(cornerRadius: 10)
+//                                                .stroke(Color.clear)
+//                                        }
+                                })
                             }
-                            
-                            TextField("Search friends", text: $searchText)
-                                .textFieldStyle(.plain)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .fontDesign(.monospaced)
-                                .tracking(-0.25)
-                                .foregroundStyle(Color(hex: 0x333333))
-                                .autocorrectionDisabled(true)
-                                .textInputAutocapitalization(.never)
-                                .focused($isSearching, equals: true)
-                            
-                            Spacer()
-                            
-                            Button("Clear", action: {
-                                searchText = ""
-                            })
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .fontDesign(.monospaced)
-                            .tracking(-0.25)
-                            .foregroundStyle(Color(hex: 0x3C859E))
-                            .opacity(!searchText.isEmpty ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.2), value: searchText)
-                        }
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 25))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        
-                        ScrollView(.vertical, showsIndicators: false) {
-                            LazyVStack(spacing: 20) {
-                                ForEach(filteredUsers, id: \.self.id) { friend in
-                                    InvitedUserCell(friend: friend, selectedFriends: $eventViewModel.selectedFriends, availableFriends: eventViewModel.availabilityList)
-                                }
-                            }
-                            .padding(.vertical)
-                        }
-                        .scrollDismissesKeyboard(.interactively)
+                        }, header: {
+                            EmptyView()
+                        })
+                        .listSectionSeparator(.hidden, edges: .top)
                     }
-                    .onTapGesture {
-                        isSearching = nil
-                    }
+                    .listStyle(.plain)
+                    .scrollDismissesKeyboard(.immediately)
                 }
             }
-            .padding(.horizontal)
             .navigationTitle("Invite Friends")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Reset") {
+                        withAnimation {
+                            selectedFriends.removeAll()
+                        }
+                    }
+                }
+                
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
                 }
             }
         }
+        .toolbarBackground(Color.blue)
         .presentationDetents([.medium, .large])
         .task {
-            await eventViewModel.fetchFriends()
+            await vm.fetchFriends()
         }
+        .searchable(text: $vm.searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search for available friends")
+    }
+    
+    func isContained(_ id: String) -> Bool {
+        return selectedFriends.contains(where: { $0.id == id })
+    }
+    
+    func isAvailable(_ id: String) -> Bool {
+        return vm.availabilityList.contains(where: { $0.userId == id })
     }
 }
 
@@ -396,99 +229,141 @@ struct EventTitleView: View {
     @Binding var titleError: String
     
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 0) {
             
-                TextField("Event Title", text: titleBinding, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.subheadline)
-                    .fontDesign(.monospaced)
-                    .foregroundStyle(Color(hex: 0x333333))
-                    .tracking(0.1)
-                    .focused(isFocused, equals: .title)
-                    .autocorrectionDisabled(true)
+                TextField("", text: titleBinding, prompt:
+                            Text("Event Title")
+                                .font(.subheadline)
+                                .fontDesign(.monospaced)
+                                .foregroundStyle(Color("SecondaryText"))
+                                .tracking(-0.25),
+                          axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.subheadline)
+                .fontDesign(.monospaced)
+                .foregroundStyle(Color("PrimaryText"))
+                .tracking(-0.25)
+                .focused(isFocused, equals: .title)
+                .autocorrectionDisabled(true)
+                .textInputAutocapitalization(.sentences)
+                .submitLabel(.done)
+                .onChange(of: title) { _, newValue in
+                    guard let newValue = newValue else { return }
+                    guard isFocused.wrappedValue == .title else { return }
+                    guard newValue.contains("\n") else { return }
+                    isFocused.wrappedValue = nil
+                    title = newValue.replacing("\n", with: "")
+                }
                 
                 Spacer()
                 Button(action: {
-                    title = nil
+                    withAnimation {
+                        title = nil
+                    }
                 }) {
                     Image(systemName: "xmark")
                         .imageScale(.small)
-                        .foregroundStyle(Color(hex: 0x333333))
+                        .foregroundStyle(Color("IconColors"))
                 }
-                .hidden(title == nil)
+                .opacity(title == nil ? 0 : 1)
+                .animation(.easeInOut(duration: 0.4), value: title)
             }
             .padding(.vertical, 16)
             .padding(.horizontal, 20)
             .background {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
-                    .stroke(hasTriedSubmitting && title == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    .stroke(hasTriedSubmitting && title == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
             }
-            
-            
-            GeometryReader { geometry in
+            .overlay(alignment: .topLeading) {
                 HStack(spacing: 0) {
-                    Spacer()
-                        .frame(width: 4)
                     Text("Event Title")
                         .font(.footnote)
                         .fontWeight(.medium)
                         .fontDesign(.monospaced)
-                    Spacer()
-                        .frame(width: 4)
+                        .padding(.horizontal, 4)
+                        .background(Color("BackgroundColor"))
+                        .offset(y: -9)
+                        .padding(.leading, 16)
                 }
-                .background {
-                    Color(hex: 0xf7f4f2)
-                }
+                .opacity(title != nil || isFocused.wrappedValue == .title ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue == .title || title != nil)
+            }
+
+            Text(titleError.isEmpty ? " " : titleError)
+                .font(.footnote)
                 .padding(.leading)
-                .offset(y: -10)
-                .opacity(isFocused.wrappedValue == .title || title != nil ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(Color("ErrorTextColor"))
+                .opacity(titleError.isEmpty ? 0 : 1)
+                .animation(.easeInOut(duration: 0.2), value: titleError.isEmpty)
+        }
+        .padding(.top, 10)
+    }
+}
+
+struct DatePickerView: View {
+    
+    @Environment(\.router) var coordinator: Router
+    @Binding var date: Date?
+    
+    var dateBinding: Binding<Date> {
+        Binding(
+            get: { date ?? Calendar.current.startOfDay(for: Date()) },
+            set: { selectedDate in
+                date = selectedDate
+            }
+        )
+    }
+    
+    var body: some View {
+        NavigationView {
+            DatePicker("Select Date",
+                       selection: dateBinding,
+                       displayedComponents: [.date])
+            .datePickerStyle(.graphical)
+            .padding()
+            .navigationTitle("Select Date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Clear") {
+                        date = nil
+                        coordinator.dismissSheet()
+                    }
+                }
                 
-                Text(titleError)
-                    .font(.footnote)
-                    .padding(.leading)
-                    .offset(y: geometry.size.height * CGFloat(1.05))
-                    .foregroundStyle(.red)
-                    .opacity(hasTriedSubmitting && !titleError.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        coordinator.dismissSheet()
+                    }
+                }
             }
         }
-        .padding(.vertical, 8)
-        .padding(.bottom, hasTriedSubmitting && !titleError.isEmpty ? 8 : 0)
+        .onAppear {
+            if date == nil {
+                date = Calendar.current.startOfDay(for: Date())
+            }
+            print("in on eappear of date picker view")
+        }
     }
 }
 
 struct EventDateView: View {
     
+    @Environment(\.router) var coordinator: Router
+    
     @Binding var eventDate: Date?
     @Binding var eventEndDate: Date?
-    @Binding var hasTriedSubmitting: Bool
-    @State var showDatePicker: Bool = false
-    @State var showEndDatePicker: Bool = false
-    @Binding var startDateError: String
-    @Binding var endDateError: String
     @Binding var repeatedDays: Set<Int>?
     
-    var dayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    var hasTriedSubmitting: Bool
+    var startDateError: String
+    var endDateError: String
     
-    var eventDateBinding: Binding<Date> {
-        Binding(
-            get: { eventDate ?? Calendar.current.startOfDay(for: Date()) },
-            set: { selectedDate in
-                eventDate = selectedDate
-            }
-        )
-    }
-    var eventEndDateBinding: Binding<Date> {
-        Binding(
-            get: { eventEndDate ?? Calendar.current.startOfDay(for: Date()) },
-            set: { selectedDate in
-                eventEndDate = selectedDate
-            }
-        )
-    }
+    var abbreviatedDayList: [String] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    var completeDayList: [String] = ["Sunday", "Tuesday", "Wednesday", "Thursday", "Saturday", "Monday", "Friday"]
     
     var eventDateText: String {
         if let date = eventDate {
@@ -504,34 +379,36 @@ struct EventDateView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
             HStack(spacing: 0) {
                 Text(eventDateText)
                     .fontWeight(eventDate == nil ? .regular : .medium)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(eventDate == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
-                    .tracking(0.1)
+                    .foregroundStyle(eventDate == nil ? Color("SecondaryText") : Color("PrimaryText"))
+                    .tracking(-0.25)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
                 Spacer()
                 
                 ZStack(alignment: .trailing) {
                     Button("Edit", action: {
-                        showDatePicker.toggle()
+                        coordinator.present(sheet: .eventDate(date: $eventDate))
                     })
                     .font(.footnote)
                     .fontWeight(.bold)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(Color(hex: 0x3C859E))
+                    .foregroundStyle(Color("ButtonColors"))
                     .hidden(eventDate == nil)
                     
                     Button(action: {
-                        showDatePicker.toggle()
+                        coordinator.present(sheet: .eventDate(date: $eventDate))
                     }) {
                         Image(systemName: "calendar")
                             .imageScale(.large)
-                            .foregroundStyle(Color(hex: 0x333333))
+                            .foregroundStyle(Color("IconColors"))
                     }
                     .hidden(eventDate != nil)
                 }
@@ -541,92 +418,56 @@ struct EventDateView: View {
             .background {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
-                    .stroke(hasTriedSubmitting && eventDate == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    .stroke(hasTriedSubmitting && eventDate == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
             }
-            .onTapGesture {
-                showDatePicker.toggle()
-            }
-            .sheet(isPresented: $showDatePicker) {
-                NavigationView {
-                    DatePicker("Select Event Date",
-                               selection: eventDateBinding,
-                               displayedComponents: [.date])
-                    .datePickerStyle(.graphical)
-                    .padding(0)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .navigationTitle("Select Date")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Clear") {
-                                eventDate = nil
-                                showDatePicker = false
-                            }
-                        }
-                        
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Done") {
-                                showDatePicker = false
-                            }
-                        }
-                    }
-                }
-                .presentationDetents([.medium])
-                .onAppear {
-                    if eventDate == nil {
-                        eventDate = Calendar.current.startOfDay(for: Date())
-                    }
-                }
-            }
-            
-            GeometryReader { geometry in
-                HStack {
-                    Spacer()
-                        .frame(width: 4)
+            .overlay(alignment: .topLeading) {
+                // This HStack creates the label with padding for the background.
+                HStack(spacing: 0) {
                     Text("Event Date")
                         .font(.footnote)
                         .fontWeight(.medium)
                         .fontDesign(.monospaced)
-                    Spacer()
-                        .frame(width: 4)
+                        .padding(.horizontal, 4)
+                        .background(Color("BackgroundColor")) // This background cuts the border
+                        .offset(y: -9) // Move label up or keep it centered
+                        .padding(.leading, 16)
                 }
-                .opacity(eventDate != nil ? 1 : 0)
+                .opacity(eventDate != nil ? 1 : 0) // Show label only when floating
                 .animation(.easeInOut(duration: 0.2), value: eventDate)
-                .background {
-                    Color(hex: 0xf7f4f2)
-                }
-                .padding(.leading)
-                .offset(y: -geometry.size.height * CGFloat(0.15))
-                .hidden(eventDate == nil)
-                
-                Text(startDateError)
-                    .font(.footnote)
-                    .padding(.leading)
-                    .offset(y: geometry.size.height * CGFloat(1.05))
-                    .foregroundStyle(.red)
-                    .opacity(hasTriedSubmitting && !startDateError.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
             }
+            
+            Text(startDateError.isEmpty ? " " : startDateError)
+                .font(.footnote)
+                .padding(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(Color("ErrorTextColor"))
+                .opacity(startDateError.isEmpty ? 0 : 1)
+                .animation(.easeInOut(duration: 0.2), value: startDateError.isEmpty)
         }
-        .padding(.vertical, 8)
-        .padding(.bottom, hasTriedSubmitting && !startDateError.isEmpty ? 8 : 0)
+        .padding(.top, 10)
         
         if eventDate != nil {
-            ZStack(alignment: .topLeading) {
+            VStack(spacing: 0) {
                 VStack(spacing: 15) {
-                    HStack(alignment: .center, spacing: 0) {
-                        ForEach(0..<dayList.count, id: \.self) { index in
-                            Spacer()
-                            VStack(alignment: .center, spacing: 12) {
-                                Text(dayList[index])
-                                    .fontWeight(.bold)
-                                    .fontDesign(.monospaced)
-                                    .font(.footnote)
-                                    .tracking(0.1)
-                                    .foregroundStyle(Color(hex: 0x333333))
-                                
-                                Button(action: {
-                                    var currentDays = repeatedDays ?? Set<Int>()
+                    // Wrap the day picker in ViewThatFits
+                    ViewThatFits {
+                        // Option 1: The original horizontal layout
+                        HStack(spacing: 0) {
+                            // Your ForEach loop for the days goes here...
+                            ForEach(0..<abbreviatedDayList.count, id: \.self) { index in
+                                if (index != 0) {
+                                    Spacer()
+                                }
+                                VStack(alignment: .center, spacing: 12) {
+                                    Text(abbreviatedDayList[index])
+                                        .fontWeight(.bold)
+                                        .fontDesign(.monospaced)
+                                        .font(.footnote)
+                                        .tracking(-0.25)
+                                        .foregroundStyle(Color("PrimaryText"))
+                                    
+                                    Button(action: {
+                                        var currentDays = repeatedDays ?? Set<Int>()
                                         
                                         // 2. Perform the toggle logic on the local variable
                                         if currentDays.contains(index) {
@@ -637,148 +478,262 @@ struct EventDateView: View {
                                         
                                         // 3. Assign the modified set back to the @State variable to trigger a UI update
                                         repeatedDays = currentDays
-                                }) {
-                                    RoundedRectangle(cornerRadius: 5)
-                                            // 4. Safely check for containment without force unwrapping
-                                            .fill(repeatedDays?.contains(index) == true ? Color(hex: 0x3C859E) : Color.gray.opacity(0.2))
+                                    }) {
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .fill(repeatedDays?.contains(index) == true ? Color("ButtonColors") : Color.gray.opacity(0.2))
                                             .frame(width: 25, height: 25)
+                                    }
+                                }
+                                if (index != abbreviatedDayList.count - 1) {
+                                    Spacer()
                                 }
                             }
-                            Spacer()
+                        }
+                        
+                        // Option 2: The fallback vertical layout for large text sizes
+                        VStack(alignment: .leading, spacing: 15) {
+                            // The same ForEach loop, but now inside a VStack
+                            ForEach(0..<completeDayList.count, id: \.self) { index in
+                                HStack { // Use an HStack here to place the label and button side-by-side
+                                    Text(completeDayList[index])
+                                        .fontWeight(.bold)
+                                        .fontDesign(.monospaced)
+                                        .font(.footnote)
+                                        .tracking(-0.25)
+                                        .foregroundStyle(Color("PrimaryText"))
+                                    
+                                    Spacer()
+                                    
+                                    Button(action: {
+                                        var currentDays = repeatedDays ?? Set<Int>()
+                                        
+                                        // 2. Perform the toggle logic on the local variable
+                                        if currentDays.contains(index) {
+                                            currentDays.remove(index)
+                                        } else {
+                                            currentDays.insert(index)
+                                        }
+                                        
+                                        // 3. Assign the modified set back to the @State variable to trigger a UI update
+                                        repeatedDays = currentDays
+                                    }) {
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .fill(repeatedDays?.contains(index) == true ? Color("ButtonColors") : Color.gray.opacity(0.2))
+                                            .frame(width: 25, height: 25)
+                                    }
+                                }
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity)
                     
-                    HStack {
-                        Text("Repeating Until")
-                            .fontWeight(.bold)
-                            .fontDesign(.monospaced)
-                            .font(.caption)
-                            .tracking(0.1)
-                            .foregroundStyle(Color(hex: 0x333333))
-                        Spacer()
-                        ZStack(alignment: .trailing) {
-                            Button(action: {
-                                showEndDatePicker.toggle()
-                            }) {
-                                Text(eventEndDateText)
-                                    .font(.footnote)
-                                    .fontWeight(.medium)
-                                    .fontDesign(.monospaced)
-                                    .foregroundStyle(Color(hex: 0x333333))
-                                    .tracking(-0.25)
-                                Image(systemName: "calendar")
-                                    .imageScale(.medium)
-                                    .foregroundStyle(Color(hex: 0x333333))
-                            }
-                            .hidden(eventEndDate == nil)
+                    ViewThatFits {
+                        // Option 1: Horizontal layout (without the Spacer)
+                        HStack {
+                            Text("Repeating Until:")
+                                .fontWeight(.bold)
+                                .fontDesign(.monospaced)
+                                .font(.caption)
+                                .tracking(-0.25)
+                                .foregroundStyle(Color("PrimaryText"))
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             
-                            Button(action: {
-                                showEndDatePicker.toggle()
-                            }) {
-                                Text("Select Date")
-                                    .fontWeight(.bold)
-                                    .fontDesign(.monospaced)
-                                    .font(.caption)
-                                    .tracking(0.1)
-                                    .foregroundStyle(Color.gray)
-                                Image(systemName: "calendar")
-                                    .imageScale(.medium)
-                                    .foregroundStyle(Color(hex: 0x333333))
+                            // This Spacer is removed to allow the HStack to report its true size.
+                            
+                            // Use a ZStack to conditionally show one of the two buttons.
+                            ZStack {
+                                Button(action: {
+                                    coordinator.present(sheet: .eventDate(date: $eventEndDate))
+                                }) {
+                                    // This HStack is for the text and icon
+                                    HStack {
+                                        Image(systemName: "calendar")
+                                            .imageScale(.medium)
+                                            .foregroundStyle(Color("IconColors"))
+                                        Text(eventEndDateText)
+                                            .font(.footnote)
+                                            .fontWeight(.medium)
+                                            .fontDesign(.monospaced)
+                                            .foregroundStyle(Color("PrimaryText"))
+                                            .lineLimit(1)
+                                            .tracking(-0.25)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                    .padding(.leading)
+                                }
+                                .opacity(eventEndDate == nil ? 0 : 1) // Fade in/out for a smoother look
+                                
+                                Button(action: {
+                                    coordinator.present(sheet: .eventDate(date: $eventEndDate))
+                                }) {
+                                    // This HStack is for the text and icon
+                                    HStack {
+                                        Image(systemName: "calendar")
+                                            .imageScale(.medium)
+                                            .foregroundStyle(Color("IconColors"))
+                                        Text("Select Date")
+                                            .fontWeight(.bold)
+                                            .fontDesign(.monospaced)
+                                            .font(.caption)
+                                            .foregroundStyle(Color("SecondaryText"))
+                                            .lineLimit(1)
+                                            .tracking(-0.25)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                    .padding(.leading)
+                                }
+                                .opacity(eventEndDate != nil ? 0 : 1)
                             }
-                            .hidden(eventEndDate != nil)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+                        
+                        // Option 2: Vertical fallback layout (this will now be used correctly)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Repeating Until")
+                                .fontWeight(.bold)
+                                .fontDesign(.monospaced)
+                                .font(.caption)
+                                .tracking(-0.25)
+                                .foregroundStyle(Color("PrimaryText"))
+                            
+                            // Using a ZStack here as well for consistency
+                            ZStack(alignment: .leading) {
+                                Button(action: {
+                                    coordinator.present(sheet: .eventDate(date: $eventEndDate))
+                                }) {
+                                    HStack {
+                                        Image(systemName: "calendar")
+                                            .imageScale(.medium)
+                                            .foregroundStyle(Color("IconColors"))
+                                        Text(eventEndDateText)
+                                            .font(.footnote)
+                                            .fontWeight(.medium)
+                                            .fontDesign(.monospaced)
+                                            .foregroundStyle(Color("PrimaryText"))
+                                            .tracking(-0.25)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.leading)
+                                }
+                                .opacity(eventEndDate == nil ? 0 : 1)
+                                
+                                Button(action: {
+                                    coordinator.present(sheet: .eventDate(date: $eventEndDate))
+                                }) {
+                                    HStack {
+                                        Image(systemName: "calendar")
+                                            .imageScale(.medium)
+                                            .foregroundStyle(Color("IconColors"))
+                                        Text("Select Date")
+                                            .fontWeight(.bold)
+                                            .fontDesign(.monospaced)
+                                            .font(.caption)
+                                            .tracking(-0.25)
+                                            .foregroundStyle(Color("SecondaryText"))
+                                    }
+                                    .opacity(eventEndDate != nil ? 0 : 1)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.leading)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
                         }
                     }
                 }
-                .padding(.vertical)
-                .padding(.horizontal)
+                .padding(.vertical, 14)
+                .padding(.horizontal, 20)
                 .background {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.clear)
-                        .stroke(hasTriedSubmitting && !endDateError.isEmpty ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                        .stroke(hasTriedSubmitting && !endDateError.isEmpty ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
                 }
-                .sheet(isPresented: $showEndDatePicker) {
-                    NavigationView {
-                        DatePicker("Select End Date",
-                                   selection: eventEndDateBinding,
-                                   displayedComponents: [.date])
-                        .datePickerStyle(.graphical)
-                        .navigationTitle("Select End Date")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Clear") {
-                                    eventEndDate = nil
-                                    showEndDatePicker = false
-                                }
-                            }
-                            
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button("Done") {
-                                    showEndDatePicker = false
-                                }
-                            }
-                        }
-                    }
-                    .presentationDetents([.medium])
-                    .onAppear {
-                        if eventEndDate == nil {
-                            eventEndDate = Calendar.current.startOfDay(for: Date())
-                        }
-                    }
-                }
-                
-                GeometryReader { geometry in
-                    HStack {
-                        Spacer()
-                            .frame(width: 4)
+                .overlay(alignment: .topLeading) {
+                    // This HStack creates the label with padding for the background.
+                    HStack(spacing: 0) {
                         Text("Recurring Days")
                             .font(.footnote)
                             .fontWeight(.medium)
                             .fontDesign(.monospaced)
-                        Spacer()
-                            .frame(width: 4)
+                            .padding(.horizontal, 4)
+                            .background(Color("BackgroundColor")) // This background cuts the border
+                            .offset(y: -9) // Move label up or keep it centered
+                            .padding(.leading, 16)
                     }
-                    .opacity(eventDate != nil ? 1 : 0)
+                    .opacity(eventDate != nil ? 1 : 0) // Show label only when floating
                     .animation(.easeInOut(duration: 0.2), value: eventDate)
-                    .background {
-                        Color(hex: 0xf7f4f2)
-                    }
-                    .padding(.leading)
-                    .offset(y: -10)
-                    .hidden(eventDate == nil)
-                    
-                    Text(endDateError)
-                        .font(.footnote)
-                        .padding(.leading)
-                        .offset(y: geometry.size.height * CGFloat(1.025))
-                        .foregroundStyle(.red)
-                        .opacity(hasTriedSubmitting && !endDateError.isEmpty ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
                 }
+                
+                Text(endDateError.isEmpty ? " " : endDateError)
+                    .font(.footnote)
+                    .padding(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(Color("ErrorTextColor"))
+                    .opacity(endDateError.isEmpty ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.2), value: endDateError.isEmpty)
             }
             .transition(.move(edge: .top).combined(with: .opacity))
-            .padding(.vertical, 8)
-            .padding(.bottom, hasTriedSubmitting && !endDateError.isEmpty ? 8 : 0)
+            .padding(.top, 10)
+        }
+    }
+}
+
+struct TimePickerView: View {
+    
+    @Environment(\.router) var coordinator: Router
+    @Binding var time: Date?
+    
+    var timeBinding: Binding<Date> {
+        Binding(
+            get: { time ?? Date.now },
+            set: { selectedTime in
+                time = selectedTime
+            }
+        )
+    }
+    
+    var body: some View {
+        NavigationView {
+            DatePicker("",
+                      selection: timeBinding,
+                      displayedComponents: [.hourAndMinute])
+                .datePickerStyle(.wheel)
+                .navigationTitle("Select Start Time")
+                .navigationBarTitleDisplayMode(.inline)
+                .labelsHidden()
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Clear") {
+                            time = nil
+                            coordinator.dismissSheet()
+                        }
+                    }
+
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            coordinator.dismissSheet()
+                        }
+                    }
+                }
+        }
+        .presentationDetents([.medium])
+        .onAppear {
+            if time == nil {
+                time = Date.now
+            }
         }
     }
 }
 
 struct EventStartTimeView: View {
     
+    @Environment(\.router) var coordinator: Router
     @Binding var startTime: Date?
-    @Binding var hasTriedSubmitting: Bool
-    @Binding var startTimeError: String
-    @State var showStartTimePicker: Bool = false
+    var hasTriedSubmitting: Bool
+    var startTimeError: String
     
-    var startTimeBinding: Binding<Date> {
-        Binding(
-            get: { startTime ?? Date.now },
-            set: { selectedTime in
-                startTime = selectedTime
-            }
-        )
-    }
+    
     var startTimeText: String {
         if let date = startTime {
             return date.formatted(date: .omitted, time: .shortened)
@@ -787,13 +742,13 @@ struct EventStartTimeView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
             HStack(spacing: 0) {
                 Text(startTimeText)
                     .fontWeight(startTime == nil ? .regular : .medium)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(startTime == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                    .foregroundStyle(startTime == nil ? Color("SecondaryText") : Color("PrimaryText"))
                     .tracking(-0.25)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
@@ -801,20 +756,22 @@ struct EventStartTimeView: View {
                 
                 ZStack(alignment: .trailing) {
                     Button("Edit", action: {
-                        showStartTimePicker.toggle()
+                        print("clicking")
+                        coordinator.present(sheet: .eventTime(time: $startTime))
                     })
                     .font(.footnote)
                     .fontWeight(.bold)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(Color(hex: 0x3C859E))
+                    .foregroundStyle(Color("ButtonColors"))
                     .hidden(startTime == nil)
                     
                     Button(action: {
-                        showStartTimePicker.toggle()
+                        print("clicking")
+                        coordinator.present(sheet: .eventTime(time: $startTime))
                     }) {
                         Image(systemName: "clock.badge")
                             .imageScale(.large)
-                            .foregroundStyle(Color(hex: 0x333333))
+                            .foregroundStyle(Color("IconColors"))
                     }
                     .hidden(startTime != nil)
                 }
@@ -824,92 +781,44 @@ struct EventStartTimeView: View {
             .background {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
-                    .stroke(hasTriedSubmitting && startTime == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    .stroke(hasTriedSubmitting && startTime == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
             }
-            .onTapGesture {
-                showStartTimePicker.toggle()
-            }
-            .sheet(isPresented: $showStartTimePicker) {
-                NavigationView {
-                    DatePicker("",
-                              selection: startTimeBinding,
-                              displayedComponents: [.hourAndMinute])
-                        .datePickerStyle(.wheel)
-                        .navigationTitle("Select Start Time")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .labelsHidden()
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Clear") {
-                                    startTime = nil
-                                    showStartTimePicker = false
-                                }
-                            }
-
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button("Done") {
-                                    showStartTimePicker = false
-                                }
-                            }
-                        }
-                }
-                .presentationDetents([.medium])
-                .onAppear {
-                    if startTime == nil {
-                        startTime = Date.now
-                    }
-                }
-            }
-            
-            GeometryReader { geometry in
-                HStack {
-                    Spacer()
-                        .frame(width: 4)
+            .overlay(alignment: .topLeading) {
+                // This HStack creates the label with padding for the background.
+                HStack(spacing: 0) {
                     Text("Start Time")
                         .font(.footnote)
                         .fontWeight(.medium)
                         .fontDesign(.monospaced)
-                    Spacer()
-                        .frame(width: 4)
+                        .padding(.horizontal, 4)
+                        .background(Color("BackgroundColor")) // This background cuts the border
+                        .offset(y: -9) // Move label up or keep it centered
+                        .padding(.leading, 16)
                 }
-                .opacity(startTime != nil ? 1 : 0)
+                .opacity(startTime != nil ? 1 : 0) // Show label only when floating
                 .animation(.easeInOut(duration: 0.2), value: startTime)
-                .background {
-                    Color(hex: 0xf7f4f2)
-                }
-                .padding(.leading)
-                .offset(y: -geometry.size.height * CGFloat(0.15))
-                .hidden(startTime == nil)
-                
-                Text(startTimeError)
-                    .font(.footnote)
-                    .padding(.leading)
-                    .offset(y: geometry.size.height * CGFloat(1.05))
-                    .foregroundStyle(.red)
-                    .opacity(hasTriedSubmitting && !startTimeError.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
             }
+
+            Text(startTimeError.isEmpty ? " " : startTimeError)
+                .font(.footnote)
+                .padding(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(Color("ErrorTextColor"))
+                .opacity(startTimeError.isEmpty ? 0 : 1)
+                .animation(.easeInOut(duration: 0.2), value: startTimeError.isEmpty)
         }
-        .padding(.vertical, 8)
-        .padding(.bottom, hasTriedSubmitting && !startTimeError.isEmpty ? 8 : 0)
+        .padding(.top, 10)
     }
 }
 
 struct EventEndTimeView: View {
     
-    @Binding var endTime: Date?
-    @Binding var endTimeError: String
-    @State var showEndTimePicker: Bool = false
-    @Binding var hasTriedSubmitting: Bool
+    @Environment(\.router) var coordinator: Router
     
-    var endTimeBinding: Binding<Date> {
-        Binding(
-            get: { endTime ?? Date.now },
-            set: { selectedTime in
-                endTime = selectedTime
-            }
-        )
-    }
+    @Binding var endTime: Date?
+    var endTimeError: String
+    var hasTriedSubmitting: Bool
+    
     var endTimeText: String {
         if let date = endTime {
             return date.formatted(date: .omitted, time: .shortened)
@@ -918,13 +827,13 @@ struct EventEndTimeView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
             HStack(spacing: 0) {
                 Text(endTimeText)
                     .fontWeight(endTime == nil ? .regular : .medium)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(endTime == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                    .foregroundStyle(endTime == nil ? Color("SecondaryText") : Color("PrimaryText"))
                     .tracking(-0.25)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
@@ -932,20 +841,20 @@ struct EventEndTimeView: View {
                 
                 ZStack(alignment: .trailing) {
                     Button("Edit", action: {
-                        showEndTimePicker.toggle()
+                        coordinator.present(sheet: .eventTime(time: $endTime))
                     })
                     .font(.footnote)
                     .fontWeight(.bold)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(Color(hex: 0x3C859E))
+                    .foregroundStyle(Color("ButtonColors"))
                     .hidden(endTime == nil)
                     
                     Button(action: {
-                        showEndTimePicker.toggle()
+                        coordinator.present(sheet: .eventTime(time: $endTime))
                     }) {
                         Image(systemName: "clock.badge")
                             .imageScale(.large)
-                            .foregroundStyle(Color(hex: 0x333333))
+                            .foregroundStyle(Color("IconColors"))
                     }
                     .hidden(endTime != nil)
                 }
@@ -955,83 +864,42 @@ struct EventEndTimeView: View {
             .background {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
-                    .stroke(hasTriedSubmitting && endTime == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    .stroke(hasTriedSubmitting && endTime == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
             }
-            .onTapGesture {
-                showEndTimePicker.toggle()
-            }
-            .sheet(isPresented: $showEndTimePicker) {
-                NavigationView {
-                    DatePicker("",
-                              selection: endTimeBinding,
-                              displayedComponents: [.hourAndMinute])
-                        .datePickerStyle(.wheel)
-                        .navigationTitle("Select Start Time")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .labelsHidden()
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Clear") {
-                                    endTime = nil
-                                    showEndTimePicker = false
-                                }
-                            }
-
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button("Done") {
-                                    showEndTimePicker = false
-                                }
-                            }
-                        }
-                }
-                .presentationDetents([.medium])
-                .onAppear {
-                    if endTime == nil {
-                        endTime = Date.now
-                    }
-                }
-            }
-            
-            GeometryReader { geometry in
-                HStack {
-                    Spacer()
-                        .frame(width: 4)
+            .overlay(alignment: .topLeading) {
+                // This HStack creates the label with padding for the background.
+                HStack(spacing: 0) {
                     Text("End Time")
                         .font(.footnote)
                         .fontWeight(.medium)
                         .fontDesign(.monospaced)
-                    Spacer()
-                        .frame(width: 4)
+                        .padding(.horizontal, 4)
+                        .background(Color("BackgroundColor")) // This background cuts the border
+                        .offset(y: -9) // Move label up or keep it centered
+                        .padding(.leading, 16)
                 }
-                .opacity(endTime != nil ? 1 : 0)
+                .opacity(endTime != nil ? 1 : 0) // Show label only when floating
                 .animation(.easeInOut(duration: 0.2), value: endTime)
-                .background {
-                    Color(hex: 0xf7f4f2)
-                }
-                .padding(.leading)
-                .offset(y: -geometry.size.height * CGFloat(0.15))
-                .hidden(endTime == nil)
-                
-                Text(endTimeError)
-                    .font(.footnote)
-                    .padding(.leading)
-                    .offset(y: geometry.size.height * CGFloat(1.05))
-                    .foregroundStyle(.red)
-                    .opacity(hasTriedSubmitting && !endTimeError.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
             }
+
+            Text(endTimeError.isEmpty ? " " : endTimeError)
+                .font(.footnote)
+                .padding(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(Color("ErrorTextColor"))
+                .opacity(endTimeError.isEmpty ? 0 : 1)
+                .animation(.easeInOut(duration: 0.2), value: endTimeError.isEmpty)
         }
-        .padding(.vertical, 8)
-        .padding(.bottom, hasTriedSubmitting && !endTimeError.isEmpty ? 8 : 0)
+        .padding(.top, 10)
     }
 }
 
 struct EventLocationView: View {
     
+    @Environment(\.router) var coordinator: Router
     @Binding var selectedPlacemark: MTPlacemark?
-    @Binding var locationError: String
-    @State var showMapSheet: Bool = false
-    @Binding var hasTriedSubmitting: Bool
+    var locationError: String
+    var hasTriedSubmitting: Bool
     
     var selectedLocationText: String {
         if let location = selectedPlacemark {
@@ -1041,35 +909,37 @@ struct EventLocationView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
             
             HStack(spacing: 0) {
                 Text(selectedLocationText)
                     .fontWeight(selectedPlacemark == nil ? .regular : .medium)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(selectedPlacemark == nil ? Color(hex: 0xC7C7CD) : Color(hex: 0x333333))
+                    .foregroundStyle(selectedPlacemark == nil ? Color("SecondaryText") : Color("PrimaryText"))
                     .tracking(-0.25)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
                 Spacer()
                 
                 ZStack(alignment: .trailing) {
                     Button("Edit", action: {
-                        showMapSheet.toggle()
+                        coordinator.present(cover: .location(selectedPlacemark: $selectedPlacemark))
                     })
                     .font(.footnote)
                     .fontWeight(.bold)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(Color(hex: 0x3C859E))
+                    .foregroundStyle(Color("ButtonColors"))
                     .hidden(selectedPlacemark == nil)
                     
                     Button(action: {
-                        showMapSheet.toggle()
+                        coordinator.present(cover: .location(selectedPlacemark: $selectedPlacemark))
                     }) {
                         Image(systemName: "mappin")
                             .imageScale(.large)
-                            .foregroundStyle(Color(hex: 0x333333))
+                            .foregroundStyle(Color("IconColors"))
                     }
                     .hidden(selectedPlacemark != nil)
                 }
@@ -1079,72 +949,60 @@ struct EventLocationView: View {
             .background {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
-                    .stroke(hasTriedSubmitting && selectedPlacemark == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    .stroke(hasTriedSubmitting && selectedPlacemark == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
             }
-            .onTapGesture {
-                showMapSheet.toggle()
-            }
-            .fullScreenCover(isPresented: $showMapSheet) {
-                NavigationView {
-                    LocationView(selectedPlacemark: $selectedPlacemark, showMapSheet: $showMapSheet)
-                }
-            }
-            
-            GeometryReader { geometry in
-                HStack {
-                    Spacer()
-                        .frame(width: 4)
+            .overlay(alignment: .topLeading) {
+                // This HStack creates the label with padding for the background.
+                HStack(spacing: 0) {
                     Text("Location")
                         .font(.footnote)
                         .fontWeight(.medium)
                         .fontDesign(.monospaced)
-                    Spacer()
-                        .frame(width: 4)
+                        .padding(.horizontal, 4)
+                        .background(Color("BackgroundColor")) // This background cuts the border
+                        .offset(y: -9) // Move label up or keep it centered
+                        .padding(.leading, 16)
                 }
-                .opacity(selectedPlacemark != nil ? 1 : 0)
+                .opacity(selectedPlacemark != nil ? 1 : 0) // Show label only when floating
                 .animation(.easeInOut(duration: 0.2), value: selectedPlacemark)
-                .background {
-                    Color(hex: 0xf7f4f2)
-                }
-                .padding(.leading)
-                .offset(y: -geometry.size.height * CGFloat(0.15))
-                .hidden(selectedPlacemark == nil)
-                
-                Text(locationError)
-                    .font(.footnote)
-                    .padding(.leading)
-                    .offset(y: geometry.size.height * CGFloat(1.05))
-                    .foregroundStyle(.red)
-                    .opacity(hasTriedSubmitting && !locationError.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
             }
+
+            Text(locationError.isEmpty ? " " : locationError)
+                .font(.footnote)
+                .padding(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(Color("ErrorTextColor"))
+                .opacity(locationError.isEmpty ? 0 : 1)
+                .animation(.easeInOut(duration: 0.2), value: locationError.isEmpty)
         }
-        .padding(.vertical, 8)
-        .padding(.bottom, hasTriedSubmitting && !locationError.isEmpty ? 4 : 0)
+        .padding(.top, 10)
     }
 }
 
 struct EventInviteesView: View {
     
+    @Environment(\.router) var coordinator: Router
     @Binding var selectedFriends: [User]
-    @Binding var showInviteUsersSheet: Bool
     @State var showMoreInvitees = false
     
+    var currentUser: User
     var initialVisibleCount = 2
     
     var body: some View {
         Group {
             if selectedFriends.isEmpty {
                 Button(action: {
-                    showInviteUsersSheet.toggle()
+                    coordinator.present(sheet: .invitedUsers(currentUser: currentUser, selectedFriends: $selectedFriends))
                 }) {
                     HStack(spacing: 0) {
                         Text("Invite Friends to Your Event?")
                             .fontWeight(.medium)
                             .fontDesign(.monospaced)
                             .font(.subheadline)
-                            .foregroundStyle(Color(hex: 0x333333))
+                            .foregroundStyle(Color("PrimaryText"))
                             .tracking(-0.25)
+                            .lineLimit(2)
+                            .truncationMode(.tail)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
                         Spacer()
@@ -1155,24 +1013,24 @@ struct EventInviteesView: View {
                             .padding(7.5)
                             .background {
                                 Circle()
-                                    .fill(Color(hex: 0x3C859E))
+                                    .fill(Color("ButtonColors"))
                             }
                     }
+                    .padding(.trailing)
+                    .padding(.bottom, 10)
                 }
-                .padding(.trailing)
-                .padding(.vertical, 8)
             } else {
-                ZStack(alignment: .topLeading) {
+                VStack(spacing: 0) {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Spacer()
                             Button("Edit", action: {
-                                showInviteUsersSheet.toggle()
+                                coordinator.present(sheet: .invitedUsers(currentUser: currentUser, selectedFriends: $selectedFriends))
                             })
                             .font(.footnote)
                             .fontWeight(.bold)
                             .fontDesign(.monospaced)
-                            .foregroundStyle(Color(hex: 0x3C859E))
+                            .foregroundStyle(Color("ButtonColors"))
                         }
                         
                         VStack(alignment: .leading, spacing: 2) {
@@ -1181,15 +1039,16 @@ struct EventInviteesView: View {
                                 if showMoreInvitees || index < initialVisibleCount {
                                     HStack {
                                         InvitedUserRow(user: user)
-                                            .transition(.move(edge: .top).combined(with: .opacity))
                                         Spacer()
-                                        Button {
-                                            selectedFriends.removeAll { $0.id == user.id }
-                                        } label: {
+                                        Button(action: {
+                                            withAnimation {
+                                                selectedFriends.removeAll { $0.id == user.id }
+                                            }
+                                        }, label: {
                                             Image(systemName: "xmark")
                                                 .imageScale(.medium)
-                                                .foregroundStyle(Color(hex: 0x333333))
-                                        }
+                                                .foregroundStyle(Color("IconColors"))
+                                        })
                                     }
                                 }
                             }
@@ -1198,7 +1057,7 @@ struct EventInviteesView: View {
                         // only show the toggle button when there are more than 2
                         if selectedFriends.count > initialVisibleCount {
                             Button {
-                                withAnimation(.easeInOut(duration: 0.2)) {
+                                withAnimation {
                                     showMoreInvitees.toggle()
                                 }
                             } label: {
@@ -1214,7 +1073,7 @@ struct EventInviteesView: View {
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .fontDesign(.monospaced)
-                                .foregroundStyle(Color(hex: 0x3C859E))
+                                .foregroundStyle(Color("ErrorTextColor"))
                                 .padding(.top, 8)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
                             }
@@ -1224,138 +1083,135 @@ struct EventInviteesView: View {
                     .padding()
                     .background {
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.gray, lineWidth: 1)
+                            .stroke(Color("TextFieldBorders"), lineWidth: 1)
                     }
-                    
-                    GeometryReader { geometry in
-                        HStack {
-                            Spacer()
-                                .frame(width: 4)
+                    .overlay(alignment: .topLeading) {
+                        // This HStack creates the label with padding for the background.
+                        HStack(spacing: 0) {
                             Text("Invited Friends")
                                 .font(.footnote)
                                 .fontWeight(.medium)
                                 .fontDesign(.monospaced)
-                            Spacer()
-                                .frame(width: 4)
+                                .padding(.horizontal, 4)
+                                .background(Color("BackgroundColor")) // This background cuts the border
+                                .offset(y: -9) // Move label up or keep it centered
+                                .padding(.leading, 16)
                         }
-                        .opacity(!selectedFriends.isEmpty ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.2), value: selectedFriends.isEmpty)
-                        .background {
-                            Color(hex: 0xf7f4f2)
-                        }
-                        .padding(.leading)
-                        .offset(y: -10)
                     }
+
+                    Text(" ")
+                        .font(.footnote)
+                        .padding(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundStyle(Color("ErrorTextColor"))
                 }
             }
         }
         .animation(.easeInOut(duration: 0.4), value: selectedFriends.isEmpty)
-        .padding(.vertical, 8)
+        .padding(.top, 10)
     }
 }
 
 struct InvitedUserCell: View {
     
     let friend: User
-    @Binding var selectedFriends: [User]
-    var availableFriends: [FriendAvailability]? = nil
+    let isAvailable: Bool
+    @State private var imageLoadingError = false
     
     var body: some View {
-        HStack(spacing: 15) {
-            Circle()
-                .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
-                .background(Color.clear)
-                .frame(width: 40.75, height: 40.75)
-                .overlay {
-                    AsyncImage(url: URL(string: friend.profileImage)) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 39, height: 39)
-                            .clipShape(Circle())
-                    } placeholder: {
-                        // Show while loading or if image fails to load
-                        Circle()
-                            .fill(Color(hex: 0xe0dad5))
-                            .frame(width: 39, height: 39)
-                            .overlay {
-                                Text("\(friend.displayName.first?.uppercased() ?? "J")\(friend.displayName.last?.uppercased() ?? "D")")
-                                    .font(.headline)
-                                    .fontWeight(.bold)
-                                    .fontDesign(.monospaced)
-                                    .tracking(-0.25)
-                                    .foregroundStyle(Color(hex: 0x333333))
-                                    .multilineTextAlignment(.center)
-                            }
-                    }
+            HStack(alignment: .center, spacing: 10) {
+                if !imageLoadingError {
+                    KFImage.url(URL(string: friend.profileImage))
+                        .placeholder {
+                            ProgressView()
+                        }
+                        .loadDiskFileSynchronously()
+                        .fade(duration: 0.25)
+                        .onProgress { receivedSize, totalSize in  }
+                        .onSuccess { result in  }
+                        .onFailure { _ in
+                            self.imageLoadingError = true
+                        }
+                        .resizable() // Makes the image resizable
+                        .scaledToFill() // Fills the frame, preventing distortion
+                        .frame(width: 55, height: 55) // Sets a square frame for the circle
+                        .clipShape(Circle()) // Clips the view into a circle shape
+                        .alignmentGuide(.listRowSeparatorLeading) {
+                                            $0[.leading]
+                                        }
+                } else {
+                    Circle()
+                        .strokeBorder(Color("ButtonColors"), lineWidth: 1.75)
+                        .background(Color.clear)
+                        .frame(width: 55, height: 55)
+                        .overlay {
+                            // Show while loading or if image fails to load
+                            Circle()
+                                .fill(Color("SectionalColors"))
+                                .frame(width: 53.25, height: 53.25)
+                                .overlay {
+                                    Text("\(friend.displayName.first?.uppercased() ?? "J")\(friend.displayName.last?.uppercased() ?? "D")")
+                                        .font(.title3)
+                                        .fontWeight(.bold)
+                                        .fontDesign(.monospaced)
+                                        .tracking(-0.25)
+                                        .foregroundStyle(Color("PrimaryText"))
+                                        .multilineTextAlignment(.center)
+                                }
+                        }
+                        .alignmentGuide(.listRowSeparatorLeading) {
+                                            $0[.leading]
+                                        }
                 }
-            
-            VStack(alignment: .leading, spacing: 1) {
-                Text("\(friend.displayName)")
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .fontDesign(.monospaced)
-                    .tracking(-0.10)
-                    .foregroundStyle(Color(hex: 0x333333))
-                    .multilineTextAlignment(.leading)
-                HStack(spacing: 0) {
-                    Text("@")
-                        .font(.footnote)
-                        .fontWeight(.medium)
-                        .fontDesign(.rounded)
-                        .foregroundStyle(Color.black.opacity(0.50))
+                
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(friend.displayName)")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .fontDesign(.monospaced)
+                        .tracking(-0.25)
+                        .foregroundStyle(Color("PrimaryText"))
                         .multilineTextAlignment(.leading)
-                    Text("\(friend.username)")
-                        .font(.footnote)
-                        .fontWeight(.medium)
-                        .fontDesign(.rounded)
-                        .tracking(1.05)
-                        .foregroundStyle(Color.black.opacity(0.50))
-                        .multilineTextAlignment(.leading)
-                }
-            }
-            
-            Spacer()
-            
-            if let availableFriends = availableFriends, availableFriends.first(where: { $0.userId == friend.id })?.available == false {
-                Text("Not available")
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .fontDesign(.rounded)
-                    .tracking(1.05)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-            } else {
-                Button {
-                    if selectedFriends.contains(where: { $0.id == friend.id }) {
-                        selectedFriends.removeAll { $0.id == friend.id }
-                    } else {
-                        selectedFriends.append(friend)
+                    HStack(spacing: 0) {
+                        Text("@")
+                            .font(.footnote)
+                            .fontWeight(.medium)
+                            .fontDesign(.rounded)
+                            .foregroundStyle(Color("SecondaryText"))
+                            .multilineTextAlignment(.leading)
+                        Text("\(friend.username)")
+                            .font(.footnote)
+                            .fontWeight(.medium)
+                            .fontDesign(.rounded)
+                            .tracking(1.05)
+                            .foregroundStyle(Color("SecondaryText"))
+                            .multilineTextAlignment(.leading)
                     }
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                selectedFriends.contains(friend)
-                                ? Color(hex: 0x3C859E)
-                                : Color.clear
-                            )
-                        Circle()
-                            .strokeBorder(Color(hex: 0x333333), lineWidth: 1.5)
-                    }
-                    .frame(width: 25, height: 25)
-                    .contentShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Group {
+                    if !isAvailable {
+                        Text("Not available")
+                            .font(.footnote)
+                            .foregroundStyle(Color("ErrorTextColor"))
+                            .fontDesign(.rounded)
+                            .tracking(1.05)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
-        }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, 6)
     }
 }
 
 struct EventNotesView: View {
     
     @Binding var notes: String?
-    @Binding var notesError: String
+    var notesError: String
     
     var notesBinding: Binding<String> {
         Binding(
@@ -1365,6 +1221,7 @@ struct EventNotesView: View {
             }
         )
     }
+    
     var notesText: String {
         if let eventNotes = notes {
             return eventNotes
@@ -1372,22 +1229,37 @@ struct EventNotesView: View {
         return "Add Notes"
     }
     
-    @Binding var hasTriedSubmitting: Bool
+    var hasTriedSubmitting: Bool
     var isFocused: FocusState<EventInfoFields?>.Binding
     
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
             
             HStack(alignment: .top, spacing: 0) {
             
-                TextField("Add Notes", text: notesBinding, axis: .vertical)
+                TextField("", text: notesBinding, prompt:
+                          Text("Add Notes")
+                              .font(.subheadline)
+                              .fontDesign(.monospaced)
+                              .foregroundStyle(Color("SecondaryText"))
+                              .tracking(-0.25),
+                          axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(Color(hex: 0x333333))
-                    .tracking(0.1)
+                    .foregroundStyle(Color("PrimaryText"))
+                    .tracking(-0.25)
                     .focused(isFocused, equals: .description)
                     .autocorrectionDisabled(true)
+                    .textInputAutocapitalization(.sentences)
+                    .submitLabel(.done)
+                    .onChange(of: notes) { _, newValue in
+                        guard let newValue = newValue else { return }
+                        guard isFocused.wrappedValue == .description else { return }
+                        guard newValue.contains("\n") else { return }
+                        isFocused.wrappedValue = nil
+                        notes = newValue.replacing("\n", with: "")
+                    }
                 
                 Spacer()
                 Button(action: {
@@ -1395,56 +1267,50 @@ struct EventNotesView: View {
                 }) {
                     Image(systemName: "xmark")
                         .imageScale(.small)
-                        .foregroundStyle(Color(hex: 0x333333))
+                        .foregroundStyle(Color("ScheduleButtonColors"))
                 }
-                .hidden(notes == nil)
+                .opacity(notes == nil ? 0 : 1)
+                .animation(.easeInOut(duration: 0.4), value: notes)
             }
             .padding(.vertical, 16)
             .padding(.horizontal, 20)
             .background {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
-                    .stroke(hasTriedSubmitting && !notesError.isEmpty ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    .stroke(hasTriedSubmitting && !notesError.isEmpty ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
             }
-            
-            
-            GeometryReader { geometry in
+            .overlay(alignment: .topLeading) {
+                // This HStack creates the label with padding for the background.
                 HStack(spacing: 0) {
-                    Spacer()
-                        .frame(width: 4)
                     Text("Event Notes")
                         .font(.footnote)
                         .fontWeight(.medium)
                         .fontDesign(.monospaced)
-                    Spacer()
-                        .frame(width: 4)
+                        .padding(.horizontal, 4)
+                        .background(Color("BackgroundColor")) // This background cuts the border
+                        .offset(y: -9) // Move label up or keep it centered
+                        .padding(.leading, 16)
                 }
-                .background {
-                    Color(hex: 0xf7f4f2)
-                }
-                .padding(.leading)
-                .offset(y: -10)
-                .opacity(isFocused.wrappedValue == .description || notes != nil ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue)
-                
-                Text(notesError)
-                    .font(.footnote)
-                    .padding(.leading)
-                    .offset(y: geometry.size.height * CGFloat(1.05))
-                    .foregroundStyle(.red)
-                    .opacity(hasTriedSubmitting && !notesError.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+                .opacity(notes != nil || isFocused.wrappedValue == .description ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: notes)
             }
+
+            Text(notesError.isEmpty ? " " : notesError)
+                .font(.footnote)
+                .padding(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(.red)
+                .opacity(notesError.isEmpty ? 0 : 1)
+                .animation(.easeInOut(duration: 0.2), value: notesError.isEmpty)
         }
-        .padding(.vertical, 8)
-        .padding(.bottom, hasTriedSubmitting && !notesError.isEmpty ? 4 : 0)
+        .padding(.top, 10)
     }
 }
 
 struct EventColorView: View {
     
+    @Environment(\.router) var coordinator: Router
     @Binding var eventColor: Color?
-    @State var showColorPicker: Bool = false
     
     var eventColorBinding: Binding<Color> {
         Binding(
@@ -1457,15 +1323,17 @@ struct EventColorView: View {
     
     var body: some View {
         Button(action: {
-            showColorPicker.toggle()
+            coordinator.present(sheet: .color(color: eventColorBinding))
         }) {
             HStack(alignment: .center, spacing: 0) {
                 Text(eventColor == nil ? "Choose a Color For Your Event?" : "Selected Event Color:")
                     .fontWeight(.medium)
                     .fontDesign(.monospaced)
                     .font(.subheadline)
-                    .foregroundStyle(Color(hex: 0x333333))
+                    .foregroundStyle(Color("PrimaryText"))
                     .tracking(-0.25)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
                 Spacer()
@@ -1473,13 +1341,13 @@ struct EventColorView: View {
                 if eventColor == nil {
                     
                     Image(systemName: "paintbrush")
-                        .foregroundColor(Color(hex: 0x333333))
+                        .foregroundColor(Color("IconColors"))
                         .imageScale(.large)
                 } else {
                     
                     HStack(alignment: .center, spacing: 3) {
                         Image(systemName: "paintbrush")
-                            .foregroundColor(Color(hex: 0x333333))
+                            .foregroundColor(Color("IconColors"))
                             .imageScale(.large)
                         
                         RoundedRectangle(cornerRadius: 10)
@@ -1488,17 +1356,9 @@ struct EventColorView: View {
                     }
                 }
             }
-        }
-        .padding(.trailing)
-        .padding(.vertical, 8)
-        .sheet(isPresented: $showColorPicker) {
-            ColorPickerSheet(selectedColor: eventColorBinding)
+            .padding(.trailing)
+            .padding(.vertical, 10)
         }
     }
 }
 
-
-#Preview {
-    @Previewable @State var reload = false
-    return CreateEventView(currentUser: mockUser, shouldReloadData: .constant(false))
-}

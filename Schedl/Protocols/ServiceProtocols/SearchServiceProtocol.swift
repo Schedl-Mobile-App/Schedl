@@ -6,9 +6,8 @@
 //
 
 protocol SearchServiceProtocol {
-    func fetchMatchingUsers(username: String) async throws -> [String]
-    func fetchUserSearchInfo(username: String) async throws -> [SearchInfo]
-    func fetchFriendsSearchInfo(friendIds: [String]) async throws -> [SearchInfo]
-    func fetchUserInfo(userId: String) async throws -> SearchInfo
+    func fetchUserSearchInfo(username: String) async throws -> [User]
+    func fetchFriendsSearchInfo(friendIds: [String]) async throws -> [User]
+    func fetchUserInfo(userId: String) async throws -> User
     
 }

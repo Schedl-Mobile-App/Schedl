@@ -8,10 +8,11 @@
 import SwiftUI
 import Firebase
 
-class NotificationViewModel: NotificationViewModelProtocol, ObservableObject {
+class NotificationViewModel: ObservableObject {
     
     var currentUser: User
     @Published var notifications: [Notification] = []
+//    @Published var parsedNotifications: [Date: [Notification]] = [:]
     @Published var friendRequests: [FriendRequest] = []
     @Published var showPopUp = false
     @Published var isLoading: Bool = false
@@ -35,28 +36,32 @@ class NotificationViewModel: NotificationViewModelProtocol, ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            guard let index = notifications.firstIndex(where: { $0.id == id }) else { return }
-            let notificationObj = notifications[index]
+//            guard let notifications = parsedNotifications[date] else { return }
+//            guard let notificationObj = notifications.first(where: { $0.id == id }) else { return }
             
-            switch notificationObj.notificationPayload {
+            guard let notification = notifications.first(where: {$0.id == id }) else { return }
+            
+            switch notification.notificationPayload {
             case .friendRequest(let friendRequest):
                 try await notificationService.handleFriendRequestResponse(notificationId: id, senderId: friendRequest.fromUserId, toUserId: currentUser.id, responseStatus: responseStatus)
+                break
             case .eventInvite(let eventInvite):
-                let senderScheduleId = try await scheduleService.fetchScheduleId(userId: eventInvite.fromUserId)
-                let toScheduleId = try await scheduleService.fetchScheduleId(userId: eventInvite.toUserId)
-                
-                try await notificationService.handleEventInviteResponse(notificationId: id, senderScheduleId: senderScheduleId, eventId: eventInvite.invitedEventId, senderId: eventInvite.fromUserId, toUserId: currentUser.id, userScheduleId: toScheduleId, responseStatus: responseStatus, startDate: eventInvite.eventDate, startTime: eventInvite.startTime, endTime: eventInvite.endTime)
-            case .blend(let blendInvite):
-                let toScheduleId = try await scheduleService.fetchScheduleId(userId: currentUser.id)
-                try await notificationService.handleBlendInviteResponse(notificationId: id, blendId: blendInvite.blendId, senderId: blendInvite.fromUserId, userId: blendInvite.toUserId, scheduleId: toScheduleId, responseStatus: responseStatus)
+                let scheduleId = try await scheduleService.fetchScheduleId(userId: currentUser.id)
+                try await notificationService.handleEventInviteResponse(notificationId: id, senderId: eventInvite.fromUserId, eventId: eventInvite.eventId, userId: currentUser.id, scheduleId: scheduleId, responseStatus: responseStatus)
+                break
+            case .blendInvite(let blendInvite):
+                let scheduleId = try await scheduleService.fetchScheduleId(userId: currentUser.id)
+                try await notificationService.handleBlendInviteResponse(notificationId: id, senderId: blendInvite.fromUserId, blendId: blendInvite.blendId, userId: blendInvite.toUserId, scheduleId: scheduleId, responseStatus: responseStatus)
+            case .unknown:
+                return
             }
-            
-            if let index = self.notifications.firstIndex(where: { $0.id == id }) {
-                notifications.remove(at: index)
-            }
+                        
+//            notifications.removeAll(where: { $0.id == id })
+            deleteNotification(id: id)
             
             self.isLoading = false
         } catch {
+            print("Failed to handle notification: \(error.localizedDescription)")
             self.errorMessage = "Failed to handle notification: \(error.localizedDescription)"
             self.isLoading = false
         }
@@ -68,7 +73,10 @@ class NotificationViewModel: NotificationViewModelProtocol, ObservableObject {
         self.errorMessage = nil
         do {
             let notificationData = try await notificationService.fetchAllNotifications(userId: currentUser.id)
-            self.notifications = notificationData.sorted { $0.creationDate > $1.creationDate }
+            self.notifications = notificationData.sorted(by: { $0.createdAt > $1.createdAt })
+//            self.parsedNotifications = Dictionary(grouping: notificationData) { notification in
+//                return Calendar.current.startOfDay(for: notification.createdAt)
+//            }
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to fetch user notifications. Received Server Error: \(error.localizedDescription)"
@@ -76,32 +84,18 @@ class NotificationViewModel: NotificationViewModelProtocol, ObservableObject {
         }
     }
     
-    @MainActor
-    func setupNotificationObserver() {
-        removeNotificationObserver()
-        notificationObserver = notificationService.observeUserNotifications(userId: currentUser.id) { [weak self] (notificationId: String) in
-            guard let self = self else { return }
-            
-            Task { @MainActor in
-                do {
-                    guard let newNotification = try await self.notificationService.fetchNotificationById(notificationId: notificationId, userId: self.currentUser.id) else { return }
-                    
-                    self.notifications.append(newNotification)
-                    
-                    self.isLoading = false
-                } catch {
-                    self.errorMessage = "Failed to fetch user notifications."
-                    self.isLoading = false
-                }
-            }
-        }
-    }
-    
-    @MainActor
-    func removeNotificationObserver() {
-        guard let handle = self.notificationObserver else { return }
-        notificationService.removeUserNotificationObserver(handle: handle, userId: currentUser.id)
-        
-        notificationObserver = nil
+    func deleteNotification(id: String) {
+//        if let dateKey = self.parsedNotifications.first(where: { (_, value) in
+//            value.contains(where: { $0.id == id })
+//        })?.key {
+//            if let index = self.parsedNotifications[dateKey]?.firstIndex(where: { $0.id == id }) {
+//                self.parsedNotifications[dateKey]?.remove(at: index)
+//                if self.parsedNotifications[dateKey]?.isEmpty == true {
+//                    self.parsedNotifications.removeValue(forKey: dateKey)
+//                }
+//            }
+//        }
+        notifications.removeAll(where: {$0.id == id })
     }
 }
+

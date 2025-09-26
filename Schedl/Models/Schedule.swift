@@ -9,14 +9,14 @@ import Foundation
 
 struct Schedule: Codable, Identifiable {
     var id: String
-    var userId: String
+    var ownerId: String
     var title: String
-    var creationDate: TimeInterval
+    var createdAt: Date
     
-    init(id: String, userId: String, title: String, creationDate: Double) {
+    init(id: String, ownerId: String, title: String, createdAt: Date) {
         self.id = id
-        self.userId = userId
+        self.ownerId = ownerId
         self.title = title
-        self.creationDate = creationDate
+        self.createdAt = createdAt
     }
 }

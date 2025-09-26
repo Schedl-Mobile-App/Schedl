@@ -8,10 +8,7 @@
 struct EventInvite: Codable {
     var fromUserId: String
     var toUserId: String
-    var invitedEventId: String
-    var eventDate: Double
-    var startTime: Double
-    var endTime: Double
+    var eventId: String
     var senderName: String
     var senderProfileImage: String
 }

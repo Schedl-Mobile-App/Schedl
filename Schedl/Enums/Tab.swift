@@ -7,8 +7,8 @@
 
 import SwiftUI
 
-enum Tab: Int, Identifiable, CaseIterable, Comparable {
-    static func < (lhs: Tab, rhs: Tab) -> Bool {
+enum ProfileTab: Int, Identifiable, CaseIterable, Comparable {
+    static func < (lhs: ProfileTab, rhs: ProfileTab) -> Bool {
         lhs.rawValue < rhs.rawValue
     }
     
@@ -19,7 +19,7 @@ enum Tab: Int, Identifiable, CaseIterable, Comparable {
     var title: String {
         switch self {
         case .schedules:
-            return "My Schedule"
+            return "Schedules"
         case .events:
             return "Events"
         case .activity:

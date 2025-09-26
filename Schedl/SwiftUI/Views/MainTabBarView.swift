@@ -1,130 +1,98 @@
-
 import SwiftUI
 
-class TabBarState: ObservableObject {
-    @Published var hideTabbar: Bool = false
+@Observable
+class TabBarState {
+    var hideTabbar: Bool = false
 }
 
 struct MainTabBarView: View {
+    
     @EnvironmentObject var authViewModel: AuthViewModel
-    @StateObject var tabBarState: TabBarState = TabBarState()
-    @State private var selectedTab = 0
-    @State private var previousTab = 0
     
     var body: some View {
         if let user = authViewModel.currentUser {
-            TabView(selection: $selectedTab) {
-                NavigationStack {
-                    FeedView(currentUser: user)
+            TabView {
+                if #available(iOS 26.0, *) {
+                    Tab("Feed", systemImage: "house") {
+                        NavigationStack {
+                            FeedView(currentUser: user)
+                        }
+                    }
+                } else {
+                    Tab("Feed", systemImage: "house") {
+                        NavigationStack {
+                            FeedView(currentUser: user)
+                        }
+                    }
                 }
-                .tabItem {
-                    Label("Feed", systemImage: "house.fill")
-                }
-                .tag(0)
                 
-                ZStack {
-                    Color(hex: 0xf7f4f2)
-                        .ignoresSafeArea()
+                Tab("Schedule", systemImage: "calendar") {
+                    SchedulesCoordinatorView(currentUser: user)
+                }
+                
+                if #available(iOS 26.0, *) {
+                    Tab("Profile", systemImage: "person") {
+                        ProfileCoordinatorView(currentUser: user, profileUser: user, prefersBackButton: false)
+                    }
                     
-                    ScheduleView(currentUser: user)
-                        .ignoresSafeArea(edges: [.top, .bottom])
-                        .environmentObject(tabBarState)
+                    Tab("Search", systemImage: "magnifyingglass", role: .search) {
+                        SearchCoordinatorView(currentUser: user)
+                    }
+                } else {
+                    Tab("Search", systemImage: "magnifyingglass", role: .search) {
+                        SearchCoordinatorView(currentUser: user)
+                    }
+                    
+                    Tab("Profile", systemImage: "person") {
+                        ProfileCoordinatorView(currentUser: user, profileUser: user, prefersBackButton: false)
+                    }
                 }
-                .tabItem {
-                    Label("Schedule", systemImage: "calendar")
-                }
-                .tag(1)
-                
-                NavigationStack {
-                    SearchView(currentUser: user)
-                        .environmentObject(authViewModel)
-                        .environmentObject(tabBarState)
-                }
-                .tabItem {
-                    Label("Search", systemImage: "magnifyingglass")
-                }
-                .tag(2)
-                
-                NavigationStack {
-                    ProfileView(currentUser: user, profileUser: user)
-                        .environmentObject(authViewModel)
-                        .environmentObject(tabBarState)
-                }
-                .tabItem {
-                    Label("Profile", systemImage: "person")
-                }
-                .tag(3)
             }
+            .tint(Color("AccentColor"))
             .navigationBarBackButtonHidden(true)
-            .onChange(of: selectedTab) { _, oldValue in
-                // Animate tab bar items (this requires accessing the UITabBar)
-                DispatchQueue.main.async {
-                    animateTabBarSelection()
-                }
-                
-                previousTab = oldValue
-            }
-            .onAppear {
-                setupTabBarAppearance()
-            }
+            .modifier(TabbarViewModifier())
         } else {
             LoginView()
+        }
+    }
+}
+
+
+struct TabbarViewModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .tabBarMinimizeBehavior(.onScrollDown)
+        } else {
+            content
+                .onAppear {
+                    setupTabBarAppearance()
+                }
         }
     }
     
     private func setupTabBarAppearance(transparentBackground: Bool = false) {
         let tabBarAppearance = UITabBarAppearance()
-//        tabBarAppearance.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
-//        tabBarAppearance.shadowColor = .clear
-//        tabBarAppearance.shadowImage = UIImage()
-        tabBarAppearance.configureWithTransparentBackground()
+        tabBarAppearance.configureWithOpaqueBackground()
+        tabBarAppearance.backgroundColor = UIColor(Color("BackgroundColor"))
+        tabBarAppearance.shadowColor = nil
+        tabBarAppearance.shadowImage = nil
+        
+        let navBarAppearance = UINavigationBarAppearance()
+        navBarAppearance.configureWithOpaqueBackground()
+        navBarAppearance.backgroundColor = UIColor(Color("BackgroundColor"))
+        navBarAppearance.shadowColor = nil
+        navBarAppearance.shadowImage = nil
+        
+        let compactAppearance = UINavigationBarAppearance()
+        compactAppearance.configureWithTransparentBackground()
         
         UITabBar.appearance().standardAppearance = tabBarAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
-    }
-    
-    private func animateTabBarSelection() {
-        // Find the current tab bar
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first,
-           let tabBar = findTabBar(in: window) {
-            
-            // Animate the selected tab item
-            animateSelectedTabBarItem(tabBar: tabBar, selectedIndex: selectedTab)
-        }
-    }
-    
-    private func findTabBar(in view: UIView) -> UITabBar? {
-        if let tabBar = view as? UITabBar {
-            return tabBar
-        }
         
-        for subview in view.subviews {
-            if let tabBar = findTabBar(in: subview) {
-                return tabBar
-            }
-        }
-        
-        return nil
-    }
-    
-    private func animateSelectedTabBarItem(tabBar: UITabBar, selectedIndex: Int) {
-        // Get all tab bar button views
-        let tabBarItemViews = tabBar.subviews.filter {
-            $0.isKind(of: NSClassFromString("UITabBarButton")!)
-        }
-        
-        guard selectedIndex < tabBarItemViews.count else { return }
-        
-        let selectedItemView = tabBarItemViews[selectedIndex]
-        
-        // Apply pulse animation
-        UIView.animate(withDuration: 0.15, delay: 0, options: [.curveEaseInOut], animations: {
-            selectedItemView.transform = CGAffineTransform(scaleX: 0.9, y: 1.1)
-        }) { _ in
-            UIView.animate(withDuration: 0.15, delay: 0, options: [.curveEaseInOut], animations: {
-                selectedItemView.transform = CGAffineTransform.identity
-            })
-        }
+        UINavigationBar.appearance().standardAppearance = navBarAppearance
+        UINavigationBar.appearance().compactScrollEdgeAppearance = compactAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = compactAppearance
     }
 }
+

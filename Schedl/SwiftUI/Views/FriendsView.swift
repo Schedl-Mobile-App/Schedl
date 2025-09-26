@@ -7,109 +7,25 @@
 
 import SwiftUI
 
-struct FriendCell: View {
+class FriendViewModel: ObservableObject {
+    var profileUser: User
+    private var userService: UserServiceProtocol
+    private var eventService: EventServiceProtocol
     
-    @Binding var hideTabbar: Bool
-    @Binding var friendsInfoDict: [String: SearchInfo]
-    @Binding var selectedUser: User?
-    @Binding var shouldNavigate: Bool
+    @Published var isLoading = false
+    @Published var errorMessage: String? = nil
     
-    let userToDisplay: User
+    @Published var searchText = ""
+    @Published var isSearching = false
     
-    var body: some View {
-        Button(action: {
-            hideTabbar = false
-            selectedUser = userToDisplay
-            shouldNavigate = true
-        }) {
-            HStack(spacing: 15) {
-                Circle()
-                    .strokeBorder(Color(hex: 0x3C859E), lineWidth: 1.75)
-                    .background(Color.clear)
-                    .frame(width: 55.75, height: 55.75)
-                    .overlay {
-                        AsyncImage(url: URL(string: userToDisplay.profileImage)) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 54, height: 54)
-                                .clipShape(Circle())
-                        } placeholder: {
-                            // Show while loading or if image fails to load
-                            Circle()
-                                .fill(Color(hex: 0xe0dad5))
-                                .frame(width: 54, height: 54)
-                                .overlay {
-                                    Text("\(userToDisplay.displayName.first?.uppercased() ?? "J")\(userToDisplay.displayName.last?.uppercased() ?? "D")")
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                        .fontDesign(.monospaced)
-                                        .foregroundStyle(Color(hex: 0x333333))
-                                        .multilineTextAlignment(.center)
-                                }
-                        }
-                    }
-                
-                VStack(alignment: .leading) {
-                    let numOfPosts = friendsInfoDict[userToDisplay.id]?.numOfPosts ?? 0
-                    let numOfFriends = friendsInfoDict[userToDisplay.id]?.numOfFriends ?? 0
-                    Text("\(userToDisplay.displayName)")
-                        .font(.subheadline)
-                        .fontWeight(.bold)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.10)
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .multilineTextAlignment(.leading)
-                    HStack(spacing: 0) {
-                        Text("@")
-                            .font(.footnote)
-                            .fontWeight(.medium)
-                            .fontDesign(.rounded)
-                            .foregroundStyle(Color.black.opacity(0.50))
-                            .multilineTextAlignment(.leading)
-                        Text("\(userToDisplay.username)")
-                            .font(.footnote)
-                            .fontWeight(.medium)
-                            .fontDesign(.rounded)
-                            .tracking(1.05)
-                            .foregroundStyle(Color.black.opacity(0.50))
-                            .multilineTextAlignment(.leading)
-                    }
-                    Text("\(numOfFriends) friends | \(numOfPosts) posts")
-                        .font(.footnote)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .fixedSize()
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .multilineTextAlignment(.leading)
-                }
-                .fixedSize(horizontal: true, vertical: false)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal)
-        }
-    }
-}
-
-struct FriendsView: View {
+    @Published var friends: [User] = []
+    @Published var availabilityList: [FriendAvailability] = []
     
-    @EnvironmentObject var tabBarState: TabBarState
-    
-    @ObservedObject var profileViewModel: ProfileViewModel
-    @Environment(\.dismiss) var dismiss
-    @State private var searchText = ""
-    @FocusState var isSearching: Bool?
-    
-    @State var shouldNavigate = false
-    @State var selectedUser: User?
-    
-    private var filteredUsers: [User] {
+    var filteredUsers: [User] {
         if searchText.isEmpty {
-            return profileViewModel.friends
+            return friends
         } else {
-            let filteredResults = profileViewModel.friends.filter { user in
+            let filteredResults = friends.filter { user in
                 let startsWith = user.displayName.lowercased().hasPrefix(searchText.lowercased())
                 let endsWith = user.displayName.lowercased().hasSuffix(searchText.lowercased())
                 
@@ -119,134 +35,197 @@ struct FriendsView: View {
             return filteredResults
         }
     }
+    
+    init(profileUser: User, userService: UserServiceProtocol = UserService.shared, eventService: EventServiceProtocol = EventService.shared) {
+        self.profileUser = profileUser
+        self.userService = userService
+        self.eventService = eventService
+    }
+    
+    @MainActor
+    func fetchFriends() async {
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            let friends = try await userService.fetchUserFriends(userId: profileUser.id)
+            self.friends = friends
+            isLoading = false
+        } catch {
+            errorMessage = "Failed to fetch any friends. Refresh to try again."
+            isLoading = false
+        }
+    }
+    
+    @MainActor
+    func fetchFriendsAvailability(eventDate: Date?, startTime: Date?, endTime: Date?) async {
+        
+        self.isLoading = true
+        self.errorMessage = nil
+        
+        do {
+            guard let eventDate = eventDate, let startTime = startTime, let endTime = endTime else {
+                self.errorMessage = "Please fill out the event date, start time, and end time to check if your friends are available!"
+                self.isLoading = false
+                return
+            }
+            
+            self.friends = try await userService.fetchUserFriends(userId: profileUser.id)
+            
+            let normalizedStartTime: Double = floor(Date.computeTimeSinceStartOfDay(date: startTime) / 900.0) * 900.0
+            let normalizedEventDate = eventDate.timeIntervalSince1970
+            
+            self.availabilityList = try await eventService.checkAvailability(userIds: friends.map(\.id), eventDate: normalizedEventDate, startTime: normalizedStartTime, endTime: endTime.timeIntervalSince1970)
+            
+            self.isLoading = false
+        } catch {
+            self.errorMessage = "Failed to fetch friends availability. Refresh to try again."
+            self.isLoading = false
+        }
+    }
+}
 
+struct FriendsView: View {
+    
+    @Environment(\.router) var coordinator: Router
+    @Environment(\.dismiss) var dismiss
+    
+    @StateObject private var vm: FriendViewModel
+    
+    init(profileUser: User) {
+        _vm = StateObject(wrappedValue: FriendViewModel(profileUser: profileUser))
+    }
+    
     var body: some View {
         ZStack {
-            Color(hex: 0xf7f4f2)
+            Color("BackgroundColor")
                 .ignoresSafeArea()
             
-            VStack {
-                ZStack(alignment: .leading) {
-                    Button(action: {
-                        tabBarState.hideTabbar = false
-                        dismiss()
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .fontWeight(.bold)
-                            .imageScale(.large)
-                            .labelStyle(.iconOnly)
-                            .foregroundStyle(Color.primary)
-                    }
-                    Text("Friends")
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .padding()
-                
-                HStack(alignment: .center, spacing: 10) {
-                    Button(action: {}) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.gray)
-                            .imageScale(.medium)
-                    }
-                    
-                    TextField("Search friends", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .autocorrectionDisabled(true)
-                        .textInputAutocapitalization(.never)
-                        .focused($isSearching, equals: true)
-                    
-                    Spacer()
-                    
-                    Button("Clear", action: {
-                        searchText = ""
-                    })
+            if vm.isLoading {
+                FriendsLoadingView()
+            } else if let error = vm.errorMessage {
+                Text(error)
                     .font(.subheadline)
-                    .fontWeight(.bold)
+                    .fontWeight(.medium)
                     .fontDesign(.monospaced)
                     .tracking(-0.25)
-                    .foregroundStyle(Color(hex: 0x3C859E))
-                    .opacity(!searchText.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: searchText)
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 25))
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal)
-                
-                if profileViewModel.isLoadingFriendView {
-                    FriendsLoadingView()
-                        .padding(.horizontal)
-                        .padding(.bottom, 1)
-                } else if let error = profileViewModel.errorMessage {
-                    Spacer()
-                    Text(error)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x666666))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    Spacer()
-                } else if profileViewModel.friends.count > 0 {
-                    ScrollView(.vertical, showsIndicators: false) {
-                        LazyVStack(spacing: 25) {
-                            ForEach(filteredUsers, id: \.id) { user in
-                                FriendCell(hideTabbar: $tabBarState.hideTabbar, friendsInfoDict: $profileViewModel.friendsInfoDict, selectedUser: $selectedUser, shouldNavigate: $shouldNavigate, userToDisplay: user)
-                            }
+                    .foregroundStyle(Color("SecondaryText"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            } else if vm.friends.count > 0 {
+                List {
+                    if #available(iOS 26.0, *) {
+                        if vm.isSearching {
+                            Section(content: {
+                                ForEach(vm.filteredUsers, id: \.id) { friend in
+                                    Button(action: {
+                                        coordinator.push(page: .profile(currentUser: vm.profileUser, profileUser: friend, preferBackButton: true))
+                                    }, label: {
+                                        UserCell(user: friend)
+                                            .listRowBackground(Color.clear)
+                                    })
+                                }
+                            }, header: {
+                                    HStack {
+                                        Text("Friends")
+                                            .font(.headline)
+                                            .fontWeight(.bold)
+                                            .fontDesign(.monospaced)
+                                            .foregroundStyle(Color("PrimaryText"))
+                                        
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                            })
+                            .listSectionMargins(.top, -12.5)
+                            .listSectionSeparator(.hidden, edges: .top)
+                        } else {
+                            Section(content: {
+                                ForEach(vm.filteredUsers, id: \.id) { friend in
+                                    Button(action: {
+                                        coordinator.push(page: .profile(currentUser: vm.profileUser, profileUser: friend, preferBackButton: true))
+                                    }, label: {
+                                        UserCell(user: friend)
+                                            .listRowBackground(Color.clear)
+                                    })
+                                }
+                            })
+                            .listSectionSeparator(.hidden, edges: .top)
                         }
-                        .padding(.vertical)
+                    } else {
+                        Section(content: {
+                            ForEach(vm.filteredUsers, id: \.id) { friend in
+                                Button(action: {
+                                    coordinator.push(page: .profile(currentUser: vm.profileUser, profileUser: friend, preferBackButton: true))
+                                }, label: {
+                                    UserCell(user: friend)
+                                        .listRowBackground(Color.clear)
+                                })
+                            }
+                        }, header: {
+                            EmptyView()
+                        })
+                        .listSectionSeparator(.hidden, edges: .top)
                     }
-                    .scrollDismissesKeyboard(.immediately)
-                } else {
-                    Spacer()
-                    Text("You haven't added any friends yet! You can start by searching for friends in the search page.")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x666666))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    Spacer()
                 }
+                .listStyle(.plain)
+                .scrollDismissesKeyboard(.immediately)
+                
+            } else if !vm.searchText.isEmpty && vm.filteredUsers.isEmpty {
+                Text("No friends matching the username entered were found.")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
+                    .foregroundStyle(Color("SecondaryText"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            } else {
+                Text("You haven't added any friends yet!You can start by searching for friendsin the search page.")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .fontDesign(.monospaced)
+                    .tracking(-0.25)
+                    .foregroundStyle(Color("SecondaryText"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
             }
-            .padding(.bottom, 0.5)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .onTapGesture {
-            isSearching = nil
         }
         .task {
-            await profileViewModel.loadFriendsData()
+            await vm.fetchFriends()
         }
-        .onAppear {
-            tabBarState.hideTabbar = true
-            profileViewModel.shouldReloadData = false
-        }
-        .onDisappear {
-            profileViewModel.shouldReloadData = true
-        }
-        .toolbar(tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
-        .navigationBarBackButtonHidden(true)
-        .navigationDestination(isPresented: $shouldNavigate) {
-            if let user = selectedUser {
-                ProfileView(currentUser: profileViewModel.currentUser, profileUser: user)
-                    .environmentObject(tabBarState)
+        .navigationBarBackButtonHidden(false)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Friends")
+                    .foregroundStyle(Color("PrimaryText"))
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .fontDesign(.monospaced)
             }
+            
+            if #available(iOS 26, *) {
+                    DefaultToolbarItem(kind: .search, placement: .bottomBar)
+            }
+        }
+        .modifier(FriendViewModifier(searchText: $vm.searchText, isSearching: $vm.isSearching))
+    }
+}
+
+struct FriendViewModifier: ViewModifier {
+    @Binding var searchText: String
+    @Binding var isSearching: Bool
+    
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .searchable(text: $searchText, isPresented: $isSearching, prompt: Text("Search Friends"))
+        } else {
+            content
+                .searchable(text: $searchText, isPresented: $isSearching, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("Search Friends"))
         }
     }
 }

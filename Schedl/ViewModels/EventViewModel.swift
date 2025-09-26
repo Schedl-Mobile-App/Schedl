@@ -8,20 +8,33 @@
 import Foundation
 import SwiftUI
 
-struct FriendAvailability {
+struct FriendAvailability: Codable {
     let available: Bool
     let userId: String
 }
 
-class EventViewModel: ObservableObject {
+class EventViewModel: ObservableObject, Equatable, Hashable {
+    
+    let id = UUID()
+    static func == (lhs: EventViewModel, rhs: EventViewModel) -> Bool {
+        lhs.id == rhs.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
     var currentUser: User
-    var selectedEvent: RecurringEvents?
-    var invitedUsersForEvent: [User] = []
-    
+    var event: RecurringEvents?
     @Published var shouldDismiss: Bool = false
-    
     @Published var showSaveChangesModal = false
     
+    @Published var showDeleteEventModal = false
+    @Published var shouldDismissToRoot = false
+    
+    
+    var currentScheduleId: String
+        
     // Binding variables for picker views
     @Published var title: String? = nil
     @Published var eventDate: Date? = nil
@@ -31,13 +44,39 @@ class EventViewModel: ObservableObject {
     @Published var selectedPlacemark: MTPlacemark? = nil
     @Published var notes: String? = nil
     @Published var eventColor: Color? = nil
-    @Published var invitedUserIds: [String] = []
     @Published var selectedFriends: [User] = []
     @Published var repeatedDays: Set<Int>? = nil
     
-    @Published var availabilityList: [FriendAvailability] = []
-    @Published var userFriends: [User] = []
-    
+    var shouldShowEditRecurringModal: Bool {
+        guard let event = event, event.event.repeatingDays != nil, event.event.repeatingDays!.isEmpty == false else {
+            return false
+        }
+        
+        let newTitle = event.event.title == title ? nil : title
+        let newStartTime = Date.convertHourAndMinuteToDate(time: event.event.startTime) == startTime ? nil : Date.computeTimeSinceStartOfDay(date: startTime!)
+        let newEndTime = Date.convertHourAndMinuteToDate(time: event.event.endTime) == endTime ? nil : Date.computeTimeSinceStartOfDay(date: endTime!)
+        var newLocation: MTPlacemark? {
+            return event.event.location == selectedPlacemark ? nil : selectedPlacemark
+        }
+        var newEndDate: Double? {
+            if event.event.endDate != nil && eventEndDate != nil && Date(timeIntervalSince1970: event.event.endDate!) != eventEndDate! {
+                return eventEndDate!.timeIntervalSince1970
+            } else if event.event.endDate == nil && eventEndDate != nil {
+                return eventEndDate!.timeIntervalSince1970
+            }
+            return nil
+        }
+        
+        let newEventColor = event.event.color == selectedColor ? nil : selectedColor
+        let newNotes = event.event.notes == (notes ?? "") ? nil : notes
+        
+        if newTitle != nil || newStartTime != nil || newEndTime != nil || newLocation != nil || newEventColor != nil || newNotes != nil {
+            return true
+        }
+        
+        return false
+    }
+        
     @Published var titleError: String = ""
     @Published var startDateError: String = ""
     @Published var endDateError: String = ""
@@ -47,31 +86,35 @@ class EventViewModel: ObservableObject {
     @Published var notesError: String = ""
     @Published var submitError: String = ""
     
+    @Published var invitedUserIds: [InvitedUser] = []
+    
     // Binding values to trigger/dismiss sheets/pickers
     
-    @Published var showInviteUsersSheet: Bool = false
     @Published var hasTriedSubmitting = false
     
-//    var shouldUpdateSingularReference: Bool {
-//        guard let selectedEvent = selectedEvent, let title, let eventDate else { return false }
-//        // if these values differ, this means that we must update these values
-//        if selectedEvent.event.startDate != eventDate.timeIntervalSince1970 && selectedEvent.event.title != title {
-//            
-//        }
-//    }
+    func resetErrors() {
+        titleError = ""
+        startDateError = ""
+        endDateError = ""
+        startTimeError = ""
+        endTimeError = ""
+        locationError = ""
+        notesError = ""
+        submitError = ""
+        hasTriedSubmitting = false
+    }
     
     var isRecurringEvent: Bool {
-        guard let selectedEvent else { return false }
-        if selectedEvent.event.repeatingDays != nil && !selectedEvent.event.repeatingDays!.isEmpty {
-            
+        guard let event else { return false }
+        if event.event.repeatingDays != nil && event.event.repeatingDays!.isEmpty {
             return true
         }
         return false
     }
     
     var userCanEdit: Bool {
-        if let event = selectedEvent {
-            return event.event.userId == currentUser.id || event.event.taggedUsers.contains(currentUser.id)
+        if let event = event {
+            return event.event.ownerId == currentUser.id || event.event.invitedUsers.contains{$0.userId == currentUser.id}
         }
         return false
     }
@@ -86,24 +129,37 @@ class EventViewModel: ObservableObject {
     
     @Published var isLoading: Bool = false      // Indicates loading state
     @Published var errorMessage: String?        // Holds error messages if any
-    @Published var hasLoadedPreviousPage = true
-    @Published var eventCreatorName: String = ""
+    
+    var eventCreatorName: String = ""
     
     private var userService: UserServiceProtocol
     private var scheduleService: ScheduleServiceProtocol
     private var eventService: EventServiceProtocol
     private var notificationService: NotificationServiceProtocol
     
-    init(currentUser: User, selectedEvent: RecurringEvents? = nil, userService: UserServiceProtocol = UserService.shared, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared) {
+    init(currentUser: User, event: RecurringEvents? = nil, currentScheduleId: String, userService: UserServiceProtocol = UserService.shared, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared) {
         self.currentUser = currentUser
-        self.selectedEvent = selectedEvent
         self.userService = userService
         self.eventService = eventService
         self.scheduleService = scheduleService
         self.notificationService = notificationService
+        self.currentScheduleId = currentScheduleId
+        if let event = event {
+            self.event = event
+            setInitialValues()
+        }
+    }
+    
+    @MainActor
+    func deleteEvent() async {
+        guard let event = event else {
+            return
+        }
         
-        if selectedEvent != nil {
-             setInitialValues()
+        do {
+            try await eventService.deleteEvent(eventId: event.event.id)            
+        } catch {
+            self.errorMessage = "Failed to delete event."
         }
     }
     
@@ -112,46 +168,54 @@ class EventViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            if !checkValidInputs() { return }
+            if !checkValidInputs() {
+                return
+            }
             /*
              we need to have scheduleIds in order to properly issue updates to the scheduleEvents node to
              trigger the firebase listeners for users who are online at the same moment besides this current user
             */
             
-            guard let event = selectedEvent else { return }
-            
-            let newTitle = event.event.title == title ? nil : title
-            let newStartDate = Date(timeIntervalSince1970: event.event.startDate) == eventDate ? nil : eventDate!.timeIntervalSince1970
-            let newStartTime = Date.convertHourAndMinuteToDate(time: event.event.startTime) == startTime ? nil : Date.computeTimeSinceStartOfDay(date: startTime!)
-            let newEndTime = Date.convertHourAndMinuteToDate(time: event.event.endTime) == endTime ? nil : Date.computeTimeSinceStartOfDay(date: endTime!)
-            var newLocation: MTPlacemark? {
-                return (event.event.locationName == selectedPlacemark?.name && event.event.locationAddress == selectedPlacemark?.address && event.event.latitude == selectedPlacemark?.latitude && event.event.longitude == selectedPlacemark?.longitude) ? nil : selectedPlacemark
-            }
-            
-            let newRepeatedDays = event.event.repeatingDays == repeatedDays ? nil : repeatedDays
-            let newEventColor = event.event.color == selectedColor ? nil : selectedColor
-            let newNotes = event.event.notes == (notes ?? "") ? nil : notes
-            
-            if newTitle == nil && newStartDate == nil && newStartTime == nil && newEndTime == nil && newLocation == nil && newRepeatedDays == nil && newEventColor == nil && newNotes == nil {
-                submitError = "You haven't made any changes!"
-                hasTriedSubmitting = true
+            guard let event = event else {
                 return
             }
             
-            var newEndDate: Double? {
-                if let endDate = event.event.endDate {
-                    return endDate
-                }
-                return nil
-            }
-            
-            let newTaggedUsers = event.event.taggedUsers == invitedUserIds ? nil : invitedUserIds
-            
-            let scheduleIds = try await scheduleService.fetchScheduleIds(userIds: [currentUser.id] + event.event.taggedUsers)
-            
-            try await eventService.updateSingleRecurringEvent(eventId: event.event.id, recurringDate: event.date, scheduleIds: scheduleIds, title: newTitle, eventDate: newStartDate, repeatedDays: newRepeatedDays, endDate: newEndDate, startTime: newStartTime, endTime: newEndTime, location: newLocation, taggedUsers: newTaggedUsers, color: newEventColor, notes: newNotes)
-            
-            selectedEvent = RecurringEvents(date: event.date, event: Event(id: event.event.id, userId: event.event.userId, scheduleId: event.event.scheduleId, title: title!, startDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!), creationDate: event.event.creationDate, locationName: selectedPlacemark!.name, locationAddress: selectedPlacemark!.address, latitude: selectedPlacemark!.latitude, longitude: selectedPlacemark!.longitude, taggedUsers: event.event.taggedUsers, color: selectedColor, notes: notes ?? ""))
+//            let newTitle = event.event.title == title ? nil : title
+//            let newStartDate = Date(timeIntervalSince1970: event.event.startDate) == eventDate ? nil : eventDate!.timeIntervalSince1970
+//            let newStartTime = Date.convertHourAndMinuteToDate(time: event.event.startTime) == startTime ? nil : Date.computeTimeSinceStartOfDay(date: startTime!)
+//            let newEndTime = Date.convertHourAndMinuteToDate(time: event.event.endTime) == endTime ? nil : Date.computeTimeSinceStartOfDay(date: endTime!)
+//            var newLocation: MTPlacemark? {
+//                return (event.event.locationName == selectedPlacemark?.name && event.event.locationAddress == selectedPlacemark?.address && event.event.latitude == selectedPlacemark?.latitude && event.event.longitude == selectedPlacemark?.longitude) ? nil : selectedPlacemark
+//            }
+//            
+//            let newRepeatedDays = event.event.repeatingDays == repeatedDays ? nil : repeatedDays
+//            let newEventColor = event.event.color == selectedColor ? nil : selectedColor
+//            let newNotes = event.event.notes == (notes ?? "") ? nil : notes
+//            
+//            var newEndDate: Double? {
+//                if event.event.endDate != nil && eventEndDate != nil && Date(timeIntervalSince1970: event.event.endDate!) != eventEndDate! {
+//                    return eventEndDate!.timeIntervalSince1970
+//                } else if event.event.endDate == nil && eventEndDate != nil {
+//                    return eventEndDate!.timeIntervalSince1970
+//                }
+//                return nil
+//            }
+//            
+//            let invitedUserIds = selectedFriends.map { InvitedUser(userId: $0.id) }
+//            
+//            let newTaggedUsers = event.event.taggedUsers == invitedUserIds ? nil : invitedUserIds
+//            
+//            if newTitle == nil && newStartDate == nil && newStartTime == nil && newEndTime == nil && newLocation == nil && newRepeatedDays == nil && newEventColor == nil && newNotes == nil {
+//                submitError = "You haven't made any changes!"
+//                hasTriedSubmitting = true
+//                return
+//            }
+//            
+//            let scheduleId = try await scheduleService.fetchScheduleId(userId: currentUser.id)
+//            
+//            try await eventService.updateSingleRecurringEvent(eventId: event.event.id, recurringDate: event.date, scheduleId: scheduleId, title: newTitle, eventDate: newStartDate, repeatedDays: newRepeatedDays, endDate: newEndDate, startTime: newStartTime, endTime: newEndTime, location: newLocation, taggedUsers: newTaggedUsers, color: newEventColor, notes: newNotes)
+//            
+//            selectedEvent = RecurringEvents(date: event.date, event: Event(id: event.event.id, userId: event.event.userId, scheduleId: event.event.scheduleId, title: title!, startDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!), creationDate: event.event.creationDate, locationName: selectedPlacemark!.name, locationAddress: selectedPlacemark!.address, latitude: selectedPlacemark!.latitude, longitude: selectedPlacemark!.longitude, taggedUsers: event.event.taggedUsers, color: selectedColor, notes: notes ?? "", repeatingDays: repeatedDays))
             
             shouldDismiss = true
 
@@ -167,46 +231,55 @@ class EventViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            if !checkValidInputs() { return }
-            guard let event = selectedEvent else { return }
+            if !checkValidInputs() {
+                return
+            }
+            
+            guard let event = event else {
+                return }
             
             /*
              we need to have scheduleIds in order to properly issue updates to the scheduleEvents node to
              trigger the firebase listeners for users who are online at the same moment besides this current user
-            */
+             */
             
             
-            let newTitle = event.event.title == title ? nil : title
-            let newStartDate = Date(timeIntervalSince1970: event.event.startDate) == eventDate ? nil : eventDate!.timeIntervalSince1970
-            let newStartTime = Date.convertHourAndMinuteToDate(time: event.event.startTime) == startTime ? nil : Date.computeTimeSinceStartOfDay(date: startTime!)
-            let newEndTime = Date.convertHourAndMinuteToDate(time: event.event.endTime) == endTime ? nil : Date.computeTimeSinceStartOfDay(date: endTime!)
-            var newLocation: MTPlacemark? {
-                return (event.event.locationName == selectedPlacemark?.name && event.event.locationAddress == selectedPlacemark?.address && event.event.latitude == selectedPlacemark?.latitude && event.event.longitude == selectedPlacemark?.longitude) ? nil : selectedPlacemark
-            }
-            let newRepeatedDays = event.event.repeatingDays == repeatedDays ? nil : repeatedDays
-            let newEventColor = event.event.color == selectedColor ? nil : selectedColor
-            let newNotes = event.event.notes == (notes ?? "") ? nil : notes
-            
-            if newTitle == nil && newStartDate == nil && newStartTime == nil && newEndTime == nil && newLocation == nil && newRepeatedDays == nil && newEventColor == nil && newNotes == nil {
-                submitError = "You haven't made any changes!"
-                hasTriedSubmitting = true
-                return
-            }
-            
-            var newEndDate: Double? {
-                if let endDate = event.event.endDate {
-                    return endDate
-                }
-                return nil
-            }
-            
-            let newTaggedUsers = event.event.taggedUsers == invitedUserIds ? nil : invitedUserIds
-                        
-            let scheduleIds = try await scheduleService.fetchScheduleIds(userIds: [currentUser.id] + event.event.taggedUsers)
-            
-            try await eventService.updateAllRecurringEvent(eventId: event.event.id, recurringDate: event.date, scheduleIds: scheduleIds, title: newTitle, eventDate: newStartDate, repeatedDays: newRepeatedDays, endDate: newEndDate, startTime: newStartTime, endTime: newEndTime, location: newLocation, taggedUsers: newTaggedUsers, color: newEventColor, notes: newNotes)
-            
-            selectedEvent = RecurringEvents(date: event.date, event: Event(id: event.event.id, userId: event.event.userId, scheduleId: event.event.scheduleId, title: title!, startDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!), creationDate: event.event.creationDate, locationName: selectedPlacemark!.name, locationAddress: selectedPlacemark!.address, latitude: selectedPlacemark!.latitude, longitude: selectedPlacemark!.longitude, taggedUsers: event.event.taggedUsers, color: selectedColor, notes: notes ?? ""))
+//            let newTitle = event.event.title == title ? nil : title
+//            let newStartDate = Date(timeIntervalSince1970: event.event.startDate) == eventDate ? nil : eventDate!.timeIntervalSince1970
+//            let newStartTime = Date.convertHourAndMinuteToDate(time: event.event.startTime) == startTime ? nil : Date.computeTimeSinceStartOfDay(date: startTime!)
+//            let newEndTime = Date.convertHourAndMinuteToDate(time: event.event.endTime) == endTime ? nil : Date.computeTimeSinceStartOfDay(date: endTime!)
+//            var newLocation: MTPlacemark? {
+//                return (event.event.locationName == selectedPlacemark?.name && event.event.locationAddress == selectedPlacemark?.address && event.event.latitude == selectedPlacemark?.latitude && event.event.longitude == selectedPlacemark?.longitude) ? nil : selectedPlacemark
+//            }
+//            let newRepeatedDays = event.event.repeatingDays == repeatedDays ? nil : repeatedDays
+//            let newEventColor = event.event.color == selectedColor ? nil : selectedColor
+//            let newNotes = event.event.notes == (notes ?? "") ? nil : notes
+//            
+//            var newEndDate: Double? {
+//                if event.event.endDate != nil && eventEndDate != nil && Date(timeIntervalSince1970: event.event.endDate!) != eventEndDate! {
+//                    return eventEndDate!.timeIntervalSince1970
+//                } else if event.event.endDate == nil && eventEndDate != nil {
+//                    return eventEndDate!.timeIntervalSince1970
+//                }
+//                return nil
+//            }
+//            
+//            let invitedUserIds = selectedFriends.map { InvitedUser(userId: $0.id) }
+//                        
+//            let newTaggedUsers = event.event.taggedUsers == invitedUserIds ? nil : invitedUserIds
+//            
+//            if newTitle == nil && newStartDate == nil && newStartTime == nil && newEndTime == nil && newLocation == nil && newRepeatedDays == nil && newEventColor == nil && newNotes == nil && newEndDate == nil && newTaggedUsers == nil {
+//                submitError = "You haven't made any changes!"
+//                showSaveChangesModal = false
+//                hasTriedSubmitting = true
+//                return
+//            }
+//            
+//            let scheduleId = try await scheduleService.fetchScheduleId(userId: currentUser.id)
+//            
+//            try await eventService.updateAllRecurringEvent(eventId: event.event.id, recurringDate: event.date, scheduleId: scheduleId, title: newTitle, eventDate: newStartDate, repeatedDays: newRepeatedDays, endDate: newEndDate, startTime: newStartTime, endTime: newEndTime, location: newLocation, taggedUsers: invitedUserIds, color: newEventColor, notes: newNotes)
+//            
+//            selectedEvent = RecurringEvents(date: event.date, event: Event(id: event.event.id, userId: event.event.userId, scheduleId: event.event.scheduleId, title: title!, startDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!), creationDate: event.event.creationDate, locationName: selectedPlacemark!.name, locationAddress: selectedPlacemark!.address, latitude: selectedPlacemark!.latitude, longitude: selectedPlacemark!.longitude, taggedUsers: event.event.taggedUsers, color: selectedColor, notes: notes ?? ""))
             
             shouldDismiss = true
 
@@ -223,35 +296,48 @@ class EventViewModel: ObservableObject {
         self.errorMessage = nil
         do {
             if !checkValidInputs() { return }
-            guard let event = selectedEvent else { return }
+            guard let event = event else { return }
             
             /*
              we need to have scheduleIds in order to properly issue updates to the scheduleEvents node to
              trigger the firebase listeners for users who are online at the same moment besides this current user
             */
                         
-            let newTitle = event.event.title == title ? nil : title
-            let newStartDate = Date(timeIntervalSince1970: event.event.startDate) == eventDate ? nil : eventDate!.timeIntervalSince1970
-            let newStartTime = Date.convertHourAndMinuteToDate(time: event.event.startTime) == startTime ? nil : Date.computeTimeSinceStartOfDay(date: startTime!)
-            let newEndTime = Date.convertHourAndMinuteToDate(time: event.event.endTime) == endTime ? nil : Date.computeTimeSinceStartOfDay(date: endTime!)
-            var newLocation: MTPlacemark? {
-                return (event.event.locationName == selectedPlacemark?.name && event.event.locationAddress == selectedPlacemark?.address && event.event.latitude == selectedPlacemark?.latitude && event.event.longitude == selectedPlacemark?.longitude) ? nil : selectedPlacemark
-            }
-            let newRepeatedDays = event.event.repeatingDays == repeatedDays ? nil : repeatedDays
-            let newEventColor = event.event.color == selectedColor ? nil : selectedColor
-            let newNotes = event.event.notes == (notes ?? "") ? nil : notes
-            
-            if newTitle == nil && newStartDate == nil && newStartTime == nil && newEndTime == nil && newLocation == nil && newRepeatedDays == nil && newEventColor == nil && newNotes == nil {
-                submitError = "You haven't made any changes!"
-                hasTriedSubmitting = true
-                return
-            }
-            
-            let scheduleIds = try await scheduleService.fetchScheduleIds(userIds: [currentUser.id] + event.event.taggedUsers)
-            
-            try await eventService.updateEvent(eventId: event.event.id, scheduleIds: scheduleIds, title: newTitle, eventDate: newStartDate, startTime: newStartTime, endTime: newEndTime, location: newLocation, repeatedDays: newRepeatedDays, taggedUsers: nil, color: newEventColor, notes: newNotes)
-            
-            selectedEvent = RecurringEvents(date: event.date, event: Event(id: event.event.id, userId: event.event.userId, scheduleId: event.event.scheduleId, title: title!, startDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!), creationDate: event.event.creationDate, locationName: selectedPlacemark!.name, locationAddress: selectedPlacemark!.address, latitude: selectedPlacemark!.latitude, longitude: selectedPlacemark!.longitude, taggedUsers: event.event.taggedUsers, color: selectedColor, notes: notes ?? ""))
+//            let newTitle = event.event.title == title ? nil : title
+//            let newStartDate = Date(timeIntervalSince1970: event.event.startDate) == eventDate ? nil : eventDate!.timeIntervalSince1970
+//            let newStartTime = Date.convertHourAndMinuteToDate(time: event.event.startTime) == startTime ? nil : Date.computeTimeSinceStartOfDay(date: startTime!)
+//            let newEndTime = Date.convertHourAndMinuteToDate(time: event.event.endTime) == endTime ? nil : Date.computeTimeSinceStartOfDay(date: endTime!)
+//            var newLocation: MTPlacemark? {
+//                return (event.event.locationName == selectedPlacemark?.name && event.event.locationAddress == selectedPlacemark?.address && event.event.latitude == selectedPlacemark?.latitude && event.event.longitude == selectedPlacemark?.longitude) ? nil : selectedPlacemark
+//            }
+//            let newRepeatedDays = event.event.repeatingDays == repeatedDays ? nil : repeatedDays
+//            let newEventColor = event.event.color == selectedColor ? nil : selectedColor
+//            let newNotes = event.event.notes == (notes ?? "") ? nil : notes
+//            
+//            var newEndDate: Double? {
+//                if event.event.endDate != nil && eventEndDate != nil && Date(timeIntervalSince1970: event.event.endDate!) != eventEndDate! {
+//                    return eventEndDate!.timeIntervalSince1970
+//                } else if event.event.endDate == nil && eventEndDate != nil {
+//                    return eventEndDate!.timeIntervalSince1970
+//                }
+//                return nil
+//            }
+//            
+//            let invitedUserIds = selectedFriends.map { InvitedUser(userId: $0.id) }
+//            
+//            let newTaggedUsers = event.event.taggedUsers == invitedUserIds ? nil : invitedUserIds
+//            
+//            if newTitle == nil && newStartDate == nil && newStartTime == nil && newEndTime == nil && newLocation == nil && newRepeatedDays == nil && newEventColor == nil && newTaggedUsers == nil && newNotes == nil && newEndDate == nil {
+//                submitError = "You haven't made any changes!"
+//                hasTriedSubmitting = true
+//                return
+//            }
+//            
+//            let scheduleId = try await scheduleService.fetchScheduleId(userId: currentUser.id)
+//            
+//            try await eventService.updateEvent(eventId: event.event.id, scheduleId: scheduleId, title: newTitle, eventDate: newStartDate, startTime: newStartTime, endTime: newEndTime, location: newLocation, repeatedDays: newRepeatedDays, taggedUsers: Array(invitedUserIds), color: newEventColor, notes: newNotes, endDate: newEndDate)
+//            
+//            selectedEvent = RecurringEvents(date: event.date, event: Event(id: event.event.id, userId: event.event.userId, scheduleId: event.event.scheduleId, title: title!, startDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!), creationDate: event.event.creationDate, locationName: selectedPlacemark!.name, locationAddress: selectedPlacemark!.address, latitude: selectedPlacemark!.latitude, longitude: selectedPlacemark!.longitude, taggedUsers: Array(invitedUserIds), color: selectedColor, notes: notes ?? ""))
             
             shouldDismiss = true
 
@@ -272,13 +358,9 @@ class EventViewModel: ObservableObject {
             let eventNotes = notes ?? ""
             let endDateAsDouble: Double? = eventEndDate == nil ? nil : eventEndDate!.timeIntervalSince1970
             
-            let userIds = selectedFriends.compactMap { $0.id }
+            let userIds = selectedFriends.compactMap { InvitedUser(userId: $0.id) }
                                     
-            let eventId = try await eventService.createEvent(userId: currentUser.id, title: title!, startDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!), location: selectedPlacemark!, color: selectedColor, notes: eventNotes, taggedUsers: userIds, endDate: endDateAsDouble, repeatedDays: repeatedDays)
-            
-            if !userIds.isEmpty {
-                try await notificationService.sendEventInvites(senderId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserIds: userIds, eventId: eventId, eventDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!))
-            }
+            try await eventService.createEvent(userId: currentUser.id, title: title!, startDate: eventDate!.timeIntervalSince1970, startTime: Date.computeTimeSinceStartOfDay(date: startTime!), endTime: Date.computeTimeSinceStartOfDay(date: endTime!), location: selectedPlacemark!, color: selectedColor, notes: eventNotes, taggedUsers: userIds, endDate: endDateAsDouble, repeatedDays: repeatedDays, scheduleId: currentScheduleId)
             
             shouldDismiss = true
             
@@ -294,8 +376,8 @@ class EventViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            guard let selectedEvent = selectedEvent else { return }
-            try await eventService.deleteEvent(eventId: selectedEvent.event.id, userId: selectedEvent.event.userId)
+            guard let event = event else { return }
+            try await eventService.deleteEvent(eventId: event.event.id)
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to delete event: \(error.localizedDescription)"
@@ -303,58 +385,16 @@ class EventViewModel: ObservableObject {
         }
     }
     
-//    @MainActor
-//    func deleteSingleRecurringEvent() async {
-//        self.isLoading = true
-//        self.errorMessage = nil
-//        do {
-//            guard let selectedEvent = selectedEvent else { return }
-////            try await eventService.deleteSingleRecurringEvent(eventId: selectedEvent.event.id, userId: selectedEvent.event.userId)
-//            self.isLoading = false
-//        } catch {
-//            self.errorMessage = "Failed to delete event: \(error.localizedDescription)"
-//            self.isLoading = false
-//        }
-//    }
-    
     @MainActor
     func fetchEventData() async {
-        self.isLoading = false
-        self.errorMessage = nil
-        do {
-            guard let selectedEvent = selectedEvent else { return }
-            if selectedEvent.event.userId != currentUser.id {
-                self.eventCreatorName = try await userService.fetchDisplayNameById(userId: selectedEvent.event.userId)
-            } else {
-                self.eventCreatorName = currentUser.displayName
-            }
-            self.invitedUsersForEvent = try await userService.fetchUsers(userIds: selectedEvent.event.taggedUsers)
-        } catch {
-            self.errorMessage = "Failed to fetch event data: \(error.localizedDescription)"
-            self.isLoading = false
-        }
-    }
-    
-    @MainActor
-    func fetchFriends() async {
         self.isLoading = true
         self.errorMessage = nil
         do {
-            guard let eventDate = eventDate, let startTime = startTime, let endTime = endTime else {
-                self.errorMessage = "Please fill out the event date, start time, and end time to check if your friends are available!"
-                self.isLoading = false
-                return
-            }
-            
-            self.userFriends = try await userService.fetchUserFriends(userId: currentUser.id)
-            
-            let normalizedStartTime: Double = floor(Date.computeTimeSinceStartOfDay(date: startTime) / 900.0) * 900.0
-            
-            self.availabilityList = try await eventService.checkAvailability(userIds: self.userFriends.map { $0.id }, eventDate: Int(eventDate.timeIntervalSince1970), startTime: Int(normalizedStartTime), endTime: Int(Date.computeTimeSinceStartOfDay(date: endTime)))
-            
+            guard let event = event else { return }
+            self.selectedFriends = try await userService.fetchUsers(friendIds: event.event.invitedUsers.map(\.userId))
             self.isLoading = false
         } catch {
-            self.errorMessage = "The following error occured: \(error.localizedDescription)"
+            self.errorMessage = "Failed to fetch event data: \(error.localizedDescription)"
             self.isLoading = false
         }
     }
@@ -434,17 +474,17 @@ class EventViewModel: ObservableObject {
     }
     
     func setInitialValues() {
-        guard let event = selectedEvent else { return }
+        guard let event = event else { return }
         
         self.title = event.event.title
         self.eventDate = Date(timeIntervalSince1970: event.event.startDate)
         self.startTime = Date.convertHourAndMinuteToDate(time: event.event.startTime)
         self.endTime = Date.convertHourAndMinuteToDate(time: event.event.endTime)
         self.eventEndDate = event.event.endDate != nil ? Date(timeIntervalSince1970: event.event.endDate!) : nil
-        self.selectedPlacemark = MTPlacemark(name: event.event.locationName, address: event.event.locationAddress, latitude: event.event.latitude, longitude: event.event.longitude)
+        self.selectedPlacemark = event.event.location
         self.notes = event.event.notes
         self.eventColor = Color(hex: Int(event.event.color, radix: 16)!)
-        self.invitedUserIds = event.event.taggedUsers
+        self.invitedUserIds = event.event.invitedUsers
         self.repeatedDays = event.event.repeatingDays
     }
 }

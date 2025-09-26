@@ -55,9 +55,9 @@ class BlendViewModel: ObservableObject {
     
     @Published var title: String? = nil
     @Published var scheduleIds: [String] = []
-    @Published var userColors: [String: Color] = [:]
+    @Published var userColors: [UserMappedBlendColor] = []
     
-    private var currentUser: User
+    var currentUser: User
     
     init(currentUser: User, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, userService: UserServiceProtocol = UserService.shared, eventService: EventServiceProtocol = EventService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared) {
         self.currentUser = currentUser
@@ -78,8 +78,8 @@ class BlendViewModel: ObservableObject {
         
         do {
             let scheduleId = try await scheduleService.fetchScheduleId(userId: currentUser.id)
-            let blendId = try await scheduleService.createBlendSchedule(ownerId: currentUser.id, scheduleId: scheduleId, title: title, invitedUsers: selectedFriends.map(\.id), colors: userColors.mapValues { $0.toHex()! })
-            try await notificationService.sendBlendInvites(senderId: currentUser.id, username: currentUser.username, profileImage: currentUser.profileImage, toUserIds: selectedFriends.map(\.id), blendId: blendId)
+            let userIds = selectedFriends.map { InvitedUser(userId: $0.id, status: "pending") }
+            try await scheduleService.createBlendSchedule(ownerId: currentUser.id, scheduleId: scheduleId, title: title, invitedUsers: userIds, colors: userColors)
             
             shouldDismiss = true
             
@@ -107,120 +107,103 @@ class BlendViewModel: ObservableObject {
 
 struct CreateBlendView: View {
     
-    @EnvironmentObject var tabBarState: TabBarState
     @StateObject var blendViewModel: BlendViewModel
     @FocusState var isFocused: Bool
-    @Binding var shouldReloadData: Bool
     
     @Environment(\.dismiss) var dismiss
     
-    init(currentUser: User, shouldReloadData: Binding<Bool>) {
+    init(currentUser: User) {
         _blendViewModel = StateObject(wrappedValue: BlendViewModel(currentUser: currentUser))
-        _shouldReloadData = Binding(projectedValue: shouldReloadData)
     }
     
     var body: some View {
         ZStack {
-            Color(hex: 0xf7f4f2)
+            Color("BackgroundColor")
                 .ignoresSafeArea()
-            
-            VStack(spacing: 10) {
-                ZStack(alignment: .leading) {
-                    Button(action: {
-                        tabBarState.hideTabbar = false
-                        dismiss()
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .fontWeight(.bold)
-                            .imageScale(.large)
-                            .labelStyle(.iconOnly)
-                            .foregroundStyle(Color.primary)
-                    }
-                    
-                    
-                    Text("Create Blend")
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .font(.title3)
-                        .fontWeight(.bold)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .center, spacing: 10) {
+                    Text("Fill out the details below to create a blend with your friends!")
+                        .font(.body)
+                        .fontWeight(.medium)
                         .fontDesign(.monospaced)
                         .tracking(-0.25)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .padding([.horizontal, .top])
-                .frame(maxWidth: .infinity)
-                
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .center, spacing: 10) {
-                        Text("Fill out the details below to create a blend with your friends!")
-                            .font(.body)
-                            .fontWeight(.medium)
-                            .fontDesign(.monospaced)
-                            .tracking(-0.25)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(Color(hex: 0x333333))
-                            .padding(.vertical, 8)
-                        
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color("PrimaryText"))
+                        .padding(.vertical, 8)
+                    
+                    VStack(spacing: 0) {
                         // view for event title input
                         BlendTitleView(title: $blendViewModel.title, isFocused: $isFocused, hasTriedSubmitting: $blendViewModel.hasTriedSubmitting, titleError: $blendViewModel.titleError)
                         
                         // view for inviting friends selection
-                        EventInviteesView(selectedFriends: $blendViewModel.selectedFriends, showInviteUsersSheet: $blendViewModel.showInviteUsersSheet)
+                        EventInviteesView(selectedFriends: $blendViewModel.selectedFriends, currentUser: blendViewModel.currentUser)
                             .sheet(isPresented: $blendViewModel.showInviteUsersSheet) {
                                 AddUsersToBlend(blendViewModel: blendViewModel)
                             }
-                        
-                        // view for event color selection
-//                        EventColorView(eventColor: $blendViewModel.eventColor)
-                        BlendColorsForInvitees(selectedFriends: $blendViewModel.selectedFriends, showColorPickerSheet: $blendViewModel.showColorPickerSheet, colors: $blendViewModel.userColors, showColorPickerForUserId: $blendViewModel.showingColorPickerForUserId)
-                            .sheet(isPresented: $blendViewModel.showColorPickerSheet) {
-                                BlendColorPickerSheet(colors: $blendViewModel.userColors, userId: $blendViewModel.showingColorPickerForUserId)
+                            .task {
+                                await blendViewModel.fetchFriends()
                             }
                         
-                        Button(action: {
-                            Task {
-                                await blendViewModel.createBlend()
-                                if blendViewModel.shouldDismiss {
-                                    shouldReloadData = true
-                                    dismiss()
-                                }
+                        // view for selecting the colors of the events of invited users
+                        Group {
+                            if !blendViewModel.selectedFriends.isEmpty {
+                                BlendColorsForInvitees(
+                                    selectedFriends: $blendViewModel.selectedFriends,
+                                    showColorPickerSheet: $blendViewModel.showColorPickerSheet,
+                                    colors: $blendViewModel.userColors,
+                                    showColorPickerForUserId: $blendViewModel.showingColorPickerForUserId
+                                )
+                                .transition(.move(edge: .top).combined(with: .opacity))
                             }
-                        }, label: {
-                            Text("Create Blend")
-                                .foregroundColor(Color(hex: 0xf7f4f2))
-                                .font(.headline)
-                                .fontWeight(.bold)
-                                .fontDesign(.monospaced)
-                                .tracking(0.1)
-                        })
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color(hex: 0x3C859E))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .padding(.vertical, 8)
-                        
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.vertical)
-                    .padding(.horizontal, 25)
-                    .simultaneousGesture(TapGesture().onEnded {
-                        isFocused = false
-                        if blendViewModel.hasTriedSubmitting {
-                            blendViewModel.hasTriedSubmitting = false
                         }
+                        // Drive the transition animation by changes in selectedFriends.count
+                        .animation(.easeInOut(duration: 0.3), value: blendViewModel.selectedFriends.count)
+                        .sheet(isPresented: $blendViewModel.showColorPickerSheet) {
+                            BlendColorPickerSheet(colors: $blendViewModel.userColors, userId: $blendViewModel.showingColorPickerForUserId)
+                        }
+                    }
+                    
+                    Button(action: {
+                        Task {
+                            await blendViewModel.createBlend()
+                            if blendViewModel.shouldDismiss {
+                                dismiss()
+                            }
+                        }
+                    }, label: {
+                        Text("Create Blend")
+                            .foregroundColor(Color.white)
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
                     })
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color("ButtonColors"))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.vertical, 8)
+                    
                 }
-                .defaultScrollAnchor(.top, for: .initialOffset)
-                .defaultScrollAnchor(.bottom, for: .sizeChanges)
-                .scrollDismissesKeyboard(.immediately)
-                .onTapGesture {
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.vertical)
+                .padding(.horizontal, 25)
+                .simultaneousGesture(TapGesture().onEnded {
                     isFocused = false
-                }
+                    if blendViewModel.hasTriedSubmitting {
+                        blendViewModel.hasTriedSubmitting = false
+                    }
+                })
             }
-            .padding(.bottom, 0.5)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .scrollBounceBehavior(.basedOnSize)
+            .defaultScrollAnchor(.top, for: .initialOffset)
+            .defaultScrollAnchor(.bottom, for: .sizeChanges)
+            .scrollDismissesKeyboard(.immediately)
+            .onTapGesture {
+                isFocused = false
+            }
         }
-        .navigationBarBackButtonHidden(true)
-        .toolbar(tabBarState.hideTabbar ? .hidden : .visible, for: .tabBar)
+        .navigationBarBackButtonHidden(false)
     }
 }
 
@@ -248,71 +231,63 @@ struct AddUsersToBlend: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                HStack(alignment: .center, spacing: 10) {
-                    Button(action: {}) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.gray)
-                            .imageScale(.medium)
-                    }
-                    
-                    TextField("Search friends", text: $searchText)
-                        .textFieldStyle(.plain)
+            Group {
+                if blendViewModel.isLoading {
+                    FriendsLoadingView()
+                        .padding(.horizontal)
+                } else if let error = blendViewModel.errorMessage {
+                    Spacer()
+                    Text(error)
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .fontDesign(.monospaced)
+                        .foregroundStyle(Color(hex: 0x666666))
                         .tracking(-0.25)
-                        .foregroundStyle(Color(hex: 0x333333))
-                        .autocorrectionDisabled(true)
-                        .textInputAutocapitalization(.never)
-                        .focused($isSearching, equals: true)
-                    
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                     Spacer()
-                    
-                    Button("Clear", action: {
-                        searchText = ""
-                    })
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .fontDesign(.monospaced)
-                    .tracking(-0.25)
-                    .foregroundStyle(Color(hex: 0x3C859E))
-                    .opacity(!searchText.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: searchText)
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 25))
-                .frame(maxWidth: .infinity, alignment: .center)
-                
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 20) {
+                } else if blendViewModel.userFriends.isEmpty {
+                    Spacer()
+                    Text("No friends found. Add your first friend by clicking the Search icon below!")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                        .foregroundStyle(Color(hex: 0x666666))
+                        .tracking(-0.25)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    Spacer()
+                } else {
+                    ScrollView(.vertical, showsIndicators: false) {
                         ForEach(filteredUsers, id: \.self.id) { friend in
-                            InvitedUserCell(friend: friend, selectedFriends: $blendViewModel.selectedFriends)
+                            InvitedUserCell(friend: friend, isAvailable: true)
                         }
                     }
-                    .padding(.vertical)
+                    .padding(.horizontal, 8)
+                    .scrollDismissesKeyboard(.immediately)
                 }
-                .scrollDismissesKeyboard(.immediately)
             }
-            .padding(.horizontal)
             .navigationTitle("Invite Friends")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Reset") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
                 }
-            }
-            .onTapGesture {
-                isSearching = nil
             }
         }
         .presentationDetents([.medium, .large])
         .task {
             await blendViewModel.fetchFriends()
         }
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search for friends")
     }
 }
 
@@ -332,17 +307,32 @@ struct BlendTitleView: View {
     @Binding var titleError: String
     
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 0) {
             
-                TextField("Blend Name", text: titleBinding, axis: .vertical)
+                TextField("Blend Name", text: titleBinding, prompt:
+                            Text("Blend Name")
+                                .font(.subheadline)
+                                .fontDesign(.monospaced)
+                                .foregroundStyle(Color("SecondaryText"))
+                                .tracking(-0.25),
+                          axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.subheadline)
                     .fontDesign(.monospaced)
-                    .foregroundStyle(Color(hex: 0x333333))
-                    .tracking(0.1)
+                    .foregroundStyle(Color("PrimaryText"))
+                    .tracking(-0.25)
                     .focused(isFocused)
                     .autocorrectionDisabled(true)
+                    .textInputAutocapitalization(.sentences)
+                    .submitLabel(.done)
+                    .onChange(of: title) { _, newValue in
+                        guard let newValue = newValue else { return }
+                        guard isFocused.wrappedValue == true else { return }
+                        guard newValue.contains("\n") else { return }
+                        isFocused.wrappedValue = false
+                        title = newValue.replacing("\n", with: "")
+                    }
                 
                 Spacer()
                 Button(action: {
@@ -350,49 +340,42 @@ struct BlendTitleView: View {
                 }) {
                     Image(systemName: "xmark")
                         .imageScale(.small)
-                        .foregroundStyle(Color(hex: 0x333333))
+                        .foregroundStyle(Color("IconColors"))
                 }
-                .hidden(title == nil)
+                .opacity(title == nil ? 0 : 1)
+                .animation(.easeInOut(duration: 0.4), value: title)
             }
             .padding(.vertical, 16)
             .padding(.horizontal, 20)
             .background {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.clear)
-                    .stroke(hasTriedSubmitting && title == nil ? Color(hex: 0xE84D3D) : Color.gray, lineWidth: 1)
+                    .stroke(hasTriedSubmitting && title == nil ? Color("ErrorTextColor") : Color("TextFieldBorders"), lineWidth: 1)
             }
-            
-            
-            GeometryReader { geometry in
+            .overlay(alignment: .topLeading) {
                 HStack(spacing: 0) {
-                    Spacer()
-                        .frame(width: 4)
                     Text("Blend Name")
                         .font(.footnote)
                         .fontWeight(.medium)
                         .fontDesign(.monospaced)
-                    Spacer()
-                        .frame(width: 4)
+                        .padding(.horizontal, 4)
+                        .background(Color("BackgroundColor"))
+                        .offset(y: -9)
+                        .padding(.leading, 16)
                 }
-                .background {
-                    Color(hex: 0xf7f4f2)
-                }
-                .padding(.leading)
-                .offset(y: -10)
-                .opacity(isFocused.wrappedValue || title != nil ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue)
-                
-                Text(titleError)
-                    .font(.footnote)
-                    .padding(.leading)
-                    .offset(y: geometry.size.height * CGFloat(1.05))
-                    .foregroundStyle(.red)
-                    .opacity(hasTriedSubmitting && !titleError.isEmpty ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: hasTriedSubmitting)
+                .opacity(title != nil || isFocused.wrappedValue == true ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue == true || title != nil)
             }
+
+            Text(titleError.isEmpty ? " " : titleError)
+                .font(.footnote)
+                .padding(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(Color("ErrorTextColor"))
+                .opacity(titleError.isEmpty ? 0 : 1)
+                .animation(.easeInOut(duration: 0.2), value: titleError.isEmpty)
         }
-        .padding(.vertical, 8)
-        .padding(.bottom, hasTriedSubmitting && !titleError.isEmpty ? 4 : 0)
+        .padding(.top, 10)
     }
 }
 
@@ -400,16 +383,15 @@ struct BlendColorsForInvitees: View {
     
     @Binding var selectedFriends: [User]
     @Binding var showColorPickerSheet: Bool
-    @Binding var colors: [String: Color]
+    @Binding var colors: [UserMappedBlendColor]
     @Binding var showColorPickerForUserId: String?
     
     var body: some View {
         Group {
-            ZStack(alignment: .topLeading) {
+            VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 2) {
-                    let enumeratedFriends = Array(selectedFriends.enumerated())
-                    ForEach(enumeratedFriends, id: \.element.id) { index, user in
-                        let userColor = colors[user.id]
+                    ForEach(selectedFriends.indices, id: \.self) { index in
+                        let user = selectedFriends[index]
                         HStack {
                             InvitedUserRow(user: user)
                                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -420,21 +402,29 @@ struct BlendColorsForInvitees: View {
                                 showColorPickerForUserId = user.id
                                 showColorPickerSheet = true
                             }) {
-                                if userColor == nil {
+                                if !colors.contains(where: { $0.userId == user.id }) {
                                     Image(systemName: "paintbrush")
-                                        .foregroundColor(Color(hex: 0x333333))
+                                        .foregroundColor(Color("IconColors"))
                                         .imageScale(.large)
-                                } else {
-                                    
+                                } else if let color = colors.first(where: { $0.userId == user.id }) {
                                     HStack(alignment: .center, spacing: 3) {
                                         Image(systemName: "paintbrush")
-                                            .foregroundColor(Color(hex: 0x333333))
+                                            .foregroundColor(Color("IconColors"))
                                             .imageScale(.large)
                                         
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(userColor ?? Color.clear)
-                                            .containerRelativeFrame(.vertical) { height, _ in height * 0.0325 }
-                                            .containerRelativeFrame(.horizontal) { width, _ in width * 0.125 }
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color(hex: Int(color.color, radix: 16)!))
+                                            .frame(maxWidth: 55, maxHeight: 25)
+                                    }
+                                } else {
+                                    HStack(alignment: .center, spacing: 3) {
+                                        Image(systemName: "paintbrush")
+                                            .foregroundColor(Color("IconColors"))
+                                            .imageScale(.large)
+                                        
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color.clear)
+                                            .frame(maxWidth: 55, maxHeight: 25)
                                     }
                                 }
                             }
@@ -444,32 +434,33 @@ struct BlendColorsForInvitees: View {
                 .padding()
                 .background {
                     RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.gray, lineWidth: 1)
+                        .stroke(Color("TextFieldBorders"), lineWidth: 1)
                 }
-                
-                GeometryReader { geometry in
-                    HStack {
-                        Spacer()
-                            .frame(width: 4)
+                .overlay(alignment: .topLeading) {
+                    HStack(spacing: 0) {
                         Text("Blend Colors")
                             .font(.footnote)
                             .fontWeight(.medium)
                             .fontDesign(.monospaced)
-                        Spacer()
-                            .frame(width: 4)
+                            .padding(.horizontal, 4)
+                            .background(Color("BackgroundColor"))
+                            .offset(y: -9)
+                            .padding(.leading, 16)
                     }
                     .opacity(!selectedFriends.isEmpty ? 1 : 0)
                     .animation(.easeInOut(duration: 0.2), value: selectedFriends.isEmpty)
-                    .background {
-                        Color(hex: 0xf7f4f2)
-                    }
-                    .padding(.leading)
-                    .offset(y: -10)
                 }
+
+//                Text(titleError.isEmpty ? " " : titleError)
+//                    .font(.footnote)
+//                    .padding(.leading)
+//                    .frame(maxWidth: .infinity, alignment: .leading)
+//                    .foregroundStyle(.red)
+//                    .opacity(titleError.isEmpty ? 0 : 1)
+//                    .animation(.easeInOut(duration: 0.2), value: titleError.isEmpty)
             }
+            .padding(.top, 10)
         }
-        .animation(.easeInOut(duration: 0.4), value: !selectedFriends.isEmpty)
-        .padding(.vertical, 8)
     }
 }
 
@@ -478,93 +469,64 @@ struct BlendColorPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     let palettes: [ColorPalette] = [ColorPalette.pastel, ColorPalette.rustic, ColorPalette.foresty, ColorPalette.monochrome]
     @State var selectedColor: Color = Color.clear
-    @Binding var colors: [String: Color]
+    @Binding var colors: [UserMappedBlendColor]
     @Binding var userId: String?
     @State var sheetPresentationState: PresentationDetent = .medium
-    let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+    
+    let singleRowColumns = Array(repeating: GridItem(.fixed(44)), count: ColorPalette.pastel.colors.count)
+    let multiRowColumns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
     
     var body: some View {
         NavigationView {
-            VStack(alignment: .leading, spacing: 10) {
-                switch sheetPresentationState {
-                case .medium:
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(palettes, id: \.name) { palette in
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(palette.name)
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                    .fontDesign(.monospaced)
-                                    .tracking(-0.25)
-                                    .foregroundStyle(Color(hex: 0x333333))
-                                    .padding(.leading)
-                                
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 10) {
-                                        ForEach(palette.colors, id: \.self) { color in
-                                            Button(action: {
-                                                selectedColor = color
-                                                guard let userId = userId else { return }
-                                                colors[userId] = color
-                                            }) {
-                                                ZStack {
-                                                    Circle()
-                                                        .fill(color)
-                                                }
-                                                .scaleEffect(selectedColor.toHex() == color.toHex() ? 1.125 : 1)
-                                                .frame(width: 44, height: 44)
-                                                .contentShape(Circle())
-                                                .animation(.easeInOut(duration: 0.3), value: selectedColor.toHex() == color.toHex())
+            ScrollView(.vertical, showsIndicators: false) {
+                ForEach(palettes, id: \.name) { palette in
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(palette.name)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .fontDesign(.monospaced)
+                            .tracking(-0.25)
+                            .foregroundStyle(Color("PrimaryText"))
+                            .padding(.leading)
+                        
+                        ScrollView(sheetPresentationState == .large ? .vertical : .horizontal, showsIndicators: false) {
+                            LazyVGrid(columns: sheetPresentationState == .large ? multiRowColumns : singleRowColumns, alignment: .leading) {
+                                ForEach(palette.colors, id: \.self) { color in
+                                    Button(action: {
+                                        selectedColor = color
+                                        guard let userId = userId else { return }
+                                        if colors.contains(where: { $0.userId == userId }) {
+                                            let index = colors.firstIndex(where: { $0.userId == userId })!
+                                            // If UserMappedBlendColor.color is `let`, replace the element:
+                                            if let hex = color.toHex() {
+                                                colors[index] = UserMappedBlendColor(userId: userId, color: hex)
                                             }
-                                            .frame(width: 50, height: 50)
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                    .padding(.leading)
-                                }
-                            }
-                        }
-                    }
-                    .frame(maxHeight: .infinity, alignment: .top)
-                case .large:
-                    VStack(alignment: .leading, spacing: 25) {
-                        ForEach(palettes, id: \.name) { palette in
-                            VStack(alignment: .leading) {
-                                Text(palette.name)
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                    .fontDesign(.monospaced)
-                                    .tracking(-0.25)
-                                    .foregroundStyle(Color(hex: 0x333333))
-                                
-                                LazyVGrid(columns: columns) {
-                                    ForEach(palette.colors, id: \.self) { color in
-                                        Button(action: {
-                                            selectedColor = color
-                                        }) {
-                                            ZStack {
-                                                Circle()
-                                                    .fill(color)
+                                        } else {
+                                            if let hex = color.toHex() {
+                                                colors.append(UserMappedBlendColor(userId: userId, color: hex))
                                             }
-                                            .scaleEffect(selectedColor.toHex() == color.toHex() ? 1.125 : 1)
-                                            .frame(width: 44, height: 44)
-                                            .contentShape(Circle())
-                                            .animation(.easeInOut(duration: 0.3), value: selectedColor.toHex() == color.toHex())
                                         }
+                                    }) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(color)
+                                        }
+                                        .scaleEffect(selectedColor.toHex() == color.toHex() ? 1.125 : 1)
                                         .frame(width: 44, height: 44)
-                                        .buttonStyle(.plain)
+                                        .contentShape(Circle())
+                                        .animation(.easeInOut(duration: 0.3), value: selectedColor.toHex() == color.toHex())
                                     }
+                                    .frame(width: 44, height: 44)
+                                    .buttonStyle(.plain)
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding()
                         }
+                        .animation(.easeInOut(duration: 0.2), value: sheetPresentationState)
                     }
-                    .frame(maxHeight: .infinity, alignment: .top)
-                default:
-                    EmptyView()
-                    
                 }
             }
+            .frame(maxHeight: .infinity, alignment: .top)
             .navigationTitle("Select Color")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -574,8 +536,8 @@ struct BlendColorPickerSheet: View {
                     }
                 }
             }
+            
         }
         .presentationDetents([.medium, .large], selection: $sheetPresentationState)
     }
 }
-

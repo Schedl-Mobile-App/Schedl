@@ -11,26 +11,14 @@ struct ScheduleLoadingView: View {
     
     var body: some View {
         ZStack {
-            Color(hex: 0xF6F4F2)
+            Color("BackgroundColor")
                 .ignoresSafeArea()
             
             VStack(spacing: 20) {
-                HStack(spacing: 10) {
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: 30, height: 30)
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(15)
-                        .frame(width: 175, height: 20)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading)
-                
                 HStack(alignment: .center) {
                     ShimmerEffectBox()
                         .cornerRadius(10)
-                        .frame(width: 135, height: 25)
+                        .frame(width: 200, height: 25)
                     Spacer()
                     ShimmerEffectBox()
                         .cornerRadius(8)
@@ -43,8 +31,6 @@ struct ScheduleLoadingView: View {
                     let rowHeight = 100
                     let columns: Int = Int(geometry.size.width / CGFloat(colWidth))
                     let rows: Int = Int(geometry.size.height / CGFloat(rowHeight))
-//                    let colWidth = geometry.size.width / CGFloat(columns)
-//                    let rowHeight = geometry.size.height / CGFloat(rows)
                     
                     ZStack {
                         ForEach(0...columns, id: \.self) { col in
@@ -96,61 +82,11 @@ struct ScheduleLoadingView: View {
                         }
                     }
                     .offset(x: 49, y: 0)
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: CGFloat(colWidth)-4, height: CGFloat(Double(rowHeight)*1.25))
-                        .position(x: CGFloat(1) * CGFloat(colWidth) + 19, y: geometry.size.height / 2 - CGFloat(rowHeight))
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: CGFloat(colWidth)-4, height: CGFloat(Double(rowHeight)*1.25))
-                        .position(x: CGFloat(1) * CGFloat(colWidth) + 19, y: geometry.size.height / 2 + CGFloat(rowHeight) * 2)
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: CGFloat(colWidth)-4, height: CGFloat(rowHeight))
-                        .position(x: CGFloat(2) * CGFloat(colWidth) + 19, y: geometry.size.height / 2 - CGFloat(rowHeight) * 2)
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: CGFloat(colWidth)-4, height: CGFloat(Double(rowHeight)*2.25))
-                        .position(x: CGFloat(2) * CGFloat(colWidth) + 19, y: geometry.size.height / 2 + CGFloat(Double(rowHeight)*0.75))
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: CGFloat(colWidth)-4, height: CGFloat(Double(rowHeight)*1.25))
-                        .position(x: CGFloat(3) * CGFloat(colWidth) + 19, y: geometry.size.height / 2 - CGFloat(rowHeight) * 0.5)
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: CGFloat(colWidth)-4, height: CGFloat(Double(rowHeight)*1.25))
-                        .position(x: CGFloat(3) * CGFloat(colWidth) + 19, y: geometry.size.height / 2 + CGFloat(rowHeight) * 1.5)
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: CGFloat(colWidth)-4, height: CGFloat(Double(rowHeight)*1.25))
-                        .position(x: CGFloat(4) * CGFloat(colWidth) + 19, y: geometry.size.height / 2 - CGFloat(rowHeight) * 1.25)
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: CGFloat(colWidth)-4, height: CGFloat(Double(rowHeight)*1.25))
-                        .position(x: CGFloat(5) * CGFloat(colWidth) + 19, y: geometry.size.height / 2 + CGFloat(rowHeight) * 0.5)
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: CGFloat(colWidth)-4, height: CGFloat(Double(rowHeight)*1.25))
-                        .position(x: CGFloat(5) * CGFloat(colWidth) + 19, y: geometry.size.height / 2 + CGFloat(rowHeight) * 2.5)
-                    
-                    ShimmerEffectBox()
-                        .cornerRadius(10)
-                        .frame(width: CGFloat(colWidth)-4, height: CGFloat(Double(rowHeight)*1.25))
-                        .position(x: CGFloat(6) * CGFloat(colWidth) + 19, y: geometry.size.height / 2 - CGFloat(rowHeight) * 2)
                 }
                 .padding(.top, 40)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.top, 5)
+            .padding(.top, 10)
         }
     }
 }

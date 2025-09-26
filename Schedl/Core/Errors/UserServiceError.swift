@@ -9,4 +9,5 @@ enum UserServiceError: Error {
     case serializationFailed
     case invalidData
     case failedToFetchFriends
+    case failedToUpdateProfileImage
 }
