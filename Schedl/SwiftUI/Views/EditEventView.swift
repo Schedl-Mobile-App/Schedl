@@ -27,7 +27,7 @@ struct EditEventView: View {
                         EventTitleView(title: $vm.title, isFocused: $isFocused, hasTriedSubmitting: $vm.hasTriedSubmitting, titleError: $vm.titleError)
                         
                         // view for event date and recurring days seletion
-                        EventDateView(eventDate: $vm.eventDate, eventEndDate: $vm.eventEndDate, repeatedDays: $vm.repeatedDays, hasTriedSubmitting: vm.hasTriedSubmitting, startDateError: vm.startDateError, endDateError: vm.endDateError)
+                        EventDateView(eventDate: $vm.startDate, recurrence: $vm.recurrence, hasTriedSubmitting: vm.hasTriedSubmitting, startDateError: vm.startDateError, recurrenceError: vm.recurrenceError)
                         
                         // view for start time selection
                         EventStartTimeView(startTime: $vm.startTime, hasTriedSubmitting: vm.hasTriedSubmitting, startTimeError: vm.startTimeError)
@@ -120,23 +120,16 @@ struct EditEventViewModifier: ViewModifier {
     
     func body(content: Content) -> some View {
         content
+            .navigationTitle("Edit Event")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("Edit Event")
-                        .foregroundStyle(Color("PrimaryText"))
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .fontDesign(.monospaced)
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: {
                         showDeleteEventModal = true
                     }, label: {
                         Image(systemName: "trash")
-                            .fontWeight(.bold)
-                            .font(.system(size: 20))
+                            .font(.system(size: 18, weight: .bold))
                             .labelStyle(.iconOnly)
-                            .foregroundStyle(Color("IconColors"))
                     })
                 }
             }

@@ -1,6 +1,6 @@
 //
-//  ScheduleViewController.swift
-//  Schedoolr
+//  WeekViewController.swift
+//  Schedl
 //
 //  Created by David Medina on 2/20/25.
 //
@@ -9,143 +9,116 @@ import UIKit
 import SwiftUI
 import Combine
 
-struct DayInfo {
-    let date: Date
-    let month: Int          // e.g., 8
-    let year: Int           // e.g., 2025
-    let monthString: String // e.g., "August"
-}
-
-class PassthroughView: UIScrollView {
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        let view = super.hitTest(point, with: event)
-        return view == self ? nil : view
+struct WeekCalendarPreviewViewRepresentable: UIViewControllerRepresentable {
+    
+    var centerDay: Date
+    
+    init(centerDay: Date) {
+        self.centerDay = centerDay
     }
-
-    override func touchesShouldCancel(in view: UIView) -> Bool {
-        if view is UIControl {
-    return true
-        }
-        return super.touchesShouldCancel(in: view)
-    }
-}
-
-
-class WeekViewController: UIViewController {
+    
+    func makeUIViewController(context: Context) -> UIViewController {
+        let vc = WeekViewController(centerDay: centerDay)
         
-    weak var delegate: ScheduleViewMenuDelegate?
-    var coordinator: ScheduleView.Coordinator?
+        return vc
+    }
     
-    private var shouldReloadOnAppear = true
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
+        
+    }
+}
+
+#Preview {
+    let dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+    let centerDay = Calendar.current.date(from: dateComponents) ?? Date()
     
-    private var scrollDebounceTimer: Timer?
+    WeekCalendarPreviewViewRepresentable(centerDay: centerDay)
+}
+
+//#Preview {
+//    
+//    let dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+//    let centerDay = Calendar.current.date(from: dateComponents)!
+//    
+////    NavigationStack {
+//        WeekCalendarPreviewViewRepresentable(centerDay: centerDay)
+//            .ignoresSafeArea(edges: [.bottom, .top])
+////            .toolbar {
+////                ToolbarItem(placement: .topBarTrailing) {
+////                    Button(action: {
+////                        
+////                    }, label: {
+////                        Image(systemName: "magnifyingglass")
+////                            .font(.system(size: 18))
+////                            .fontWeight(.semibold)
+////                            .foregroundStyle(Color("NavItemsColors"))
+////                    })
+////                }
+////                
+////                ToolbarItem(placement: .topBarTrailing) {
+////                    Menu {
+////                    } label: {
+////                        Image(systemName: "ellipsis")
+////                            .font(.system(size: 18))
+////                            .fontWeight(.semibold)
+////                            .foregroundStyle(Color("NavItemsColors"))
+////                    }
+////                }
+////            }
+////    }
+//}
+
+protocol InnerCellScrollDelegate: AnyObject {
+    func innerCellDidScroll(to offset: CGPoint, from cell: UICollectionViewCell)
+}
+
+protocol WeekCalendarViewDelegate: AnyObject {
+    func showEventDetails(for event: EventOccurrence, and user: User, from view: UIView)
+}
+
+class WeekViewController: UIViewController, VCCoordinatorProtocol {
+        
+    var coordinator: CalendarYearView.Coordinator?
     
     private var hasUserScrolled: Bool = false
     
     private var cancellables: Set<AnyCancellable> = []
     
-    var previousSnapshot: [RecurringEvents] = []
-    
-    var monthsList: [String] = [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    ]
-    
-    // Store the previous horizontal offset
     private var previousContentOffsetX: CGFloat = 0
     private var previousContentOffsetY: CGFloat = 0
+    
+    let calendarTypeButton = UIButton()
+    var searchController: UISearchController = {
+        let searchController = UISearchController(searchResultsController: nil)
+        searchController.obscuresBackgroundDuringPresentation = true
+        searchController.searchBar.placeholder = "Search Events"
+        searchController.searchBar.sizeToFit()
+        return searchController
+    }()
         
-    var currentDate = Calendar.current.startOfDay(for: Date())
+    var centerDay: Date
     
-    lazy var numberOfTimeIntervals: Int = 24
-    lazy var numberOfDays: Int = 361
-    lazy var itemWidth: CGFloat = 60
-    lazy var itemHeight: CGFloat = 100
-    lazy var singleDayGroupWidth: CGFloat = itemWidth
-    lazy var singleDayGroupHeight: CGFloat = Double(itemHeight) * Double(numberOfTimeIntervals)
-    lazy var horizontalGroupWidth: CGFloat = singleDayGroupWidth * Double(numberOfDays)
-    lazy var horizontalGroupHeight: CGFloat = singleDayGroupHeight
+    private var currentYOffset: CGFloat = 0.0
     
-    lazy var displayedYear = Calendar.current.component(.year, from: currentDate)
-    lazy var displayedMonth = monthsList[Calendar.current.component(.month, from: currentDate)-1]
-    lazy var datesToAdd: Int = 180
+    lazy var displayedYear = Calendar.current.component(.year, from: centerDay)
+    lazy var displayedMonth = Calendar.current.monthSymbols[Calendar.current.component(.month, from: centerDay) - 1]
     
-    var dayList: [Date] = []
+    lazy var dates: [Date] = {
+        let numberOfDays = 180
+        return (-numberOfDays...numberOfDays).map { index in
+            Calendar.current.date(byAdding: .day, value: index, to: centerDay)!
+        }
+    }()
     
-    // Added properties for createEventButton constraints
     var createEventButtonWidthConstraint: NSLayoutConstraint?
     var createEventButtonHeightConstraint: NSLayoutConstraint?
-    
-    func setDisplayedDates(centerDate: Date) {
-        
-        let startIndex = -numberOfDays / 2
-        let endIndex = numberOfDays / 2
-        
-        if (currentDate == centerDate) {
-            for index in startIndex...endIndex {
-                dayList.append(Calendar.current.date(byAdding: .day, value: index, to: currentDate) ?? Date())
-            }
-        }
-    }
     
     var positionScroll: CGPoint = .zero
     let buttonColors: ButtonColors = [ButtonColors.palette1, ButtonColors.palette2, ButtonColors.palette3, ButtonColors.palette4].randomElement()!
     
-    // using the lazy keyword allows us to safely access member methods within our class => layout function
-    lazy var collectionView: UICollectionView = {
-        let layout = self.layout()
-        
-        // creates our collection view with an initial frame of size 0 since we will define the constraints in viewDidLoad
-        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        collectionView.translatesAutoresizingMaskIntoConstraints = false
-        
-        //        older method of cell registration which is handled in the initialization of our collection view
-        //        view.register(EventCell.self, forCellWithReuseIdentifier: "EventCell")
-        
-        collectionView.isDirectionalLockEnabled = true
-        collectionView.decelerationRate = .fast
-        collectionView.showsHorizontalScrollIndicator = false
-        collectionView.showsVerticalScrollIndicator = false
-        collectionView.contentInsetAdjustmentBehavior = .never
-        
-        // needed since our view controller sets the data source for our collection view
-        collectionView.dataSource = self
-        
-        // tells the collection view that our view controller will handle it's delegation methods
-        collectionView.delegate = self
-        
-        collectionView.prefetchDataSource = self
-        
-        return collectionView
-    }()
-    
-    let cellRegistration = UICollectionView.CellRegistration<CollectionViewCell, Int> { cell, indexPath, item in
-        cell.setupView()
-    }
-    
-    lazy var eventContainerScrollView: PassthroughView  = {
-        let scrollView = PassthroughView()
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.backgroundColor = .clear
-        scrollView.isScrollEnabled = false
-        scrollView.showsHorizontalScrollIndicator = false
-        scrollView.showsVerticalScrollIndicator = false
-        scrollView.contentSize = CGSize(width: horizontalGroupWidth, height: singleDayGroupHeight)
-        scrollView.delegate = self
-        return scrollView
-    }()
-    
-    let eventContainer = EventCellsContainer()
+    var collectionView: UICollectionView!
     
     var isExpanded = true
-                
-    let overlayView = UIView()
-    
-    let displayedMonthLabel = UILabel()
-    let displayedYearLabel = UILabel()
-    let searchButton = UIButton()
-        
-    let exampleEvent = UIView()
     
     let createEventButton = UIButton()
     
@@ -158,81 +131,157 @@ class WeekViewController: UIViewController {
     let createScheduleButton = UIButton()
     let createScheduleLabel = UILabel()
     
-    let dayHeader = CollectionViewDaysHeader()
-    let timeColumn = CollectionViewTimesColumn()
-    
-    let dayHeaderScrollView: UIScrollView = {
-        let scrollView = UIScrollView()
-        scrollView.showsHorizontalScrollIndicator = false
-        scrollView.isScrollEnabled = false // We'll control this programmatically
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.contentSize = CGSize(width: CGFloat(60*361), height: 60)
-        return scrollView
-    }()
-
-    let timeColumnScrollView: UIScrollView = {
-        let scrollView = UIScrollView()
-        scrollView.showsVerticalScrollIndicator = false
-        scrollView.isScrollEnabled = false // We'll control this programmatically
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.contentSize = CGSize(width: 44, height: CGFloat(100*24))
-        return scrollView
-    }()
-    
     private var isHandlingScroll = false
+    
+    init(centerDay: Date) {
+        self.centerDay = centerDay
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        self.extendedLayoutIncludesOpaqueBars = true
-                
-        setupViewModelObservation()
-                
+//        setupViewModelObservation()
+        
         view.backgroundColor = UIColor(Color("BackgroundColor"))
-                    
-        view.addSubview(displayedMonthLabel)
-        view.addSubview(displayedYearLabel)
         
-        collectionView.backgroundColor = UIColor(Color("BackgroundColor"))
+        setupUI()
         
-        let longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(showCreateEvent))
-        collectionView.addGestureRecognizer(longPressGesture)
+        collectionView.delegate = self
+        collectionView.dataSource = self
         
-        // add the collection view to root view
-        view.addSubview(collectionView)
+        collectionView.register(DayColumnView.self, forCellWithReuseIdentifier: DayColumnView.identifier)
+//        collectionView.register(
+//            WeekHeaderView.self,
+//            forSupplementaryViewOfKind: WeekHeaderView.identifier,
+//            withReuseIdentifier: WeekHeaderView.identifier
+//        )
+        collectionView.register(
+            WeekdayCellView.self,
+            forSupplementaryViewOfKind: WeekdayCellView.identifier,
+            withReuseIdentifier: WeekdayCellView.identifier
+        )
+//        collectionView.register(
+//            TimeColumnView.self,
+//            forSupplementaryViewOfKind: TimeColumnView.identifier,
+//            withReuseIdentifier: TimeColumnView.identifier
+//        )
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
         
-        overlayView.translatesAutoresizingMaskIntoConstraints = false
-        overlayView.backgroundColor = UIColor(Color("BackgroundColor"))
+        showCreateEventButton(createEventButton)
         
-        searchButton.configuration = .borderless()
-        searchButton.configuration?.image = UIImage(systemName: "magnifyingglass")
-        searchButton.translatesAutoresizingMaskIntoConstraints = false
-        searchButton.configuration?.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)
-        searchButton.addTarget(self, action: #selector(showEventSearchMenu), for: .touchUpInside)
-        searchButton.configuration?.baseForegroundColor = UIColor(Color("ScheduleButtonColors"))
+        navigationController?.setToolbarHidden(false, animated: true)
+    }
+    
+//    override func viewDidAppear(_ animated: Bool) {
+//        super.viewDidAppear(animated)
+//        
+//        
+//        
+//        navigationController?.setToolbarHidden(false, animated: true)
+//    }
+    
+    //    private func createCalendarTypeMenu() -> UIMenu {
+    //
+    //    }
         
-        view.addSubview(searchButton)
-                        
-        displayedMonthLabel.text = displayedMonth
+    @objc
+    private func showSearchField() {
+        present(searchController, animated: true, completion: nil)
+    }
+    
+    private func setupUI() {
         
-        displayedMonthLabel.font = .systemFont(ofSize: 28, weight: .bold)
-        displayedMonthLabel.translatesAutoresizingMaskIntoConstraints = false
-        displayedMonthLabel.textAlignment = .right
-        displayedMonthLabel.textColor = UIColor(Color("ScheduleMonthText"))
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: "ellipsis")
+        config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold, scale: .default)
         
-        displayedYearLabel.text = "\(displayedYear)"
-        displayedYearLabel.font = .systemFont(ofSize: 26, weight: .bold)
-        displayedYearLabel.translatesAutoresizingMaskIntoConstraints = false
-        displayedYearLabel.textColor = UIColor(Color("ScheduleMonthText"))
+        calendarTypeButton.configuration = config
+        calendarTypeButton.showsMenuAsPrimaryAction = true
         
-        timeColumn.translatesAutoresizingMaskIntoConstraints = false
-        dayHeader.translatesAutoresizingMaskIntoConstraints = false
+        let searchBarItem = UIBarButtonItem(image: UIImage(systemName: "magnifyingglass"), style: .plain, target: self, action: #selector(showSearchField))
+        let calendarTypeItem = UIBarButtonItem(customView: calendarTypeButton)
+        
+        navigationItem.rightBarButtonItems = [calendarTypeItem, searchBarItem]
+        
+//        let boundaryItemSize = NSCollectionLayoutSize(
+//            widthDimension: .absolute(60),
+//            heightDimension: .fractionalHeight(1.0)
+//        )
+//        let boundaryHeader = NSCollectionLayoutBoundarySupplementaryItem(
+//            layoutSize: boundaryItemSize,
+//            elementKind: TimeColumnView.identifier,
+//            alignment: .topLeading
+//        )
+//        boundaryHeader.pinToVisibleBounds = true
+//        boundaryHeader.zIndex = 40
+        
+        let configuration = UICollectionViewCompositionalLayoutConfiguration()
+        configuration.scrollDirection = .horizontal
+//        configuration.boundarySupplementaryItems = [boundaryHeader]
+
+        let layout = UICollectionViewCompositionalLayout(sectionProvider: { (sectionIndex, environment) -> NSCollectionLayoutSection? in
+            
+            let numberOfTimeIntervals: CGFloat = 24
+            let itemWidth: CGFloat = 60
+            let itemHeight: CGFloat = 100
+            
+            // An item that fills the entire group
+            let itemSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1.0),
+                heightDimension: .fractionalHeight(1.0)
+            )
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+            
+            // A group that is the full width and height of the collection view's visible area
+            let groupSize = NSCollectionLayoutSize(
+                widthDimension: .absolute(itemWidth),
+                heightDimension: .fractionalHeight(1.0)
+            )
+            let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize, subitems: [item])
+            
+            let section = NSCollectionLayoutSection(group: group)
+            
+            // --- ADD THIS BLOCK ---
+            let headerSize = NSCollectionLayoutSize(
+                widthDimension: .absolute(60),
+                heightDimension: .absolute(50)
+            )
+
+            let sectionHeader = NSCollectionLayoutBoundarySupplementaryItem(
+                layoutSize: headerSize,
+                elementKind: WeekdayCellView.identifier,
+                alignment: .top
+            )
+            sectionHeader.pinToVisibleBounds = true
+            sectionHeader.zIndex = 20
+            
+            section.boundarySupplementaryItems = [sectionHeader]
+            
+            return section
+        }, configuration: configuration)
+        
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .systemBackground
+        collectionView.decelerationRate = .fast
+        collectionView.showsHorizontalScrollIndicator = false
+        collectionView.isDirectionalLockEnabled = true
+        collectionView.bouncesVertically = false
         
         if #available(iOS 26.0, *) {
-            createEventButton.configuration = .borderedProminent()
-            createBlendButton.configuration = .borderedProminent()
-            createScheduleButton.configuration = .borderedProminent()
-            createScheduleEventButton.configuration = .borderedProminent()
+            createEventButton.configuration = .prominentGlass()
+            createBlendButton.configuration = .prominentGlass()
+            createScheduleButton.configuration = .prominentGlass()
+            createScheduleEventButton.configuration = .prominentGlass()
         } else {
             createEventButton.configuration = .filled()
             createBlendButton.configuration = .filled()
@@ -300,36 +349,14 @@ class WeekViewController: UIViewController {
         createScheduleEventLabel.isHidden = true
         createScheduleEventLabel.alpha = 0
         
-        // Add the scroll views first
-        view.addSubview(dayHeaderScrollView)
-        view.addSubview(timeColumnScrollView)
-        
-        // Add headers to scroll views
-        dayHeaderScrollView.addSubview(dayHeader)
-        timeColumnScrollView.addSubview(timeColumn)
-        view.addSubview(overlayView)
-        
-        eventContainer.translatesAutoresizingMaskIntoConstraints = false
-        
-        eventContainer.onTap = { [weak self] event in
-            self?.shouldReloadOnAppear = false
-            self?.showEventDetails(event: event)
-        }
-        
-        eventContainerScrollView.addSubview(eventContainer)
-        
-        view.addSubview(eventContainerScrollView)
-        
-        view.addSubview(createEventButton)
-        
-        view.addSubview(createBlendButton)
-        view.addSubview(createBlendLabel)
-        
-        view.addSubview(createScheduleButton)
-        view.addSubview(createScheduleLabel)
-        
-        view.addSubview(createScheduleEventButton)
-        view.addSubview(createScheduleEventLabel)
+        view.addSubview(collectionView)
+//        view.addSubview(createEventButton)
+//        view.addSubview(createBlendButton)
+//        view.addSubview(createBlendLabel)
+//        view.addSubview(createScheduleButton)
+//        view.addSubview(createScheduleLabel)
+//        view.addSubview(createScheduleEventButton)
+//        view.addSubview(createScheduleEventLabel)
         
         // constraints for our collection view
         let widthConstraint = createEventButton.widthAnchor.constraint(equalToConstant: 60)
@@ -338,145 +365,60 @@ class WeekViewController: UIViewController {
         createEventButtonHeightConstraint = heightConstraint
         
         NSLayoutConstraint.activate([
-            displayedMonthLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 10),
-            displayedMonthLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            
-            displayedYearLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 10),
-            displayedYearLabel.leadingAnchor.constraint(equalTo: displayedMonthLabel.trailingAnchor, constant: 3),
-            displayedYearLabel.bottomAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor),
-            
-            searchButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -5),
-            searchButton.bottomAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor),
-            
-            dayHeaderScrollView.topAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor),
-            dayHeaderScrollView.leadingAnchor.constraint(equalTo: overlayView.trailingAnchor),
-            dayHeaderScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            dayHeaderScrollView.heightAnchor.constraint(equalToConstant: 60),
-           
-            // Time column scroll view
-            timeColumnScrollView.topAnchor.constraint(equalTo: overlayView.bottomAnchor),
-            timeColumnScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            timeColumnScrollView.widthAnchor.constraint(equalToConstant: 48),
-            timeColumnScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            
-            // Headers inside scroll views (position at 0,0)
-            dayHeader.topAnchor.constraint(equalTo: dayHeaderScrollView.contentLayoutGuide.topAnchor),
-            dayHeader.leadingAnchor.constraint(equalTo: dayHeaderScrollView.contentLayoutGuide.leadingAnchor),
-            dayHeader.widthAnchor.constraint(equalToConstant: horizontalGroupWidth),
-            dayHeader.heightAnchor.constraint(equalToConstant: 60),
-            
-            timeColumn.topAnchor.constraint(equalTo: timeColumnScrollView.contentLayoutGuide.topAnchor),
-            timeColumn.leadingAnchor.constraint(equalTo: timeColumnScrollView.contentLayoutGuide.leadingAnchor),
-            timeColumn.widthAnchor.constraint(equalToConstant: 48),
-            timeColumn.heightAnchor.constraint(equalToConstant: singleDayGroupHeight),
-            
-            collectionView.topAnchor.constraint(equalTo: dayHeaderScrollView.bottomAnchor),
-            collectionView.leadingAnchor.constraint(equalTo: timeColumnScrollView.trailingAnchor),
+            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
-            eventContainerScrollView.topAnchor.constraint(equalTo: dayHeaderScrollView.bottomAnchor),
-            eventContainerScrollView.leadingAnchor.constraint(equalTo: timeColumnScrollView.trailingAnchor),
-            eventContainerScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            eventContainerScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            eventContainer.topAnchor.constraint(equalTo: eventContainerScrollView.bottomAnchor),
-            eventContainer.leadingAnchor.constraint(equalTo: eventContainerScrollView.trailingAnchor),
-            eventContainer.widthAnchor.constraint(equalToConstant: horizontalGroupWidth),
-            eventContainer.heightAnchor.constraint(equalToConstant: horizontalGroupHeight),
-            
-            overlayView.topAnchor.constraint(equalTo: displayedMonthLabel.bottomAnchor),
-            overlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            overlayView.widthAnchor.constraint(equalToConstant: 48),
-            overlayView.heightAnchor.constraint(equalToConstant: 60),
-            
-            createEventButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            createEventButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
-            widthConstraint,
-            heightConstraint,
-            
-            // Center createBlendButton on the main button
-            createBlendButton.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
-            createBlendButton.centerYAnchor.constraint(equalTo: createEventButton.centerYAnchor),
-            createBlendButton.widthAnchor.constraint(equalToConstant: 50),
-            createBlendButton.heightAnchor.constraint(equalToConstant: 50),
-            
-            // Position its label
-            createBlendLabel.topAnchor.constraint(equalTo: createBlendButton.bottomAnchor, constant: 2),
-            createBlendLabel.centerXAnchor.constraint(equalTo: createBlendButton.centerXAnchor),
-            
-            // Center createScheduleButton on the main button
-            createScheduleButton.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
-            createScheduleButton.centerYAnchor.constraint(equalTo: createEventButton.centerYAnchor),
-            createScheduleButton.widthAnchor.constraint(equalToConstant: 50),
-            createScheduleButton.heightAnchor.constraint(equalToConstant: 50),
-            
-            // Position its label
-            createScheduleLabel.topAnchor.constraint(equalTo: createScheduleButton.bottomAnchor, constant: 2),
-            createScheduleLabel.centerXAnchor.constraint(equalTo: createScheduleButton.centerXAnchor),
-            
-            // Center createScheduleEventButton on the main button
-            createScheduleEventButton.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
-            createScheduleEventButton.centerYAnchor.constraint(equalTo: createEventButton.centerYAnchor),
-            createScheduleEventButton.widthAnchor.constraint(equalToConstant: 50),
-            createScheduleEventButton.heightAnchor.constraint(equalToConstant: 50),
-            
-            // Position its label
-            createScheduleEventLabel.topAnchor.constraint(equalTo: createScheduleEventButton.bottomAnchor, constant: 2),
-            createScheduleEventLabel.centerXAnchor.constraint(equalTo: createScheduleEventButton.centerXAnchor),
+//            createEventButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+//            createEventButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -100),
+//            widthConstraint,
+//            heightConstraint,
+//            
+//            // Center createBlendButton on the main button
+//            createBlendButton.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
+//            createBlendButton.centerYAnchor.constraint(equalTo: createEventButton.centerYAnchor),
+//            createBlendButton.widthAnchor.constraint(equalToConstant: 50),
+//            createBlendButton.heightAnchor.constraint(equalToConstant: 50),
+//            
+//            // Position its label
+//            createBlendLabel.topAnchor.constraint(equalTo: createBlendButton.bottomAnchor, constant: 2),
+//            createBlendLabel.centerXAnchor.constraint(equalTo: createBlendButton.centerXAnchor),
+//            
+//            // Center createScheduleButton on the main button
+//            createScheduleButton.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
+//            createScheduleButton.centerYAnchor.constraint(equalTo: createEventButton.centerYAnchor),
+//            createScheduleButton.widthAnchor.constraint(equalToConstant: 50),
+//            createScheduleButton.heightAnchor.constraint(equalToConstant: 50),
+//            
+//            // Position its label
+//            createScheduleLabel.topAnchor.constraint(equalTo: createScheduleButton.bottomAnchor, constant: 2),
+//            createScheduleLabel.centerXAnchor.constraint(equalTo: createScheduleButton.centerXAnchor),
+//            
+//            // Center createScheduleEventButton on the main button
+//            createScheduleEventButton.centerXAnchor.constraint(equalTo: createEventButton.centerXAnchor),
+//            createScheduleEventButton.centerYAnchor.constraint(equalTo: createEventButton.centerYAnchor),
+//            createScheduleEventButton.widthAnchor.constraint(equalToConstant: 50),
+//            createScheduleEventButton.heightAnchor.constraint(equalToConstant: 50),
+//            
+//            // Position its label
+//            createScheduleEventLabel.topAnchor.constraint(equalTo: createScheduleEventButton.bottomAnchor, constant: 2),
+//            createScheduleEventLabel.centerXAnchor.constraint(equalTo: createScheduleEventButton.centerXAnchor),
         ])
-        
-        setDisplayedDates(centerDate: currentDate)
-        dayHeader.setDates(dayList: dayList)
-    }
-    
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        
-        self.navigationController?.tabBarController?.isTabBarHidden = false
-        self.navigationController?.navigationBar.isHidden = false
-    }
-    
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        
-        showCreateEventButton(createEventButton)
-    }
-    
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        
-        if hasUserScrolled {
-            return
-        } else {
-            updateEventsOverlay()
-            scrollToCurrentPosition()
-        }
-    }
-    
-    private func updateEventsOverlay() {
-        if let scheduleViewModel = coordinator?.scheduleViewModel {
-            eventContainer.populateEventCells(events: scheduleViewModel.scheduleEvents, centerDate: currentDate, calendarInterval: numberOfDays)
-        }
     }
     
     private func setupViewModelObservation() {
-        // keep in mind that the fetching of events is handled within this VC's root controller so all we need to do here is watch for changes to the vm's oublished value
-        coordinator?.scheduleViewModel.$scheduleEvents
+        coordinator?.vm.$scheduleEvents
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newEvents in
                 guard let self = self else { return }
-                self.updateEventsOverlay()
             }
             .store(in: &cancellables)
     }
     
     @objc func showEventSearchMenu() {
-        guard let scheduleViewModel = coordinator?.scheduleViewModel else { return }
-        
-        if let schedulesCoordinator = coordinator?.coordinator {
-            schedulesCoordinator.present(sheet: .eventSearch(currentUser: scheduleViewModel.currentUser, events: scheduleViewModel.scheduleEvents))
-        }
+//        guard coordinator?.vm != nil else { return }
+        hasUserScrolled = true
     }
     
     func showCreateEventButton(_ button: UIButton) {
@@ -497,9 +439,7 @@ class WeekViewController: UIViewController {
     @objc func showCreateOptions() {
         self.isExpanded.toggle()
         UISelectionFeedbackGenerator().selectionChanged()
-        
-        delegate?.closeMenus()
-        
+        hasUserScrolled = true
         if !isExpanded {
             self.navigationController?.tabBarController?.setTabBarHidden(true, animated: true)
         } else {
@@ -582,216 +522,133 @@ class WeekViewController: UIViewController {
             showCreateOptions()
         }
         
-        if let scheduleViewModel = coordinator?.scheduleViewModel,
-           let schedulesCoordinator = coordinator?.coordinator {
+        guard let vm = coordinator?.vm,
+              let schedule = coordinator?.vm.selectedSchedule else { return }
+        
+        let hostingController = UIHostingController(rootView: CreateEventView(currentUser: vm.currentUser, currentScheduleId: schedule.id))
+        
+        navigationController?.hidesBottomBarWhenPushed = true
+        navigationController?.pushViewController(hostingController, animated: true)
             
-            guard let schedule = scheduleViewModel.selectedSchedule else { return }
-            
-            schedulesCoordinator.push(page: .createEvent(currentUser: scheduleViewModel.currentUser, scheduleId: schedule.id))
-        }
+//        coordinator?.router.push(page: .createEvent(currentUser: vm.currentUser, scheduleId: schedule.id))
     }
     
     @objc func showCreateBlend() {
-        if let scheduleViewModel = coordinator?.scheduleViewModel,
-           let schedulesCoordinator = coordinator?.coordinator {
-            
-            guard let schedule = scheduleViewModel.selectedSchedule else { return }
-            
-            schedulesCoordinator.push(page: .createEvent(currentUser: scheduleViewModel.currentUser, scheduleId: schedule.id))
-            
-            showCreateOptions()
-        }
+        guard let vm = coordinator?.vm,
+              let schedule = coordinator?.vm.selectedSchedule else { return }
+        
+//        coordinator?.router.push(page: .createEvent(currentUser: vm.currentUser, scheduleId: schedule.id))
+        
+        showCreateOptions()
     }
     
     @objc func showCreateSchedule() {
-        if let scheduleViewModel = coordinator?.scheduleViewModel,
-           let schedulesCoordinator = coordinator?.coordinator {
-            
-            guard let schedule = scheduleViewModel.selectedSchedule else { return }
-            
-            schedulesCoordinator.push(page: .createEvent(currentUser: scheduleViewModel.currentUser, scheduleId: schedule.id))
-            
-            showCreateOptions()
-        }
+        guard let vm = coordinator?.vm,
+              let schedule = coordinator?.vm.selectedSchedule else { return }
+        
+//        coordinator?.router.push(page: .createEvent(currentUser: vm.currentUser, scheduleId: schedule.id))
+        
+        showCreateOptions()
     }
     
-    func showEventDetails(event: RecurringEvents) {
-        if let scheduleViewModel = coordinator?.scheduleViewModel,
-           let schedulesCoordinator = coordinator?.coordinator {
-            
-            guard let schedule = scheduleViewModel.selectedSchedule else { return }
-            
-            schedulesCoordinator.push(page: .eventDetails(currentUser: scheduleViewModel.currentUser, event: event, scheduleId: schedule.id))
-        }
-    }
+//    enum LoadingState {
+//        case idle
+//        case loadingPrevious
+//        case loadingNext
+//    }
+//
+//    var state: LoadingState = .idle
     
-    @objc private func doneButtonTapped() {
-        // Find the hosting controller and dismiss it
-        if let presentedVC = presentedViewController {
-            presentedVC.dismiss(animated: true)
-        } else {
-            dismiss(animated: true)
-        }
-    }
-    
-    // handles the initial scrolling to the current time to give the user an animated experience
-    func scrollToCurrentPosition() {
-        let calendar = Calendar.current
-        let hour = calendar.component(.hour, from: Date.now)
-        
-        // Calculate vertical position based on current time
-        let itemHeight: CGFloat = 100
-        let desiredYOffset = max(0, CGFloat(hour) * itemHeight - 100)
-        let maxHeight = Int(itemHeight) * numberOfTimeIntervals
-        
-        
-        // Calculate the maximum possible y-offset to prevent scrolling too far
-        let maxYOffset = CGFloat(maxHeight) - collectionView.frame.height
-        
-        // Ensure we don't scroll beyond content boundaries
-        let safeYOffset = min(desiredYOffset, maxYOffset)
-        
-        // Get current day index relative to our 60-day range (-30 to +30)
-        let currentDayIndex = numberOfDays / 2 // Middle of our 60-day range (today)
-        let itemWidth: CGFloat = 60
-        
-        // initial horizontal offset so that the current day is the first day displayed
-        let xOffset = CGFloat(currentDayIndex) * itemWidth + 0.50
-        
-        positionScroll = CGPoint(x: 0, y: safeYOffset)
-        collectionView.setContentOffset(CGPoint(x: xOffset, y: safeYOffset), animated: false)
-        dayHeaderScrollView.setContentOffset(CGPoint(x: xOffset, y: 0), animated: false)
-        timeColumnScrollView.setContentOffset(CGPoint(x: 0, y: safeYOffset), animated: false)
-    }
-    
-    func layout() -> UICollectionViewCompositionalLayout {
-        
-        // Event Item
-        let itemSize = NSCollectionLayoutSize(widthDimension: .absolute(itemWidth),
-                                              heightDimension: .absolute(itemHeight))
-        
-        let item = NSCollectionLayoutItem(layoutSize: itemSize)
-        
-        // Vertical Group for a single day
-        let singleDayGroupSize = NSCollectionLayoutSize(widthDimension: .absolute(singleDayGroupWidth),
-                                                        heightDimension: .absolute(singleDayGroupHeight))
-        
-        let singleDayGroup = NSCollectionLayoutGroup.vertical(layoutSize: singleDayGroupSize,
-                                                              subitems: [item])
-        
-        // Horizontal Group to hold all of the vertical Groups defined above
-        let horizontalGroupContainerSize = NSCollectionLayoutSize(widthDimension: .absolute(horizontalGroupWidth),
-                                                                  heightDimension: .absolute(horizontalGroupHeight))
-        
-        let horizontalGroupContainer = NSCollectionLayoutGroup.horizontal(layoutSize: horizontalGroupContainerSize,
-                                                                          subitems: [singleDayGroup])
-        
-        
-        let section = NSCollectionLayoutSection(group: horizontalGroupContainer)
-        
-        let layout = UICollectionViewCompositionalLayout(section: section)
-        
-        return layout
-    }
-    
-    enum LoadingState {
-        case idle
-        case loadingPrevious
-        case loadingNext
-    }
-
-    var state: LoadingState = .idle
-    
-    private func loadPreviousDateInterval() {
-        guard state == .idle else { return }
-        state = .loadingPrevious
-        
-        let currentOffset = collectionView.contentOffset
-        let newOffset = CGPoint(x: currentOffset.x + CGFloat(datesToAdd) * itemWidth, y: currentOffset.y)
-        
-        // Get the first date in current range
-        let firstDate = dayList.first ?? Date()
-        
-        // Add another 30 days
-        var newDays: [Date] = []
-        
-        for i in 1...datesToAdd {
-            if let newDate = Calendar.current.date(byAdding: .day, value: -i, to: firstDate) {
-                newDays.append(newDate)
-            }
-        }
-                
-        let totalItems = dayList.count * numberOfTimeIntervals
-        let itemsToDelete = datesToAdd * numberOfTimeIntervals
-        
-        let indexPathsToDelete = (totalItems-itemsToDelete..<totalItems).map { IndexPath(row: $0, section: 0) }
-        let indexPathsToAdd = (0..<itemsToDelete).map { IndexPath(row: $0, section: 0) }
-        
-        UIView.performWithoutAnimation {
-            collectionView.performBatchUpdates({
-                // Update the data source with new days
-                dayList.removeLast(datesToAdd)
-                dayList.insert(contentsOf: newDays.reversed(), at: 0)
-                
-                currentDate = dayList[dayList.count/2]
-                
-                collectionView.deleteItems(at: indexPathsToDelete)
-                collectionView.insertItems(at: indexPathsToAdd)
-            }, completion: { [weak self] _ in
-                guard let self = self else { return }
-                self.state = .idle
-            })
-            
-            collectionView.setContentOffset(newOffset, animated: false)
-            dayHeader.addPreviousDates(updatedDayList: newDays)
-            updateEventsOverlay()
-        }
-    }
-    
-    private func loadNextDateInterval() {
-        guard state == .idle else { return }
-        state = .loadingNext
-        
-        let currentOffset = collectionView.contentOffset
-        let newOffset = CGPoint(x: currentOffset.x - CGFloat(datesToAdd) * itemWidth, y: currentOffset.y)
-        
-        // Get the last date in current range
-        let lastDate = dayList.last ?? Date()
-        
-        // Create new days to add
-        var newDays: [Date] = []
-        for i in 1...datesToAdd {
-            if let newDate = Calendar.current.date(byAdding: .day, value: i, to: lastDate) {
-                newDays.append(newDate)
-            }
-        }
-        
-        let totalItems = dayList.count * numberOfTimeIntervals
-        let itemsToDelete = datesToAdd * numberOfTimeIntervals
-        
-        let indexPathsToDelete = (0..<itemsToDelete).map { IndexPath(row: $0, section: 0) }
-        let indexPathsToAdd = ((totalItems-itemsToDelete)..<totalItems).map { IndexPath(row: $0, section: 0) }
-        
-        UIView.performWithoutAnimation {
-            collectionView.performBatchUpdates({
-                // Update the data source with new days
-                dayList.removeFirst(datesToAdd)
-                dayList.append(contentsOf: newDays)
-                
-                currentDate = dayList[dayList.count/2]
-                
-                collectionView.deleteItems(at: indexPathsToDelete)
-                collectionView.insertItems(at: indexPathsToAdd)
-            }, completion: { [weak self] _ in
-                guard let self = self else { return }
-                self.state = .idle
-            })
-            
-            collectionView.setContentOffset(newOffset, animated: false)
-            dayHeader.addNextDates(updatedDayList: newDays)
-            updateEventsOverlay()
-        }
-    }
+//    private func loadPreviousDateInterval() {
+//        guard state == .idle else { return }
+//        state = .loadingPrevious
+//        
+//        let currentOffset = collectionView.contentOffset
+//        let newOffset = CGPoint(x: currentOffset.x + CGFloat(datesToAdd) * itemWidth, y: currentOffset.y)
+//        
+//        // Get the first date in current range
+//        let firstDate = dayList.first ?? Date()
+//        
+//        // Add another 30 days
+//        var newDays: [Date] = []
+//        
+//        for i in 1...datesToAdd {
+//            if let newDate = Calendar.current.date(byAdding: .day, value: -i, to: firstDate) {
+//                newDays.append(newDate)
+//            }
+//        }
+//                
+//        let totalItems = dayList.count * numberOfTimeIntervals
+//        let itemsToDelete = datesToAdd * numberOfTimeIntervals
+//        
+//        let indexPathsToDelete = (totalItems-itemsToDelete..<totalItems).map { IndexPath(row: $0, section: 0) }
+//        let indexPathsToAdd = (0..<itemsToDelete).map { IndexPath(row: $0, section: 0) }
+//        
+//        UIView.performWithoutAnimation {
+//            collectionView.performBatchUpdates({
+//                // Update the data source with new days
+//                dayList.removeLast(datesToAdd)
+//                dayList.insert(contentsOf: newDays.reversed(), at: 0)
+//                
+//                currentDate = dayList[dayList.count/2]
+//                
+//                collectionView.deleteItems(at: indexPathsToDelete)
+//                collectionView.insertItems(at: indexPathsToAdd)
+//            }, completion: { [weak self] _ in
+//                guard let self = self else { return }
+//                self.state = .idle
+//            })
+//            
+//            collectionView.setContentOffset(newOffset, animated: false)
+//            dayHeader.addPreviousDates(updatedDayList: newDays)
+//            updateEventsOverlay()
+//        }
+//    }
+//    
+//    private func loadNextDateInterval() {
+//        guard state == .idle else { return }
+//        state = .loadingNext
+//        
+//        let currentOffset = collectionView.contentOffset
+//        let newOffset = CGPoint(x: currentOffset.x - CGFloat(datesToAdd) * itemWidth, y: currentOffset.y)
+//        
+//        // Get the last date in current range
+//        let lastDate = dayList.last ?? Date()
+//        
+//        // Create new days to add
+//        var newDays: [Date] = []
+//        for i in 1...datesToAdd {
+//            if let newDate = Calendar.current.date(byAdding: .day, value: i, to: lastDate) {
+//                newDays.append(newDate)
+//            }
+//        }
+//        
+//        let totalItems = dayList.count * numberOfTimeIntervals
+//        let itemsToDelete = datesToAdd * numberOfTimeIntervals
+//        
+//        let indexPathsToDelete = (0..<itemsToDelete).map { IndexPath(row: $0, section: 0) }
+//        let indexPathsToAdd = ((totalItems-itemsToDelete)..<totalItems).map { IndexPath(row: $0, section: 0) }
+//        
+//        UIView.performWithoutAnimation {
+//            collectionView.performBatchUpdates({
+//                // Update the data source with new days
+//                dayList.removeFirst(datesToAdd)
+//                dayList.append(contentsOf: newDays)
+//                
+//                currentDate = dayList[dayList.count/2]
+//                
+//                collectionView.deleteItems(at: indexPathsToDelete)
+//                collectionView.insertItems(at: indexPathsToAdd)
+//            }, completion: { [weak self] _ in
+//                guard let self = self else { return }
+//                self.state = .idle
+//            })
+//            
+//            collectionView.setContentOffset(newOffset, animated: false)
+//            dayHeader.addNextDates(updatedDayList: newDays)
+//            updateEventsOverlay()
+//        }
+//    }
     
     var modifiedCells = Set<UICollectionViewCell>()
     
@@ -801,126 +658,49 @@ class WeekViewController: UIViewController {
     }
 }
 
-extension WeekViewController: UICollectionViewDelegate {
+extension WeekViewController: UICollectionViewDelegate, InnerCellScrollDelegate {
+    
+    
+    
+    // MARK: - InnerCellScrollDelegate
+    
+    func innerCellDidScroll(to offset: CGPoint, from originatorCell: UICollectionViewCell) {
+        
+        // 2. Update the stored offset.
+        currentYOffset = offset.y
+        
+        for cell in collectionView.visibleCells {
+            // Make sure we don't update the cell that started the scroll event.
+            // This prevents a jittery infinite loop.
+            guard cell != originatorCell else { continue }
+            if let customCell = cell as? DayColumnView {
+                customCell.collectionView.setContentOffset(offset, animated: false)
+            }
+        }
+    }
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         
         // Prevent recursive scroll handling
-        guard !isHandlingScroll, scrollView === collectionView else { return }
-        
-        isHandlingScroll = true
-        
-        if !isExpanded {
-            showCreateOptions()
-        }
-        
-//        // The user wants to scroll on the X axis
-        if scrollView.contentOffset.x > positionScroll.x || scrollView.contentOffset.x < positionScroll.x {
-            // Reset the Y position of the scrollView to what it was before scrolling started
-            scrollView.contentOffset = CGPoint(x: scrollView.contentOffset.x, y: positionScroll.y)
-        } else {
-            // The user wants to scroll on the Y axis
-            // Reset the X position of the scrollView to what it was before scrolling started
-            scrollView.contentOffset = CGPoint(x: positionScroll.x, y: scrollView.contentOffset.y)
-        }
-    
-        let dayIndex = Int(scrollView.contentOffset.x / singleDayGroupWidth)
-        
-        if dayIndex >= 0 && dayIndex < dayList.count {
-            let visibleDate = dayList[dayIndex]
-            
-            let month = Calendar.current.component(.month, from: visibleDate) - 1
-            let year = Calendar.current.component(.year, from: visibleDate)
-            
-                    let newMonth = monthsList[month]
-            if newMonth != displayedMonthLabel.text {
-                displayedMonthLabel.text = newMonth
-                displayedYearLabel.text = "\(year)"
-            }
-        }
-                
-        // Sync horizontal scrolling for day header
-        if scrollView.contentOffset.x != previousContentOffsetX {
-            dayHeaderScrollView.contentOffset.x = scrollView.contentOffset.x
-            eventContainerScrollView.contentOffset.x = scrollView.contentOffset.x
-            previousContentOffsetX = scrollView.contentOffset.x
-        }
-        
-        // Sync vertical scrolling for time column
-        if scrollView.contentOffset.y != previousContentOffsetY {
-            timeColumnScrollView.contentOffset.y = scrollView.contentOffset.y
-            eventContainerScrollView.contentOffset.y = scrollView.contentOffset.y
-            previousContentOffsetY = scrollView.contentOffset.y
-        }
-        
-        // Handle stretching cells at boundaries
-        handleBoundaryCellStretching(scrollView)
-        
-        isHandlingScroll = false
+//        guard !isHandlingScroll, scrollView === collectionView else { return }
+//        
+//        isHandlingScroll = true
+//        
+//        if !isExpanded {
+//            showCreateOptions()
+//        }
+//        
+//        handleBoundaryCellStretching(scrollView)
+//        
+//        isHandlingScroll = false
     }
     
     private func handleBoundaryCellStretching(_ scrollView: UIScrollView) {
         
         // Calculate the maximum scroll position (without adding tolerance yet)
-        let maxScrollY = collectionView.contentSize.height - collectionView.bounds.height
         
-        // Check for boundary conditions with proper tolerance
-        let isAtTopBoundary = collectionView.contentOffset.y < 0
-        let isAtBottomBoundary = maxScrollY > 0 && collectionView.contentOffset.y > maxScrollY + 5
         
-        if !isAtTopBoundary && !isAtBottomBoundary {
-            resetModifiedCells()
-            return
-        }
-        
-        if isAtTopBoundary || isAtBottomBoundary {
-            // Calculate actual offsets
-            let topOffset = isAtTopBoundary ? -collectionView.contentOffset.y : 0
-            let bottomOffset = isAtBottomBoundary ? collectionView.contentOffset.y - maxScrollY : 0
-            
-            let visibleCells = collectionView.indexPathsForVisibleItems
-            let topVisibleCells = visibleCells.filter {
-                $0.item % numberOfTimeIntervals == 0
-            }
-            
-            let bottomVisibleCells = visibleCells.filter {
-                ($0.item + 1) % numberOfTimeIntervals == 0
-            }
-            
-            // Handle top cells stretching
-            for indexPath in topVisibleCells {
-                if let cell = collectionView.cellForItem(at: indexPath) {
-                    if !modifiedCells.contains(cell) {
-                        cell.layer.setValue(cell.frame.origin.y, forKey: "normal")
-                        cell.layer.setValue(cell.frame.size.height, forKey: "normalHeight")
-                        modifiedCells.insert(cell)
-                    }
-                    
-                    var frame = cell.frame
-                    frame.origin.y = (cell.layer.value(forKey: "normal") as? CGFloat ?? frame.origin.y) - topOffset
-                    frame.size.height = (cell.layer.value(forKey: "normalHeight") as? CGFloat ?? itemHeight) + topOffset
-                    
-                    cell.frame = frame
-                }
-            }
-            
-            // Handle bottom cells stretching
-            for indexPath in bottomVisibleCells {
-                if let cell = collectionView.cellForItem(at: indexPath) {
-                    if !modifiedCells.contains(cell) {
-                        cell.layer.setValue(cell.frame.origin.y, forKey: "normal")
-                        cell.layer.setValue(cell.frame.size.height, forKey: "normalHeight")
-                        modifiedCells.insert(cell)
-                    }
-                    
-                    var frame = cell.frame
-                    frame.origin.y = (cell.layer.value(forKey: "normal") as? CGFloat ?? frame.origin.y)
-                    frame.size.height = (cell.layer.value(forKey: "normalHeight") as? CGFloat ?? itemHeight) + bottomOffset
-                    
-                    cell.frame = frame
-                }
-            }
-        }
+       
     }
 
     func resetModifiedCells() {
@@ -941,9 +721,7 @@ extension WeekViewController: UICollectionViewDelegate {
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         positionScroll = scrollView.contentOffset
         hideCreateEventButton(createEventButton)
-        
-        delegate?.closeMenus()
-        
+                
         if !hasUserScrolled {
             hasUserScrolled = true
         }
@@ -963,204 +741,628 @@ extension WeekViewController: UICollectionViewDelegate {
     }
 }
 
-extension WeekViewController: UICollectionViewDataSourcePrefetching {
-    func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
-        // calculate the total number of items in the collection view
-        let totalItems = dayList.count * numberOfTimeIntervals
-        
-        //
-        let endIndex = indexPaths.max(by: { $0.item < $1.item })?.item
-        let startIndex = indexPaths.min(by: { $0.item < $1.item })?.item
-        
-        let daysBeforeThreshold = 7
-        let threshold = numberOfTimeIntervals * daysBeforeThreshold
-        
-        if endIndex ?? totalItems >= (totalItems - threshold) {
-            loadNextDateInterval()
-        } else if startIndex ?? 0 <= threshold {
-            loadPreviousDateInterval()
-        }
-    }
-}
+//extension WeekViewController: UICollectionViewDataSourcePrefetching {
+//    func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+//        // calculate the total number of items in the collection view
+//        let totalItems = dayList.count * numberOfTimeIntervals
+//        
+//        //
+//        let endIndex = indexPaths.max(by: { $0.item < $1.item })?.item
+//        let startIndex = indexPaths.min(by: { $0.item < $1.item })?.item
+//        
+//        let daysBeforeThreshold = 7
+//        let threshold = numberOfTimeIntervals * daysBeforeThreshold
+//        
+//        if endIndex ?? totalItems >= (totalItems - threshold) {
+//            loadNextDateInterval()
+//        } else if startIndex ?? 0 <= threshold {
+//            loadPreviousDateInterval()
+//        }
+//    }
+//}
 
 extension WeekViewController: UICollectionViewDataSource {
 
-    // only need one section for the entire page
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
+        return dates.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return 1
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: DayColumnView.identifier, for: indexPath) as! DayColumnView
+        
+        cell.scrollDelegate = self
+        cell.eventDetailsDelegate = self
+        cell.coordinator = self.coordinator
+        
+        let section = indexPath.section
+        let date = dates[section]
+        
+        let events = MockEventFactory.createEvents(1, for: date, with: "1")
+        
+        cell.configure(with: date, for: events)
+        
+        return cell
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
+        
+        switch kind {
+        case WeekdayCellView.identifier:
+            let supplementaryItem = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: WeekdayCellView.identifier, for: indexPath) as! WeekdayCellView
+                        
+            let date = dates[indexPath.section]
+            supplementaryItem.configure(with: date)
+            
+            return supplementaryItem
+//        case TimeColumnView.identifier:
+//            let supplementaryItem = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: TimeColumnView.identifier, for: indexPath) as! TimeColumnView
+//            
+//            return supplementaryItem
+        default:
+            fatalError("Unhandled supplementary view kind: \(kind)")
+        }
+    }
+        
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        // Safely cast to your custom cell class
+        guard let dayColumnCell = cell as? DayColumnView else { return }
+        
+        // Set the content offset here.
+        let syncedOffset = CGPoint(x: .zero, y: currentYOffset)
+        dayColumnCell.collectionView.setContentOffset(syncedOffset, animated: false)
+    }
+}
+
+extension WeekViewController: WeekCalendarViewDelegate {
+    func showEventDetails(for event: EventOccurrence, and user: User, from view: UIView) {
+        let hostingController = UIHostingController(rootView: FullEventDetailsView(event: event, currentUser: user))
+        
+        hostingController.preferredTransition = .zoom(sourceViewProvider: { context in
+            // Use the context instead of capturing to avoid needing to make a weak reference.
+//            let monthViewController = context.zoomedViewController as! MonthViewController
+            // Fetch this instead of capturing in case the item shown by the destination view can change while the destination view is visible.
+//            let item = monthViewController.item
+//            // Look up the index path in case the items in the collection view can change.
+//            guard let indexPath = self.dataSource.indexPath(for: item) else {
+//                return nil
+//            }
+            // Always fetch the cell again because even if the data never changes, cell reuse might occur. E.g if the device rotates.
+            return view
+        })
+                
+//        navigationController?.tabBarController?.bottomAccessory
+        navigationController?.pushViewController(hostingController, animated: true)
+    }
+}
+
+class BorderedCellView: UIView {
+    
+    let topBorderHeight: CGFloat = 1.0
+    let sideBorderWidth: CGFloat = 0.5
+    let borderColor = UIColor.primaryText
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = UIColor(Color("BackgroundColor"))
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func draw(_ rect: CGRect) {
+        super.draw(rect) // Draws the background color
+        
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+        
+        context.setStrokeColor(borderColor.cgColor)
+        context.setLineWidth(sideBorderWidth)
+        
+        // Draw Left Border
+        context.move(to: CGPoint(x: 0, y: 0))
+        context.addLine(to: CGPoint(x: 0, y: bounds.height))
+        context.strokePath()
+        
+        // Draw Right Border
+        context.move(to: CGPoint(x: bounds.width, y: 0))
+        context.addLine(to: CGPoint(x: bounds.width, y: bounds.height))
+        context.strokePath()
+        
+        // Draw Top Border (with its own width)
+        context.setLineWidth(topBorderHeight)
+        context.move(to: CGPoint(x: 0, y: 0))
+        context.addLine(to: CGPoint(x: bounds.width, y: 0))
+        context.strokePath()
+    }
+}
+
+class DayColumnView: UICollectionViewCell {
+    static let identifier = "DayColumnView"
+    
+    weak var scrollDelegate: InnerCellScrollDelegate?
+    weak var eventDetailsDelegate: WeekCalendarViewDelegate?
+    
+    var coordinator: CalendarYearView.Coordinator?
+    
+    var collectionView: UICollectionView!
+    var date: Date?
+    var events: [Event] = []
+    
+    private lazy var borderedView: BorderedCellView = {
+        let view = BorderedCellView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        
+        setupUI()
+        
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        
+        collectionView.register(HourCellView.self, forCellWithReuseIdentifier: HourCellView.identifier)
+        for i in 0..<50 {
+            collectionView.register(
+                EventView.self,
+                forSupplementaryViewOfKind: "\(EventView.identifier)-\(i)",
+                withReuseIdentifier: EventView.identifier
+            )
+        }
+        
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func setupUI() {
+        
+        let configuration = UICollectionViewCompositionalLayoutConfiguration()
+        configuration.scrollDirection = .vertical
+        
+        let layout = UICollectionViewCompositionalLayout { (sectionIndex, environment) -> NSCollectionLayoutSection? in
+            
+            let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(100))
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+            
+            let groupSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(2400))
+            let group = NSCollectionLayoutGroup.vertical(layoutSize: groupSize, subitems: [item])
+            
+            let section = NSCollectionLayoutSection(group: group)
+            
+            var supplementaryItems: [NSCollectionLayoutBoundarySupplementaryItem] = []
+            
+            for (index, event) in self.events.enumerated() {
+                // Calculate the frame based on the event's start and end times
+                let yPosition = self.pointFor(time: event.startTime)
+                let height = self.pointFor(time: event.endTime) - yPosition
+                
+                let uniqueElementKind = "\(EventView.identifier)-\(index)"
+                
+                let eventSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(height))
+                
+                // Use an anchor to position the item absolutely
+                let eventAnchor = NSCollectionLayoutAnchor(edges: [.top], absoluteOffset: CGPoint(x: 0, y: yPosition))
+                let eventSupplementaryItem = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: eventSize, elementKind: uniqueElementKind, containerAnchor: eventAnchor)
+                
+                supplementaryItems.append(eventSupplementaryItem)
+            }
+            
+            section.boundarySupplementaryItems = supplementaryItems
+            
+            return section
+        }
+        
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.showsVerticalScrollIndicator = false
+        collectionView.decelerationRate = .fast
+        
+//        collectionView.bouncesVertically = false
+        
+        contentView.addSubview(collectionView)
+        
+        NSLayoutConstraint.activate([
+            collectionView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        ])
+    }
+    
+    // Add this helper method to DayColumnView
+    private func pointFor(time: Int) -> CGFloat {
+        let height: CGFloat = (Double(time) / 60.0)
+        
+        // Convert time to a point value (100 points per hour)
+        return height * 100
+    }
+    
+    func configure(with date: Date, for events: [Event]) {
+        self.date = date
+        self.events = events
+        collectionView.reloadData()
+    }
+}
+
+extension DayColumnView: UICollectionViewDataSource {
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
+        1
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        24
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: HourCellView.identifier, for: indexPath) as! HourCellView
+        
+        return cell
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
+
+        // Check if the kind is one of our unique event kinds
+        if kind.hasPrefix(EventView.identifier) {
+            let eventView = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: EventView.identifier, for: indexPath) as! EventView
+            
+            eventView.coordinator = self.coordinator
+            eventView.eventDetailsDelegate = eventDetailsDelegate
+            
+            // The indexPath.item still correctly corresponds to the index in the events array
+            let event = events[indexPath.item]
+            eventView.configure(with: event)
+            
+            return eventView
+        }
+        
+        // Handle other kinds of supplementary views if you have them
+        fatalError("Unhandled supplementary view kind: \(kind)")
+    }
+}
+
+extension DayColumnView: UICollectionViewDelegate {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        // Only broadcast the scroll offset change if the user's
+        // finger is actively touching and dragging the screen.
+        if scrollView.isDragging {
+            scrollDelegate?.innerCellDidScroll(to: scrollView.contentOffset, from: self)
+        }
+                
+        // 3. Iterate over all *other* visible cells and update their offset.
+
+        //
+        //            let maxScrollY = collectionView.contentSize.height - collectionView.bounds.height
+        //
+        //            // Check for boundary conditions with proper tolerance
+        //            let isAtTopBoundary = collectionView.contentOffset.y < 0
+        //            let isAtBottomBoundary = maxScrollY > 0 && collectionView.contentOffset.y > maxScrollY + 5
+        //
+        //            if !isAtTopBoundary && !isAtBottomBoundary {
+        //                resetModifiedCells()
+        //                return
+        //            }
+        //
+        //            if isAtTopBoundary || isAtBottomBoundary {
+        //                // Calculate actual offsets
+        //                let topOffset = isAtTopBoundary ? -collectionView.contentOffset.y : 0
+        //                let bottomOffset = isAtBottomBoundary ? collectionView.contentOffset.y - maxScrollY : 0
+        //
+        //                let visibleCells = collectionView.indexPathsForVisibleItems
+        //
+        //                // Handle top cells stretching
+        //                //                for indexPath in visibleCells {
+        //                //                    if let cell = collectionView.cellForItem(at: indexPath) {
+        //                if !modifiedCells.contains(cell) {
+        //                    cell.layer.setValue(cell.frame.origin.y, forKey: "normal")
+        //                    cell.layer.setValue(cell.frame.size.height, forKey: "normalHeight")
+        //                    modifiedCells.insert(cell)
+        //                }
+        //
+        //                let itemHeight = CGFloat(100 * 24)
+        //
+        //                var frame = cell.frame
+        //
+        //                if topOffset < 0 {
+        //                    frame.origin.y = (cell.layer.value(forKey: "normal") as? CGFloat ?? frame.origin.y) - topOffset
+        //                    frame.size.height = (cell.layer.value(forKey: "normalHeight") as? CGFloat ?? itemHeight) + topOffset
+        //                } else if bottomOffset > 0 {
+        //                    frame.origin.y = (cell.layer.value(forKey: "normal") as? CGFloat ?? frame.origin.y)
+        //                    frame.size.height = (cell.layer.value(forKey: "normalHeight") as? CGFloat ?? itemHeight) + bottomOffset
+        //                }
+        //
+        //                cell.frame = frame
+        //                //                    }
+        //                //                }
+        //            }32
+    }
+}
+
+class EventView: UICollectionReusableView {
+    static let identifier = "EventView"
+    
+    var coordinator: CalendarYearView.Coordinator?
+    weak var eventDetailsDelegate: WeekCalendarViewDelegate?
+    
+    private let titleLabel = UILabel()
+    
+    var event: Event?
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .systemBlue
+        layer.cornerRadius = 8
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(showEventDetails))
+        addGestureRecognizer(tapGesture)
+        
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.textColor = .white
+        titleLabel.font = .systemFont(ofSize: 12, weight: .bold)
+        addSubview(titleLabel)
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+            titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6)
+        ])
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func configure(with event: Event) {
+        self.event = event
+        titleLabel.text = event.title
+    }
+    
+    @objc
+    private func showEventDetails() {
+        guard let event = event, let vm = coordinator?.vm else { return }
+        
+        let eventOccurence = EventOccurrence(recurringDate: event.startDate, event: event)
+        
+        eventDetailsDelegate?.showEventDetails(for: eventOccurence, and: vm.currentUser, from: self)
+                
+//        coordinator?.router.push(page: .eventDetails(currentUser: vm.currentUser, event: EventOccurrence(recurringDate: event.startDate, event: event)))
+    }
+}
+
+class HourCellView: UICollectionViewCell {
+    
+    static let identifier = "HourCellView"
+        
+    private lazy var borderedView: BorderedCellView = {
+        let view = BorderedCellView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        
+        setupView()
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func setupView() {
+        
+        contentView.addSubview(borderedView)
+        
+        NSLayoutConstraint.activate([
+            borderedView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            borderedView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            borderedView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            borderedView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        ])
+    }
+}
+
+class WeekHeaderView: UICollectionReusableView {
+    
+    static let identifier = "WeekHeaderView"
+    
+    var collectionView: UICollectionView!
+    var dates: [Date] = []
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        
+        setupUI()
+        
+        collectionView.register(WeekdayCellView.self, forCellWithReuseIdentifier: WeekdayCellView.identifier)
+        
+        collectionView.delegate = self
+        collectionView.dataSource = self
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func setupUI() {
+        let configuration = UICollectionViewCompositionalLayoutConfiguration()
+        configuration.scrollDirection = .horizontal
+        
+        let layout = UICollectionViewCompositionalLayout(sectionProvider: { (sectionIndex, environmnet) -> NSCollectionLayoutSection? in
+            
+            let itemSize = NSCollectionLayoutSize(widthDimension: .absolute(60), heightDimension: .fractionalHeight(1.0))
+            let item = NSCollectionLayoutItem(layoutSize: itemSize)
+            
+            let groupSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(50))
+            let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize, subitems: [item])
+            
+            let section = NSCollectionLayoutSection(group: group)
+            return section
+        }, configuration: configuration)
+        
+        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        
+        addSubview(collectionView)
+        
+        NSLayoutConstraint.activate([
+            collectionView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            collectionView.topAnchor.constraint(equalTo: topAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+    
+    func configure(with dates: [Date]) {
+        self.dates = dates
+        collectionView.reloadData()
+    }
+}
+
+extension WeekHeaderView: UICollectionViewDataSource {
+    
     func numberOfSections(in collectionView: UICollectionView) -> Int {
         return 1
     }
     
-    // 24 represents the number of hours in a day => number of cells needed since an item represents a single hour
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return numberOfTimeIntervals * dayList.count
+        return dates.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-//        older method where the registration is dequeued, and then configured by force unwrapping the CollectionViewCell type
-//        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: EventCell.identifier, for: indexPath) as! EventCell
-//        cell.configureUI(with: "Event \(indexPath.item)")
-//        return cell
-
-//      modern method where the dequeued and configured automatically from the cell registration in our collection view initialization
-        return collectionView.dequeueConfiguredReusableCell(
-            using: cellRegistration,
-            for: indexPath,
-            item: indexPath.item
-        )
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: WeekdayCellView.identifier, for: indexPath) as! WeekdayCellView
+        
+        let index = indexPath.row
+        let date = dates[index]
+        
+        cell.configure(with: date)
+        
+        return cell
     }
 }
 
-class FixedUICollectionViewCompositionalLayout: UICollectionViewCompositionalLayout {
+extension WeekHeaderView: UICollectionViewDelegate {
     
-    override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
-        guard let attributes = super.layoutAttributesForElements(in: rect) else { return nil }
+}
+
+class WeekdayCellView: UICollectionViewCell {
+    
+    static let identifier = "WeekdayCellView"
+    
+    let borderedView: DayBorderedCellView = {
+        let view = DayBorderedCellView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
+    let weekdayLabel = UILabel()
+    let dayLabel = UILabel()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
         
-        // Track seen index paths to eliminate exact duplicates
-        var seenIndexPaths = Set<IndexPath>()
-        var validAttributes: [UICollectionViewLayoutAttributes] = []
+        setupUI()
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    private func setupUI() {
         
-        for attribute in attributes {
-            let indexPath = attribute.indexPath
+        weekdayLabel.textColor = .label
+        weekdayLabel.translatesAutoresizingMaskIntoConstraints = false
+        weekdayLabel.font = UIFont.monospacedSystemFont(ofSize: 13, weight: .semibold)
+                
+        dayLabel.textColor = .secondaryLabel
+        dayLabel.translatesAutoresizingMaskIntoConstraints = false
+        dayLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 16, weight: .heavy)
+        
+        borderedView.addSubview(weekdayLabel)
+        borderedView.addSubview(dayLabel)
+        
+        contentView.addSubview(borderedView)
+        
+        NSLayoutConstraint.activate([
+            borderedView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            borderedView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            borderedView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            borderedView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
             
-            // skip if we've already processed this index path
-            if seenIndexPaths.contains(indexPath) {
-                // if we find a duplicate, keep the one that's more "valid"
-                if let existingIndex = validAttributes.firstIndex(where: { $0.indexPath == indexPath }) {
-                    let existing = validAttributes[existingIndex]
-                    let current = attribute
-                    
-                    // prefer the attribute that's more within bounds
-                    if isMoreValidAttribute(current, than: existing) {
-                        validAttributes[existingIndex] = current
-                    }
-                }
-                continue
-            }
+            weekdayLabel.leadingAnchor.constraint(equalTo: borderedView.leadingAnchor, constant: 10),
+            weekdayLabel.trailingAnchor.constraint(equalTo: borderedView.trailingAnchor),
+            weekdayLabel.topAnchor.constraint(equalTo: borderedView.topAnchor, constant: 10),
             
-            // pheck if the attribute is within reasonable bounds
-            if isAttributeValid(attribute, in: rect) {
-                seenIndexPaths.insert(indexPath)
-                validAttributes.append(attribute)
-            }
-        }
-        
-        return validAttributes
+            dayLabel.topAnchor.constraint(equalTo: weekdayLabel.bottomAnchor, constant: 2),
+            dayLabel.leadingAnchor.constraint(equalTo: borderedView.leadingAnchor, constant: 10),
+        ])
     }
     
-    private func isAttributeValid(_ attribute: UICollectionViewLayoutAttributes, in rect: CGRect) -> Bool {
-        let frame = attribute.frame
-        let contentSize = collectionViewContentSize
+    func configure(with date: Date) {
+        let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .weekday], from: date)
+        guard let day = dateComponents.day, let weekday = dateComponents.weekday else { return }
         
-        // valid bounds checking
-        let isWithinHorizontalBounds = frame.origin.x >= -frame.size.width &&
-                                      frame.maxX <= contentSize.width + frame.size.width
-        
-        let isWithinVerticalBounds = frame.origin.y >= -frame.size.height &&
-                                    frame.maxY <= contentSize.height + frame.size.height
-        
-        // valid frame dimension checking
-        let hasValidDimensions = frame.size.width > 0 &&
-                                frame.size.height > 0 &&
-                                frame.size.width < contentSize.width * 2 &&
-                                frame.size.height < contentSize.height * 2
-        
-        // check for frame intersections with the requested rect
-        let extendedRect = rect.insetBy(dx: -frame.size.width, dy: -frame.size.height)
-        let intersectsRequestedRect = frame.intersects(extendedRect)
-        
-        return isWithinHorizontalBounds &&
-               isWithinVerticalBounds &&
-               hasValidDimensions &&
-               intersectsRequestedRect
-    }
-    
-    private func isMoreValidAttribute(_ new: UICollectionViewLayoutAttributes,
-                                     than existing: UICollectionViewLayoutAttributes) -> Bool {
-        let newFrame = new.frame
-        let existingFrame = existing.frame
-        let contentSize = collectionViewContentSize
-        
-        // calculate how "valid" each attribute is based on how well it fits within bounds
-        let newValidityScore = calculateValidityScore(for: newFrame, contentSize: contentSize)
-        let existingValidityScore = calculateValidityScore(for: existingFrame, contentSize: contentSize)
-        
-        return newValidityScore > existingValidityScore
-    }
-    
-    private func calculateValidityScore(for frame: CGRect, contentSize: CGSize) -> Double {
-        // keeping a custom scoring tally for each rect
-        var score: Double = 0
-        
-        if frame.maxX <= contentSize.width { score += 100 }
-        if frame.maxY <= contentSize.height { score += 100 }
-        if frame.origin.x >= 0 { score += 50 }
-        if frame.origin.y >= 0 { score += 50 }
-        
-        if frame.origin.x < 0 { score -= abs(frame.origin.x) }
-        if frame.origin.y < 0 { score -= abs(frame.origin.y) }
-        if frame.maxX > contentSize.width { score -= (frame.maxX - contentSize.width) }
-        if frame.maxY > contentSize.height { score -= (frame.maxY - contentSize.height) }
-        
-        return score
-    }
-    
-    override func layoutAttributesForItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
-        guard let attribute = super.layoutAttributesForItem(at: indexPath) else { return nil }
-        
-        return isAttributeValidForSingleItem(attribute) ? attribute : nil
-    }
-    
-    private func isAttributeValidForSingleItem(_ attribute: UICollectionViewLayoutAttributes) -> Bool {
-        let frame = attribute.frame
-        let contentSize = collectionViewContentSize
-        
-        // bounds checking for single items
-        let isWithinHorizontalBounds = frame.origin.x >= -frame.size.width &&
-                                      frame.maxX <= contentSize.width + frame.size.width
-        
-        let isWithinVerticalBounds = frame.origin.y >= -frame.size.height &&
-                                    frame.maxY <= contentSize.height + frame.size.height
-        
-        // similar valid frame dimension check from earlier
-        let hasValidDimensions = frame.size.width > 0 &&
-                                frame.size.height > 0 &&
-                                frame.size.width < contentSize.width * 2 &&
-                                frame.size.height < contentSize.height * 2
-        
-        return isWithinHorizontalBounds &&
-               isWithinVerticalBounds &&
-               hasValidDimensions
-    }
-    
-    override func shouldInvalidateLayout(forBoundsChange newBounds: CGRect) -> Bool {
-        guard let collectionView = collectionView else { return false }
-        
-        // only invalidate if bounds actually changed significantly
-        let oldBounds = collectionView.bounds
-        let sizeChanged = !oldBounds.size.equalTo(newBounds.size)
-        let significantOriginChange = abs(oldBounds.origin.x - newBounds.origin.x) > 1.0 ||
-                                     abs(oldBounds.origin.y - newBounds.origin.y) > 1.0
-        
-        return sizeChanged || significantOriginChange
+        weekdayLabel.text = Calendar.current.shortWeekdaySymbols[weekday - 1]
+                
+        dayLabel.text = "\(day)"
     }
 }
 
-extension UICollectionView {
-
-    // handles finding of boundary cells which in this context assumes that there are 24 vertically placed cells
-    // which is the case for the day and week view layout
-    func indexPathsForFullyVisibleItems() -> [IndexPath] {
+class TimeColumnView: UICollectionReusableView {
+    
+    static let identifier = "TimeColumnView"
+    
+    let stackView = UIStackView()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
         
-        let visibleIndexPaths = indexPathsForVisibleItems
-        var indexPaths: [IndexPath] = []
-        
-        for cell in visibleIndexPaths {
-            if cell.item % 24 == 0 || (cell.item % 23 == 0 && cell.item != 0) {
-                indexPaths.append(cell)
-            }
-        }
-        
-        return indexPaths
+        setupUI()
     }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    private func setupUI() {
+        stackView.axis = .vertical
+        stackView.distribution = .fillEqually
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.layer.borderColor = UIColor.clear.cgColor
+        stackView.backgroundColor = UIColor(Color("BackgroundColor"))
+        addSubview(stackView)
+        
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(equalTo: topAnchor),
+            stackView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stackView.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+        
+        // Create time labels for each hour
+        setupTimeLabels()
+    }
+    
+    private func setupTimeLabels() {
+        // Remove any existing labels
+        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        
+        let hoursList = [
+            "1 AM", "2 AM", "3 AM", "4 AM", "5 AM", "6 AM", "7 AM", "8 AM", "9 AM", "10 AM", "11 AM", "12 PM",
+            "1 PM", "2 PM", "3 PM", "4 PM", "5 PM", "6 PM", "7 PM", "8 PM", "9 PM", "10 PM", "11 PM", ""
+        ]
+        
+        // Add a label for each hour (0-23)
+        for hour in hoursList {
+            let label = TimeLabel()
+            label.text = hour
+            stackView.addArrangedSubview(label)
+        }
+    }
+    
 }
 

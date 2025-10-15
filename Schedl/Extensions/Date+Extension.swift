@@ -16,9 +16,9 @@ extension Date {
         return Date(timeIntervalSince1970: timestamp)
     }
     
-    static func convertHourAndMinuteToDate(time: TimeInterval) -> Date {
-        let hours = Int(floor(time / 3600))
-        let minutes = Int(time.truncatingRemainder(dividingBy: 3600) / 60)
+    static func convertHourAndMinuteToDate(time: Int) -> Date {
+        let hours = time / 60
+        let minutes = time - (hours * 60)
 
         var dateComponents = DateComponents()
         dateComponents.hour = hours
@@ -44,5 +44,35 @@ extension Date {
     
     static func computeTimeSince1970(date: Date) -> TimeInterval {
         return date.timeIntervalSince1970
+    }
+    
+    func datesInSameMonth(using calendar: Calendar = .current) -> [Date] {
+        let year = calendar.component(.year, from: self)
+        let month = calendar.component(.month, from: self)
+        return calendar.range(of: .day, in: .month, for: self)?.compactMap {
+            DateComponents(calendar: calendar, year: year, month: month, day: $0, hour: 0).date
+        } ?? []
+    }
+    
+    var relativeDayString: String {
+        let calendar = Calendar.current
+        
+        // Check if the date is today
+        if calendar.isDateInToday(self) {
+            return "Today"
+        }
+        
+        // Check if the date is tomorrow
+        if calendar.isDateInTomorrow(self) {
+            return "Tomorrow"
+        }
+        
+        // Check if the date was yesterday (often useful)
+        if calendar.isDateInYesterday(self) {
+            return "Yesterday"
+        }
+        
+        // For any other date, return a formatted string
+        return self.formatted(date: .abbreviated, time: .omitted)
     }
 }

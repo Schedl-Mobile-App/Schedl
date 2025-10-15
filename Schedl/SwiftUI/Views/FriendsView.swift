@@ -91,6 +91,8 @@ struct FriendsView: View {
     @Environment(\.router) var coordinator: Router
     @Environment(\.dismiss) var dismiss
     
+    @Namespace private var namespace
+    
     @StateObject private var vm: FriendViewModel
     
     init(profileUser: User) {
@@ -116,60 +118,23 @@ struct FriendsView: View {
                     .padding(.horizontal)
             } else if vm.friends.count > 0 {
                 List {
-                    if #available(iOS 26.0, *) {
-                        if vm.isSearching {
-                            Section(content: {
-                                ForEach(vm.filteredUsers, id: \.id) { friend in
-                                    Button(action: {
-                                        coordinator.push(page: .profile(currentUser: vm.profileUser, profileUser: friend, preferBackButton: true))
-                                    }, label: {
-                                        UserCell(user: friend)
-                                            .listRowBackground(Color.clear)
-                                    })
-                                }
-                            }, header: {
-                                    HStack {
-                                        Text("Friends")
-                                            .font(.headline)
-                                            .fontWeight(.bold)
-                                            .fontDesign(.monospaced)
-                                            .foregroundStyle(Color("PrimaryText"))
-                                        
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .center)
+                    Section(content: {
+                        ForEach(vm.filteredUsers, id: \.id) { friend in
+                            Button(action: {
+                                coordinator.push(page: .profile(currentUser: vm.profileUser, profileUser: friend, preferBackButton: true, namespace: namespace))
+                            }, label: {
+                                UserCell(user: friend)
+                                    .matchedTransitionSource(id: "zoom", in: namespace)
                             })
-                            .listSectionMargins(.top, -12.5)
-                            .listSectionSeparator(.hidden, edges: .top)
-                        } else {
-                            Section(content: {
-                                ForEach(vm.filteredUsers, id: \.id) { friend in
-                                    Button(action: {
-                                        coordinator.push(page: .profile(currentUser: vm.profileUser, profileUser: friend, preferBackButton: true))
-                                    }, label: {
-                                        UserCell(user: friend)
-                                            .listRowBackground(Color.clear)
-                                    })
-                                }
-                            })
-                            .listSectionSeparator(.hidden, edges: .top)
                         }
-                    } else {
-                        Section(content: {
-                            ForEach(vm.filteredUsers, id: \.id) { friend in
-                                Button(action: {
-                                    coordinator.push(page: .profile(currentUser: vm.profileUser, profileUser: friend, preferBackButton: true))
-                                }, label: {
-                                    UserCell(user: friend)
-                                        .listRowBackground(Color.clear)
-                                })
-                            }
-                        }, header: {
-                            EmptyView()
-                        })
-                        .listSectionSeparator(.hidden, edges: .top)
-                    }
+                    }, header: {
+                        EmptyView()
+                    })
+                    .listSectionSeparator(.hidden, edges: .top)
+                    .listRowBackground(Color.clear)
                 }
                 .listStyle(.plain)
+                .listRowBackground(Color("BackgroundColor"))
                 .scrollDismissesKeyboard(.immediately)
                 
             } else if !vm.searchText.isEmpty && vm.filteredUsers.isEmpty {
@@ -198,14 +163,14 @@ struct FriendsView: View {
             await vm.fetchFriends()
         }
         .navigationBarBackButtonHidden(false)
+        .navigationTitle("Friends")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Friends")
-                    .foregroundStyle(Color("PrimaryText"))
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .fontDesign(.monospaced)
-            }
+//            ToolbarItem(placement: .principal) {
+//                Text("Screen Time")
+//                    .font(.headline)
+//                    .fontWeight(.semibold)
+//            }
             
             if #available(iOS 26, *) {
                     DefaultToolbarItem(kind: .search, placement: .bottomBar)

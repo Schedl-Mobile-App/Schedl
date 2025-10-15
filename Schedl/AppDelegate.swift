@@ -7,7 +7,6 @@
 
 import SwiftUI
 import Firebase
-import FirebaseDatabase
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
@@ -20,9 +19,19 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         #endif
         
         FirebaseApp.configure()
+        return true
+    }
+    
+    func application(_ application: UIApplication,
+                shouldSaveSecureApplicationState coder: NSCoder) -> Bool {
+            
+       // Always save state information.
+       return true
+    }
         
-        Database.database().isPersistenceEnabled = true
-          
+    func application(_ application: UIApplication,
+                shouldRestoreSecureApplicationState coder: NSCoder) -> Bool {
+       
         return true
     }
 }

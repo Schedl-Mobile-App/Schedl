@@ -24,8 +24,7 @@ struct UserCell: View {
                 Text("\(user.displayName)")
                     .font(.subheadline)
                     .fontWeight(.bold)
-                    .fontDesign(.monospaced)
-                    .tracking(-0.25)
+                    .fontDesign(.rounded)
                     .foregroundStyle(Color("PrimaryText"))
                     .multilineTextAlignment(.leading)
                 HStack(spacing: 0) {
@@ -43,13 +42,13 @@ struct UserCell: View {
                         .foregroundStyle(Color("SecondaryText"))
                         .multilineTextAlignment(.leading)
                 }
-                Text("\(user.numOfFriends) friends | \(user.numOfPosts) posts")
-                    .font(.footnote)
-                    .fontWeight(.medium)
-                    .fontDesign(.monospaced)
-                    .tracking(-0.25)
-                    .foregroundStyle(Color("PrimaryText"))
-                    .multilineTextAlignment(.leading)
+//                Text("\(user.numOfFriends) friends | \(user.numOfPosts) posts")
+//                    .font(.footnote)
+//                    .fontWeight(.medium)
+//                    .fontDesign(.monospaced)
+//                    .tracking(-0.25)
+//                    .foregroundStyle(Color("PrimaryText"))
+//                    .multilineTextAlignment(.leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             
@@ -124,8 +123,9 @@ struct RecentSearches {
 
 struct SearchView: View {
     
-    @Environment(\.searchCoordinator) var searchCoordinator: SearchCoordinator
+    @Environment(\.router) var coordinator: Router
     @StateObject var vm: SearchViewModel
+    @Namespace private var namespace
     
     init(currentUser: User) {
         _vm = StateObject(wrappedValue: SearchViewModel(currentUser: currentUser))
@@ -171,10 +171,10 @@ struct SearchView: View {
                         Section(content: {
                             ForEach(vm.recentSearches, id: \.id) { user in
                                 Button(action: {
-                                    searchCoordinator.push(page: .profile(currentUser: vm.currentUser, profileUser: user, prefersBackButton: true))
+                                    coordinator.push(page: .profile(currentUser: vm.currentUser, profileUser: user, preferBackButton: true, namespace: namespace))
                                 }, label: {
                                     UserCell(user: user)
-                                        .listRowBackground(Color.clear)
+                                        .matchedTransitionSource(id: "zoom", in: namespace)
                                 })
                             }
                             .onDelete(perform: vm.delete)
@@ -218,8 +218,8 @@ struct SearchView: View {
                         .listRowBackground(Color.clear)
                     }
                     .listStyle(.plain)
+                    .listRowBackground(Color("BackgroundColor"))
                     .scrollDismissesKeyboard(.immediately)
-                    .scrollBounceBehavior(.basedOnSize)
                 }
             } else if vm.searchResults != nil && vm.searchResults!.isEmpty {
                 VStack(spacing: 10) {
@@ -251,45 +251,25 @@ struct SearchView: View {
                     .padding(.horizontal)
             } else if let searchResults = vm.searchResults {
                 List {
-                    if #available(iOS 26.0, *) {
-                        Section(content: {
-                            ForEach(searchResults, id: \.id) { user in
-                                Button(action: {
-                                    searchCoordinator.push(page: .profile(currentUser: vm.currentUser, profileUser: user, prefersBackButton: true))
-                                }, label: {
-                                    UserCell(user: user)
-                                        .listRowBackground(Color.clear)
-                                })
-                            }
-                        }, header: {
-                            HStack {
-                                Text("Search")
-                                    .font(.headline)
-                                    .fontWeight(.bold)
-                                    .fontDesign(.monospaced)
-                                    .foregroundStyle(Color("NavItemsColors"))
-                                
-                            }
-                            .frame(maxWidth: .infinity, alignment: .center)
-                        })
-                        .listSectionMargins(.top, -12.5)
-                    } else {
-                        Section(content: {
-                            ForEach(searchResults, id: \.id) { user in
-                                Button(action: {
-                                    searchCoordinator.push(page: .profile(currentUser: vm.currentUser, profileUser: user, prefersBackButton: true))
-                                }, label: {
-                                    UserCell(user: user)
-                                        .listRowBackground(Color.clear)
-                                })
-                            }
-                        }, header: {
-                            EmptyView()
-                        })
-                        .listSectionSeparator(.hidden, edges: .top)
-                    }
+                    Section(content: {
+                        ForEach(searchResults, id: \.id) { user in
+                            Button(action: {
+                                vm.recentSearches.append(user)
+                                RecentSearches.save(user)
+                                coordinator.push(page: .profile(currentUser: vm.currentUser, profileUser: user, preferBackButton: true, namespace: namespace))
+                            }, label: {
+                                UserCell(user: user)
+                                    .matchedTransitionSource(id: "zoom", in: namespace)
+                            })
+                        }
+                    }, header: {
+                        EmptyView()
+                    })
+                    .listSectionSeparator(.hidden, edges: .top)
+                    .listRowBackground(Color.clear)
                 }
                 .listStyle(.plain)
+                .listRowBackground(Color("BackgroundColor"))
                 .listSectionSpacing(0)
                 .scrollDismissesKeyboard(.immediately)
             }
@@ -313,14 +293,16 @@ struct SearchViewModifier: ViewModifier {
                 .toolbarTitleDisplayMode(.inlineLarge)
         } else {
             content
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Text("Search")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .fixedSize(horizontal: true, vertical: false)
-                    }
-                }
+                .navigationTitle("Search")
+                .toolbarTitleDisplayMode(.inlineLarge)
+//                .toolbar {
+//                    ToolbarItem(placement: .topBarLeading) {
+//                        Text("Search")
+//                            .font(.largeTitle)
+//                            .fontWeight(.bold)
+//                            .fixedSize(horizontal: true, vertical: false)
+//                    }
+//                }
         }
     }
 }

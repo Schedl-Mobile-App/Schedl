@@ -1,53 +1,141 @@
-
 import SwiftUI
 import UIKit
 
-// allows for our View Controller to be embedded within a SwiftUI view
-struct ScheduleView: UIViewControllerRepresentable {
+protocol VCCoordinatorProtocol {
+    var coordinator: CalendarYearView.Coordinator? { get set }
+}
+
+struct CalendarYearView: UIViewControllerRepresentable {
     
-    @StateObject var scheduleViewModel: ScheduleViewModel
-    @Environment(\.router) var coordinator: Router
+    @StateObject var vm: ScheduleViewModel
+//    @Environment(\.router) var router: Router
+    var centerYear: Date
     
-    init(currentUser: User) {
-        _scheduleViewModel = StateObject(wrappedValue: ScheduleViewModel(currentUser: currentUser))
+    init(currentUser: User, centerYear: Date) {
+        _vm = StateObject(wrappedValue: ScheduleViewModel(currentUser: currentUser))
+        self.centerYear = centerYear
     }
     
     class Coordinator {
-        var scheduleViewModel: ScheduleViewModel
-        var coordinator: Router
+        var vm: ScheduleViewModel
+//        var router: Router
         
-        init(scheduleViewModel: ScheduleViewModel, coordinator: Router) {
-            self.scheduleViewModel = scheduleViewModel
-            self.coordinator = coordinator
+        init(vm: ScheduleViewModel, /*router: Router*/) {
+            self.vm = vm
+//            self.router = router
         }
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(scheduleViewModel: scheduleViewModel, coordinator: coordinator)
+        Coordinator(vm: vm, /*router: router*/)
     }
     
-    func makeUIViewController(context: Context) -> UIViewController {
-        let scheduleView = ScheduleViewController()
+    func makeUIViewController(context: Context) -> UINavigationController {
+        let yearView = YearViewController(centerYear: centerYear)
+        yearView.restorationIdentifier = "YearViewController"
         
         // anytime that a specific action occurs, particularly in the
         // schedule view model object, our view controller will report
         // this action to our coordinator here
-        scheduleView.coordinator = context.coordinator
+        yearView.coordinator = context.coordinator
         
-        let navController = UINavigationController(rootViewController: scheduleView)
-//        navController.view.backgroundColor = UIColor(Color(hex: 0xf7f4f2))
-//        navController.navigationController?.navigationBar.barTintColor = .yellow
-        navController.hidesBottomBarWhenPushed = true
-        if #available(iOS 26.0, *) {
-            navController.tabBarController?.tabBarMinimizeBehavior = .onScrollDown
-        } else {
-            // Fallback on earlier versions
-        }
+        let navController = UINavigationController(rootViewController: yearView)
+        navController.restorationIdentifier = "ScheduleNavigationController"
         
-        return scheduleView
+        return navController
     }
     
-    func updateUIViewController(_ uiViewController: UIViewControllerType, context: Context) {
-        
+    func updateUIViewController(_ uiViewController: UINavigationController, context: Context) {
+        if var topVc = uiViewController.topViewController as? VCCoordinatorProtocol {
+            topVc.coordinator = context.coordinator
+        }
     }
 }
+
+//struct CalendarMonthView: UIViewControllerRepresentable {
+//    
+//    @ObservedObject var vm: ScheduleViewModel
+//    @Environment(\.router) var router: Router
+//    var centerMonth: Date
+//    
+//    init(vm: ScheduleViewModel, centerMonth: Date) {
+//        _vm = ObservedObject(initialValue: vm)
+//        self.centerMonth = centerMonth
+//    }
+//    
+//    class Coordinator {
+//        var vm: ScheduleViewModel
+//        var router: Router
+//        
+//        init(vm: ScheduleViewModel, router: Router) {
+//            self.vm = vm
+//            self.router = router
+//        }
+//    }
+//    
+//    func makeCoordinator() -> Coordinator {
+//        Coordinator(vm: vm, router: router)
+//    }
+//        
+//    func makeUIViewController(context: Context) -> UIViewController {
+//        let monthView = MonthViewController(centerMonth: centerMonth)
+//        
+//        // anytime that a specific action occurs, particularly in the
+//        // schedule view model object, our view controller will report
+//        // this action to our coordinator here
+//        monthView.coordinator = context.coordinator
+//        
+//        return monthView
+//    }
+//    
+//    func updateUIViewController(_ uiViewController: UIViewControllerType, context: Context) {
+//        
+//    }
+//}
+//
+//struct CalendarWeekView: UIViewControllerRepresentable {
+//    
+//    @ObservedObject var vm: ScheduleViewModel
+//    @Environment(\.router) var router: Router
+//    var centerDay: Date
+//    
+//    init(vm: ScheduleViewModel, centerDay: Date = Self.createCenterDay()) {
+//        _vm = ObservedObject(initialValue: vm)
+//        self.centerDay = centerDay
+//    }
+//    
+//    class Coordinator {
+//        var vm: ScheduleViewModel
+//        var router: Router
+//        
+//        init(vm: ScheduleViewModel, router: Router) {
+//            self.vm = vm
+//            self.router = router
+//        }
+//    }
+//    
+//    func makeCoordinator() -> Coordinator {
+//        Coordinator(vm: vm, router: router)
+//    }
+//    
+//    static func createCenterDay() -> Date {
+//        let dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+//        return Calendar.current.date(from: dateComponents)!
+//    }
+//    
+//    func makeUIViewController(context: Context) -> UIViewController {
+//        let weekView = WeekViewController(centerDay: centerDay)
+//        
+//        // anytime that a specific action occurs, particularly in the
+//        // schedule view model object, our view controller will report
+//        // this action to our coordinator here
+//        weekView.coordinator = context.coordinator
+//        
+//        return weekView
+//    }
+//    
+//    func updateUIViewController(_ uiViewController: UIViewControllerType, context: Context) {
+//        
+//    }
+//}
+//

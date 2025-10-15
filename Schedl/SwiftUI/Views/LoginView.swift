@@ -9,7 +9,7 @@ import SwiftUI
 
 struct LoginView: View {
     
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject private var authVM: AuthViewModel
     @FocusState var isFocused: AccountInfoFields?
     @State var keyboardHeight: CGFloat = 0
     @Environment(\.dismiss) var dismiss
@@ -55,7 +55,7 @@ struct LoginView: View {
                     PasswordField(password: $password, passwordError: $passwordError, hasTriedSubmitting: $hasTriedSubmitting, isFocused: $isFocused)
                 }
                 
-                if let error = authViewModel.errorMessage {
+                if let error = authVM.errorMessage {
                     Text(error)
                         .foregroundStyle(Color("ErrorTextColor"))
                         .font(.footnote)
@@ -82,7 +82,7 @@ struct LoginView: View {
                     guard let email = email, let password = password else { return }
                     
                     Task {
-                        await authViewModel.login(email: email, password: password)
+                        await authVM.login(email: email, password: password)
                     }
                 }, label: {
                     Text("Login")
@@ -128,7 +128,7 @@ struct LoginView: View {
                     hasTriedSubmitting = false
                     emailError = ""
                     passwordError = ""
-                    authViewModel.errorMessage = nil
+                    authVM.errorMessage = nil
                 }
             })
         }
@@ -146,7 +146,6 @@ struct LoginView: View {
 
 #Preview {
     LoginView()
-        .environmentObject(AuthViewModel(hasOnboarded: true))
 }
 
 struct EmailField: View {

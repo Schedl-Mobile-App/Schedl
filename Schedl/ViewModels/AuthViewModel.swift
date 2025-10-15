@@ -8,19 +8,24 @@
 import SwiftUI
 import FirebaseAuth
 
-class AuthViewModel: ObservableObject, AuthViewModelProtocol {
+//extension EnvironmentValues {
+//    @Entry var auth = AuthViewModel()
+//}
+
+//@Observable
+class AuthViewModel: ObservableObject {
     
-    @Published var currentUser: User?
+    var currentUser: User?
     @Published var isLoadingLaunchScreen: Bool = false
     @Published var isLoadingLogin: Bool = false
     @Published var errorMessage: String?
-    @Published var hasOnboarded: Bool
+    var hasOnboarded: Bool
     private var authService: AuthServiceProtocol
     private var userService: UserServiceProtocol
         
-    @Published var isLoggedIn = false
+    var isLoggedIn = false
     
-    init(authService: AuthServiceProtocol = AuthService.shared, userService: UserServiceProtocol = UserService.shared, hasOnboarded: Bool) {
+    init(authService: AuthServiceProtocol = AuthService.shared, userService: UserServiceProtocol = UserService.shared, hasOnboarded: Bool = false) {
         self.authService = authService
         self.userService = userService
         self.hasOnboarded = hasOnboarded

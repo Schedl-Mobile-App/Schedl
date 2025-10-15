@@ -7,12 +7,15 @@
 
 import Foundation
 
-struct RecurringEvents: Identifiable, Equatable, Hashable {
-    static func == (lhs: RecurringEvents, rhs: RecurringEvents) -> Bool {
-        lhs.id == rhs.id && lhs.date == rhs.date
+struct EventOccurrence: Identifiable, Equatable, Hashable {
+    static func == (lhs: EventOccurrence, rhs: EventOccurrence) -> Bool {
+        lhs.id == rhs.id
     }
     
-    let id = UUID().uuidString
-    var date: Double
+    var id: String {
+        "\(event.id)-\(recurringDate.timeIntervalSince1970)"
+    }
+    
+    var recurringDate: Date
     var event: Event
 }

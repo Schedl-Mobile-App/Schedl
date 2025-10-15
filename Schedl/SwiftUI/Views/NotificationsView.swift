@@ -61,6 +61,9 @@ struct ThumbnailProfileImageView: View {
 
 struct FriendRequestNotificationView: View {
     
+    @Environment(\.router) var coordinator: Router
+    
+    let currentUser: User
     var friendRequest: FriendRequest
     
     var fromUser: User {
@@ -68,7 +71,9 @@ struct FriendRequestNotificationView: View {
     }
     
     var body: some View {
-        NavigationLink(value: NotificationDestination.profileView(fromUser), label: {
+        Button(action: {
+            coordinator.push(page: .profile(currentUser: currentUser, profileUser: fromUser, preferBackButton: true))
+        }, label: {
             HStack(spacing: 15) {
                 ThumbnailProfileImageView(profileImage: friendRequest.senderProfileImage, displayName: friendRequest.senderName)
                     .alignmentGuide(.listRowSeparatorLeading) {
@@ -100,10 +105,14 @@ struct FriendRequestNotificationView: View {
 
 struct EventInviteNotificationView: View {
     
+    @Environment(\.router) var coordinator: Router
     var eventInvite: EventInvite
+    let currentUser: User
     
     var body: some View {
-        NavigationLink(value: NotificationDestination.eventDetails, label: {
+        Button(action: {
+//            coordinator.push(page: .eventDetailsPreview(currentUser: currentUser, eventId: eventInvite.eventId))
+        }, label: {
             HStack(spacing: 15) {
                 ThumbnailProfileImageView(profileImage: eventInvite.senderProfileImage, displayName: eventInvite.senderName)
                     .alignmentGuide(.listRowSeparatorLeading) {
@@ -173,14 +182,15 @@ struct BlendInviteNotificationView: View {
 struct NotificationCell: View {
     
     let notification: Notification
+    let currentUser: User
     
     var body: some View {
         switch notification.notificationPayload {
         case .friendRequest(let friendRequest):
-            FriendRequestNotificationView(friendRequest: friendRequest)
+            FriendRequestNotificationView(currentUser: currentUser, friendRequest: friendRequest)
             
         case .eventInvite(let eventInvite):
-            EventInviteNotificationView(eventInvite: eventInvite)
+            EventInviteNotificationView(eventInvite: eventInvite, currentUser: currentUser)
             
         case .blendInvite(let blendInvite):
             BlendInviteNotificationView(blendInvite: blendInvite)
@@ -201,10 +211,10 @@ struct NotificationsView: View {
     
     @Environment(\.dismiss) var dismiss
     
-    @StateObject var notificationViewModel: NotificationViewModel
+    @StateObject var vm: NotificationViewModel
     
     init(currentUser: User) {
-        _notificationViewModel = StateObject(wrappedValue: NotificationViewModel(currentUser: currentUser))
+        _vm = StateObject(wrappedValue: NotificationViewModel(currentUser: currentUser))
     }
     
     func formattedDayString(from date: Date) -> String {
@@ -218,7 +228,7 @@ struct NotificationsView: View {
     }
     
     func delete(at offsets: IndexSet) {
-        notificationViewModel.notifications.remove(atOffsets: offsets)
+        vm.notifications.remove(atOffsets: offsets)
     }
     
     var body: some View {
@@ -226,10 +236,10 @@ struct NotificationsView: View {
             Color("BackgroundColor")
                 .ignoresSafeArea()
             
-            if notificationViewModel.isLoading {
+            if vm.isLoading {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            } else if let error = notificationViewModel.errorMessage {
+            } else if let error = vm.errorMessage {
                 Text(error)
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -239,7 +249,7 @@ struct NotificationsView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
-            } else if notificationViewModel.notifications.isEmpty {
+            } else if vm.notifications.isEmpty {
                 Text("You have no new notifications.")
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -251,13 +261,13 @@ struct NotificationsView: View {
                     .padding(.horizontal)
             } else {
                 List {
-                    ForEach(notificationViewModel.notifications, id: \.id) { notification in
-                        if notificationViewModel.notifications.first == notification {
-                            NotificationCell(notification: notification)
+                    ForEach(vm.notifications, id: \.id) { notification in
+                        if vm.notifications.first == notification {
+                            NotificationCell(notification: notification, currentUser: vm.currentUser)
                                 .listRowSeparator(.hidden, edges: .top)
                                 .listRowBackground(Color.clear)
                         } else {
-                            NotificationCell(notification: notification)
+                            NotificationCell(notification: notification, currentUser: vm.currentUser)
                                 .listRowBackground(Color.clear)
                             
                         }
@@ -267,43 +277,17 @@ struct NotificationsView: View {
                 .listStyle(.plain)
                 .scrollDismissesKeyboard(.immediately)
                 .refreshable {
-                    await notificationViewModel.fetchNotifications()
+                    await vm.fetchNotifications()
                 }
             }
         }
-        .navigationDestination(for: NotificationDestination.self) { destination in
-            switch destination {
-            case .profileView(let user):
-                ProfileView(currentUser: notificationViewModel.currentUser, profileUser: user, preferBackButton: true)
-            case .eventDetails:
-                EmptyView()
-            case .blendDetails:
-                EmptyView()
-            }
-        }
+        .ignoresSafeArea(edges: .bottom)
         .task {
-            await notificationViewModel.fetchNotifications()
+            await vm.fetchNotifications()
         }
         .navigationBarBackButtonHidden(false)
-        .toolbar {
-            if #available(iOS 26.0, *) {
-                ToolbarItem(placement: .subtitle) {
-                    Text("Notifications")
-                        .foregroundStyle(Color("PrimaryText"))
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .fontDesign(.monospaced)
-                }
-            } else {
-                ToolbarItem(placement: .title) {
-                    Text("Notifications")
-                        .foregroundStyle(Color("PrimaryText"))
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .fontDesign(.monospaced)
-                }
-            }
-        }
+        .navigationTitle("Notifications")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

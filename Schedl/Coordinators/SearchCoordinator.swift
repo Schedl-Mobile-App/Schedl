@@ -7,26 +7,6 @@
 
 import SwiftUI
 
-enum SearchCoordinatorPage: Hashable, View {
-    case search(currentUser: User)
-    case profile(currentUser: User, profileUser: User, prefersBackButton: Bool)
-    case eventDetails(event: RecurringEvents, currentUser: User, scheduleId: String)
-    case editEvent(vm: EventViewModel)
-    
-    var body: some View {
-        switch self {
-        case .search(let user):
-            SearchView(currentUser: user)
-        case .profile(let currentUser, let profileUser, let prefersBackButton):
-            ProfileView(currentUser: currentUser, profileUser: profileUser, preferBackButton: prefersBackButton)
-        case .eventDetails(let event, let user, let scheduleId):
-            FullEventDetailsView(recurringEvent: event, currentUser: user, currentScheduleId: scheduleId)
-        case .editEvent(let vm):
-            EditEventView(vm: vm)
-        }
-    }
-}
-
 enum SearchCoordinatorSheet: Identifiable, View {
     case editProfile(vm: ProfileViewModel)
     
@@ -45,50 +25,44 @@ enum SearchCoordinatorSheet: Identifiable, View {
     }
 }
 
-extension EnvironmentValues {
-    @Entry var searchCoordinator = SearchCoordinator()
-}
-
 @Observable
-class SearchCoordinator {
+class SearchCoordinator: Router {
     var path = NavigationPath()
     
-    var sheet: SearchCoordinatorSheet?
-    
-    func push(page: SearchCoordinatorPage) {
-        path.append(page)
-    }
-    
-    func pop(_ last: Int = 1) {
-        path.removeLast(last)
-    }
-    
-    func popToRoot() {
-        path.removeLast(path.count)
-    }
-    
-    func present(sheet: SearchCoordinatorSheet) {
-        self.sheet = sheet
-    }
-    
-    func dismissSheet() {
-        self.sheet = nil
-    }
+    var sheet: SheetDestination?
+    var cover: CoverDestination?
 }
 
 struct SearchCoordinatorView: View {
     
+    @Environment(\.tabBar) var tabBar: TabBarViewModel
     @State private var coordinator = SearchCoordinator()
     var currentUser: User
     
     var body: some View {
         NavigationStack(path: $coordinator.path) {
-            SearchCoordinatorPage.search(currentUser: currentUser)
-                .navigationDestination(for: SearchCoordinatorPage.self) { $0 }
+            PageDestination.search(currentUser: currentUser)
+                .navigationDestination(for: PageDestination.self) { destination in
+                    if destination.shouldHideTabbar {
+                        tabBar.isTabBarHidden = true
+                    } else {
+                        tabBar.isTabBarHidden = false
+                    }
+                    return destination
+                }
                 .sheet(item: $coordinator.sheet) { $0 }
-                
+                .fullScreenCover(item: $coordinator.cover) { $0 }
+                .onAppear {
+                    tabBar.isTabBarHidden = false
+                }
+//                .onDisappear {
+//                    if !coordinator.path.isEmpty {
+//                        tabBar.isTabBarHidden = true
+//                    }
+//                }
         }
-        .environment(\.searchCoordinator, coordinator)
+        .toolbar(tabBar.isTabBarHidden ? .hidden : .visible, for: .tabBar)
+        .environment(\.router, coordinator)
     }
 }
 

@@ -1,98 +1,94 @@
 import SwiftUI
 
-@Observable
-class TabBarState {
-    var hideTabbar: Bool = false
+enum currentTabItem {
+    case feed, schedule, profile, search
 }
 
 struct MainTabBarView: View {
     
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject private var vm: AuthViewModel
+    @State private var currentTab: currentTabItem = .feed
     
     var body: some View {
-        if let user = authViewModel.currentUser {
-            TabView {
-                if #available(iOS 26.0, *) {
-                    Tab("Feed", systemImage: "house") {
-                        NavigationStack {
-                            FeedView(currentUser: user)
-                        }
-                    }
-                } else {
-                    Tab("Feed", systemImage: "house") {
-                        NavigationStack {
-                            FeedView(currentUser: user)
-                        }
-                    }
+        if let user = vm.currentUser {
+            TabView(selection: $currentTab) {
+                Tab("Feed", systemImage: "house", value: .feed) {
+                    FeedCoordinatorView(currentUser: user)
                 }
                 
-                Tab("Schedule", systemImage: "calendar") {
-                    SchedulesCoordinatorView(currentUser: user)
+                Tab("Schedule", systemImage: "calendar", value: .schedule) {
+                    CalendarYearView(currentUser: user, centerYear: createCenterYear())
+                        .ignoresSafeArea(edges: [.bottom, .top])
                 }
                 
                 if #available(iOS 26.0, *) {
-                    Tab("Profile", systemImage: "person") {
+                    Tab("Profile", systemImage: "person", value: .profile) {
                         ProfileCoordinatorView(currentUser: user, profileUser: user, prefersBackButton: false)
                     }
                     
-                    Tab("Search", systemImage: "magnifyingglass", role: .search) {
+                    Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
                         SearchCoordinatorView(currentUser: user)
                     }
                 } else {
-                    Tab("Search", systemImage: "magnifyingglass", role: .search) {
+                    Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
                         SearchCoordinatorView(currentUser: user)
                     }
                     
-                    Tab("Profile", systemImage: "person") {
+                    Tab("Profile", systemImage: "person", value: .profile) {
                         ProfileCoordinatorView(currentUser: user, profileUser: user, prefersBackButton: false)
                     }
                 }
             }
             .tint(Color("AccentColor"))
             .navigationBarBackButtonHidden(true)
-            .modifier(TabbarViewModifier())
+            .modifier(TabbarViewModifier(currentTab: currentTab))
         } else {
             LoginView()
         }
     }
+    
+        func createCenterYear() -> Date {
+            let yearComponent = Calendar.current.dateComponents([.year], from: Date())
+            return Calendar.current.date(from: yearComponent)!
+        }
 }
 
 
 struct TabbarViewModifier: ViewModifier {
+    
+    @Environment(\.tabBar) var tabBar: TabBarViewModel
+    var currentTab: currentTabItem
+    
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content
+                .tabViewStyle(.sidebarAdaptable)
                 .tabBarMinimizeBehavior(.onScrollDown)
+                .tabViewBottomAccessory(content: {
+                    switch currentTab {
+                    case .feed:
+                        EmptyView()
+                    case .schedule:
+                        if tabBar.isTabBarHidden {
+                            EmptyView()
+                        } else {
+                            Button(action: {
+                                
+                            }, label: {
+                                Text("David's Schedule")
+                                    .fontWeight(.semibold)
+                                    .font(.headline)
+                            })
+                        }
+                    case .profile:
+                        EmptyView()
+                    case .search:
+                        EmptyView()
+                    }
+                })
         } else {
             content
-                .onAppear {
-                    setupTabBarAppearance()
-                }
         }
-    }
-    
-    private func setupTabBarAppearance(transparentBackground: Bool = false) {
-        let tabBarAppearance = UITabBarAppearance()
-        tabBarAppearance.configureWithOpaqueBackground()
-        tabBarAppearance.backgroundColor = UIColor(Color("BackgroundColor"))
-        tabBarAppearance.shadowColor = nil
-        tabBarAppearance.shadowImage = nil
-        
-        let navBarAppearance = UINavigationBarAppearance()
-        navBarAppearance.configureWithOpaqueBackground()
-        navBarAppearance.backgroundColor = UIColor(Color("BackgroundColor"))
-        navBarAppearance.shadowColor = nil
-        navBarAppearance.shadowImage = nil
-        
-        let compactAppearance = UINavigationBarAppearance()
-        compactAppearance.configureWithTransparentBackground()
-        
-        UITabBar.appearance().standardAppearance = tabBarAppearance
-        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
-        
-        UINavigationBar.appearance().standardAppearance = navBarAppearance
-        UINavigationBar.appearance().compactScrollEdgeAppearance = compactAppearance
-        UINavigationBar.appearance().scrollEdgeAppearance = compactAppearance
     }
 }
 

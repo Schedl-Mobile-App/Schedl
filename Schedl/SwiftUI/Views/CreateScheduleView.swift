@@ -67,13 +67,6 @@ struct CreateScheduleView: View {
             .defaultScrollAnchor(.top, for: .initialOffset)
             .scrollDismissesKeyboard(.immediately)
         }
-//        .onAppear {
-//            shouldReloadData = false
-//            tabBarState.hideTabbar = true
-//        }
-//        .onDisappear {
-//            shouldReloadData = true
-//        }
         .navigationBarBackButtonHidden(false)
         .toolbar {
             ToolbarItem(placement: .principal) {

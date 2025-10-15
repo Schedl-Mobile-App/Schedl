@@ -40,6 +40,46 @@ struct PostLaunchScreenLoadingView: View {
     }
 }
 
-#Preview {
-    PostLaunchScreenLoadingView()
-}
+//#Preview {
+//    ClockView()
+//}
+//
+//import SwiftUI
+//
+//struct ClockView: View {
+//    var body: some View {
+//        TimelineView(.animation) { timeline in
+//            let date = timeline.date
+//            
+//            Canvas { context, size in
+//                let center = CGPoint(x: size.width / 2, y: size.height / 2)
+//                
+//                // Draw clock face
+//                context.stroke(
+//                    Path { path in
+//                        path.addEllipse(in: CGRect(x: 0, y: 0, width: size.width, height: size.height))
+//                    },
+//                    with: .color(.gray),
+//                    lineWidth: 2
+//                )
+//                
+//                // Calculate second hand angle
+//                let calendar = Calendar.current
+//                let seconds = Double(calendar.component(.second, from: date))
+//                
+//                let angle = Angle.degrees(seconds * 6)
+//                
+//                // Draw second hand
+//                var secondHand = Path()
+//                secondHand.move(to: center)
+//                secondHand.addLine(to: CGPoint(
+//                    x: center.x + cos(angle.radians - .pi/2) * (size.width / 2 - 10),
+//                    y: center.y + sin(angle.radians - .pi/2) * (size.height/ 2 - 10)
+//                ))
+//                
+//                context.stroke(secondHand, with: .color(.red), lineWidth: 2)
+//            }
+//        }
+//        .frame(width: 200, height: 200)
+//    }
+//}

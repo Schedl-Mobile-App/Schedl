@@ -73,9 +73,7 @@ class CollectionViewDaysHeader: UIView {
     
     // using a stack view since all time cells will be vertically stacked on top of one another
     let stackView = UIStackView()
-    
-    
-    
+    let dayLabelContainer = UIView()
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -108,74 +106,53 @@ class CollectionViewDaysHeader: UIView {
         let dayComponent = Calendar.current.dateComponents([.day], from: dateComponent)
         let actualDateComponent = Calendar.current.dateComponents([.weekday], from: dateComponent)
         
-//        let containerView = UIView()
-//        containerView.translatesAutoresizingMaskIntoConstraints = false
-//        containerView.backgroundColor = .clear
-        
         let borderedView: DayBorderedCellView = {
             let view = DayBorderedCellView()
             view.translatesAutoresizingMaskIntoConstraints = false
             return view
         }()
         
-        
-        let dayLabel = UILabel()
-        dayLabel.text = "\(dayComponent.day ?? 0)"
-        dayLabel.textColor = UIColor(Color("ScheduleSecondaryText"))
-        dayLabel.translatesAutoresizingMaskIntoConstraints = false
-        dayLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 16, weight: .heavy)
-        dayLabel.tag = 1
+        let dateContainer = UIStackView()
+        dateContainer.axis = .vertical
+        dateContainer.distribution = .fillEqually
+        dateContainer.alignment = .leading
+        dateContainer.translatesAutoresizingMaskIntoConstraints = false
         
         let dateLabel = UILabel()
+        if Calendar.current.startOfDay(for: Date.now) == dateComponent {
+            dateLabel.textColor = .red
+        } else {
+            dateLabel.textColor = UIColor(Color("ScheduleSecondaryText"))
+        }
         dateLabel.text = "\(weekList[actualDateComponent.weekday ?? 0] ?? "")"
-        dateLabel.textColor = UIColor(Color("ScheduleSecondaryText"))
         dateLabel.translatesAutoresizingMaskIntoConstraints = false
         dateLabel.font = UIFont.monospacedSystemFont(ofSize: 13, weight: .semibold)
         dateLabel.tag = 2
         
-        let dateContainer = UIStackView()
-        dateContainer.axis = .vertical
-        dateContainer.distribution = .fillEqually
-        dateContainer.translatesAutoresizingMaskIntoConstraints = false
-        
         dateContainer.addArrangedSubview(dateLabel)
+        
+        let dayLabel = UILabel()
+        dayLabel.text = "\(dayComponent.day ?? 0)"
+        dayLabel.translatesAutoresizingMaskIntoConstraints = false
+        dayLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 16, weight: .heavy)
+        dayLabel.tag = 1
+        
+        if Calendar.current.startOfDay(for: Date.now) == dateComponent {
+            dayLabel.textColor = .red
+        } else {
+            dayLabel.textColor = UIColor(Color("ScheduleSecondaryText"))
+        }
+        
         dateContainer.addArrangedSubview(dayLabel)
         
         borderedView.addSubview(dateContainer)
         borderedView.bringSubviewToFront(dateContainer)
 
-//        containerView.addSubview(dateContainer)
-        
-//        let bottomBorderWidth: CGFloat = 1
-//        let sideBorderWidth: CGFloat = 0.5
-        
-        // Setup constraints
         NSLayoutConstraint.activate([
-            
-            // Label fills container
             dateContainer.topAnchor.constraint(equalTo: borderedView.topAnchor, constant: 10),
             dateContainer.bottomAnchor.constraint(equalTo: borderedView.bottomAnchor, constant: -10),
             dateContainer.leadingAnchor.constraint(equalTo: borderedView.leadingAnchor, constant: 10),
             dateContainer.trailingAnchor.constraint(equalTo: borderedView.trailingAnchor),
-            
-            
-//            // Left border
-//            leftBorder.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 10),
-//            leftBorder.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-//            leftBorder.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-//            leftBorder.widthAnchor.constraint(equalToConstant: sideBorderWidth),
-//            
-//            // Right border
-//            rightBorder.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 10),
-//            rightBorder.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-//            rightBorder.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-//            rightBorder.widthAnchor.constraint(equalToConstant: sideBorderWidth),
-//            
-//            // Bottom border
-//            bottomBorder.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-//            bottomBorder.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-//            bottomBorder.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-//            bottomBorder.heightAnchor.constraint(equalToConstant: bottomBorderWidth)
         ])
         
         return borderedView

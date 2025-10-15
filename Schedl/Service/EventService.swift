@@ -86,33 +86,18 @@ class EventService: EventServiceProtocol {
         }
     }
         
-    func createEvent(userId: String, title: String, startDate: Double, startTime: Double, endTime: Double, location: MTPlacemark, color: String, notes: String, taggedUsers: [InvitedUser], endDate: Double?, repeatedDays: Set<Int>?, scheduleId: String) async throws {
+    func createEvent(userId: String, title: String, startDate: Date, startTime: Int, endTime: Int, location: MTPlacemark, color: String, recurrence: RecurrenceRule?, notes: String?, invitedUsers: [InvitedUser]?, scheduleId: String) async throws {
         
         do {
             let eventsRef = fs.collection("events").document()
             
-            let eventObj = Event(
-                id: eventsRef.documentID,
-                ownerId: userId,
-                title: title,
-                startDate: startDate,
-                startTime: startTime,
-                endTime: endTime,
-                locationName: location.name,
-                locationAddress: location.address,
-                latitude: location.latitude,
-                longitude: location.longitude,
-                invitedUsers: taggedUsers,
-                color: color,
-                notes: notes,
-                endDate: endDate,
-                repeatingDays: repeatedDays ?? []
-            )
+            let eventObj = Event(id: eventsRef.documentID, ownerId: userId, title: title, startDate: startDate, startTime: startTime, endTime: endTime, location: location, color: color, invitedUsers: invitedUsers, recurrence: recurrence, notes: notes)
             
             try eventsRef.setData(from: eventObj)
             
             let scheduleIds = [scheduleId]
-            let dict: [String: Any] = ["scheduleIds": scheduleIds]
+            let createdAt = FieldValue.serverTimestamp()
+            let dict: [String: Any] = ["scheduleIds": scheduleIds, "createdAt": createdAt]
             try await eventsRef.setData(dict, merge: true)
             
         } catch {

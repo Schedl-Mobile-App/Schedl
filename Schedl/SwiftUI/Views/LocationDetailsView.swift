@@ -10,46 +10,26 @@ import MapKit
 
 struct LocationDetailView: View {
     
-    @Environment(\.router) var coordinator: Router
-    @Binding var selectedPlacemark: MTPlacemark?
-    var detailPlacemark: MTPlacemark
-    @State var name: String = ""
-    @State var address: String = ""
-    @State var lookaroundScene: MKLookAroundScene?
     @Environment(\.dismiss) var dismiss
     
-    var isChanged: Bool {
-        guard let selectedPlacemark else { return false }
-        return name != selectedPlacemark.name || address != selectedPlacemark.address
-    }
+    @Binding var selectedPlacemark: MTPlacemark?
+    var detailPlacemark: MTPlacemark
+    @State var lookaroundScene: MKLookAroundScene?
     
     var body: some View {
         VStack(spacing: 15) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading) {
-                    Text(selectedPlacemark?.name ?? "")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .fontDesign(.rounded)
-                        .foregroundStyle(Color("PrimaryText"))
-                    Text(selectedPlacemark?.address ?? "")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    
-                }
-                
-                Spacer()
-                
-                Button(action: {
-                    coordinator.dismissSheet()
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .imageScale(.large)
-                        .foregroundStyle(Color("IconColors"))
-                }
+            VStack(alignment: .leading) {
+                Text(detailPlacemark.name)
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .fontDesign(.rounded)
+                    .foregroundStyle(Color("PrimaryText"))
+                Text(detailPlacemark.address)
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top)
             
             if let scene = lookaroundScene {
@@ -60,20 +40,11 @@ struct LocationDetailView: View {
                 ContentUnavailableView("No preview available", systemImage: "eye.slash")
             }
             
-            Button(action: {
-                if selectedPlacemark == nil {
-                    if let selectedPlacemark {
-                        let placemark = MKPlacemark(coordinate: selectedPlacemark.coordinate)
-                        let mapItem = MKMapItem(placemark: placemark)
-                        mapItem.name = selectedPlacemark.name
-                        mapItem.openInMaps()
-                    }
-                } else {
+            if #available(iOS 26.0, *) {
+                Button(action: {
                     selectedPlacemark = detailPlacemark
-                    coordinator.dismissSheet()
-                }
-            }) {
-                if selectedPlacemark == nil {
+                    dismiss()
+                }) {
                     HStack(spacing: 6) {
                         Image(systemName: "location.fill")
                             .imageScale(.medium)
@@ -83,54 +54,47 @@ struct LocationDetailView: View {
                     .fontWeight(.bold)
                     .fontDesign(.monospaced)
                     .tracking(-0.25)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Color.white)
+                    .lineLimit(1)
                     .padding()
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 15)
-                            .fill(Color("ButtonColors"))
-                    )
-                } else {
+                }
+                .glassEffect(.regular.tint(Color("ButtonColors")).interactive(), in: .capsule)
+                
+            } else {
+                Button(action: {
+                    selectedPlacemark = detailPlacemark
+                    dismiss()
+                }) {
                     HStack(spacing: 6) {
-                        Image(systemName: "map")
+                        Image(systemName: "location.fill")
                             .imageScale(.medium)
-                        Text("Open in Maps")
+                        Text("Select Location")
                     }
                     .font(.subheadline)
                     .fontWeight(.bold)
                     .fontDesign(.monospaced)
                     .tracking(-0.25)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Color(hex: 0xf7f4f2))
+                    .lineLimit(1)
                     .padding()
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 15)
-                            .fill(Color("ButtonColors"))
-                    )
                 }
+                .buttonStyle(.borderless)
+                .background(Color("ButtonColors"), in: .capsule)
             }
         }
         .padding()
-        .task(id: selectedPlacemark) {
+        .task {
             await fetchLookAroundPreview()
-        }
-        .onAppear {
-            if let selectedPlacemark = self.selectedPlacemark {
-                name = selectedPlacemark.name
-                address = selectedPlacemark.address
-            }
         }
         .presentationDetents([.medium])
     }
     
     func fetchLookAroundPreview() async {
-        if let selectedPlacemark {
-            lookaroundScene = nil
-            let lookaroundRequest = MKLookAroundSceneRequest(coordinate: selectedPlacemark.coordinate)
-            lookaroundScene = try? await lookaroundRequest.scene
-        }
+        lookaroundScene = nil
+        let lookaroundRequest = MKLookAroundSceneRequest(coordinate: detailPlacemark.coordinate)
+        lookaroundScene = try? await lookaroundRequest.scene
     }
 }
 

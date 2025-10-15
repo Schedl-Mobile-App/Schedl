@@ -34,13 +34,14 @@ class ProfileViewModel: ObservableObject, Hashable, Equatable {
     
     @Published var posts: [Post] = []
     
-    @Published var allEvents: [RecurringEvents] = []
-    @Published var pastEvents: [RecurringEvents] = []
-    @Published var invitedEvents: [RecurringEvents] = []
-    @Published var currentEvents: [RecurringEvents] = []
+    @Published var allEvents: [EventOccurrence] = []
+    @Published var pastEvents: [EventOccurrence] = []
+    @Published var invitedEvents: [EventOccurrence] = []
+    @Published var currentEvents: [EventOccurrence] = []
     
-    @Published var partitionedEvents: [Double : [RecurringEvents]] = [:]
-    @Published var selectedTab: ProfileTab = .schedules
+    @Published var partitionedEvents: [Date : [EventOccurrence]] = [:]
+    @Published var profileViewType: ProfileTab = .events
+    @Published var profileEventViewType: ProfileEventType = .upcoming
     
     @Published var selectedImage: UIImage? = nil
     
@@ -54,6 +55,8 @@ class ProfileViewModel: ObservableObject, Hashable, Equatable {
     var showProfileDetails: Bool {
         isCurrentUser || isViewingFriend
     }
+    
+    var hasLoaded = false
     
     private var userService: UserServiceProtocol
     private var scheduleService: ScheduleServiceProtocol
@@ -75,10 +78,15 @@ class ProfileViewModel: ObservableObject, Hashable, Equatable {
     }
     
     func returnSelectedOptionIndex() -> Int {
-        if let index = tabOptions.firstIndex(of: selectedTab) {
+        if let index = tabOptions.firstIndex(of: profileViewType) {
             return index
         }
         return 0
+    }
+    
+    func getEventViewTypeIndex() -> Int {
+        let index = ProfileEventType.allCases.firstIndex(of: profileEventViewType) ?? 0
+        return index
     }
     
     func getFirstName() -> String {
@@ -114,6 +122,7 @@ class ProfileViewModel: ObservableObject, Hashable, Equatable {
     
     @MainActor
     func loadProfileData() async {
+        guard !hasLoaded else { return }
         self.isLoading = true
         
         self.errorMessage = nil
@@ -136,6 +145,7 @@ class ProfileViewModel: ObservableObject, Hashable, Equatable {
         await fetchEvents()
         await fetchTabInfo()
         
+        hasLoaded = true
         self.isLoading = false
     }
     
@@ -175,7 +185,7 @@ class ProfileViewModel: ObservableObject, Hashable, Equatable {
         let postsAlreadyFetched: Bool = posts.isEmpty == false
         
         do {
-            switch self.selectedTab {
+            switch self.profileViewType {
             case .schedules:
                 if !scheduleAlreadyFetched {
                     await fetchEvents()
@@ -206,43 +216,27 @@ class ProfileViewModel: ObservableObject, Hashable, Equatable {
         }
     }
     
-    func parseRecurringEvents(event: Event) -> [RecurringEvents] {
-        let calendar = Calendar.current
-        guard let repeatedDays: Set<Int> = event.repeatingDays, !repeatedDays.isEmpty, let endDate = event.endDate else {
-            return [RecurringEvents(date: event.startDate, event: event)]
+    func parseRecurringEvents(for event: Event) -> [EventOccurrence] {        
+        guard let rule = event.recurrence, let endDate = rule.endDate else {
+            return [EventOccurrence(recurringDate: event.startDate, event: event)]
         }
-        var generatedEvents: [RecurringEvents] = []
-        var cursor = Date(timeIntervalSince1970: event.startDate)
-        let finalDate = Date(timeIntervalSince1970: endDate)
-        while cursor <= finalDate {
-            let weekIndex = calendar.component(.weekday, from: cursor) - 1
-            if repeatedDays.contains(weekIndex) {
-                let cursorTimeInterval = cursor.timeIntervalSince1970
-                let eventForThisDay = event
-                generatedEvents.append(RecurringEvents(date: cursorTimeInterval, event: eventForThisDay))
+                
+        var occurrences: [EventOccurrence] = []
+        var cursorDate = event.startDate
+        
+        while cursorDate <= endDate {
+            let weekday = Calendar.current.component(.weekday, from: cursorDate)
+            
+            if let repeatingDays = rule.repeatingDays, repeatingDays.contains(weekday) {
+                occurrences.append(EventOccurrence(recurringDate: cursorDate, event: event))
             }
-            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
-            cursor = nextDay
+            
+            // Safely advance to the next day.
+            guard let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: cursorDate) else { break }
+            cursorDate = nextDay
         }
-        return generatedEvents
-    }
-
-    private func createEventInstance(from baseEvent: Event, with exception: EventException) -> Event {
-        return Event(
-            id: baseEvent.id,
-            ownerId: baseEvent.ownerId,
-            title: exception.title ?? baseEvent.title,
-            startDate: baseEvent.startDate,
-            startTime: exception.startTime ?? baseEvent.startTime,
-            endTime: exception.endTime ?? baseEvent.endTime,
-            locationName: exception.locationName ?? baseEvent.location.name,
-            locationAddress: exception.locationAddress ?? baseEvent.location.address,
-            latitude: exception.latitude ?? baseEvent.location.latitude,
-            longitude: exception.longitude ?? baseEvent.location.longitude,
-            invitedUsers: baseEvent.invitedUsers,
-            color: exception.color ?? baseEvent.color,
-            notes: exception.notes ?? baseEvent.notes
-        )
+        
+        return occurrences
     }
     
     @MainActor
@@ -250,57 +244,39 @@ class ProfileViewModel: ObservableObject, Hashable, Equatable {
         do {
             guard let schedule = self.currentSchedule else { return }
             
-            let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: schedule.id)
+            let rawEvents = try await eventService.fetchEventsByScheduleId(scheduleId: schedule.id)
             
-            var formattedEvents: [RecurringEvents] = []
-            for event in allEvents {
-                formattedEvents.append(contentsOf: parseRecurringEvents(event: event))
+            var allOccurrences: [EventOccurrence] = []
+            for event in rawEvents {
+                allOccurrences.append(contentsOf: parseRecurringEvents(for: event))
             }
             
-            let currentDay = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
-            
-            self.allEvents = formattedEvents.sorted {
-                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
+            let sorter: (EventOccurrence, EventOccurrence) -> Bool = { o1, o2 in
+                let dayComparison = Calendar.current.compare(o1.recurringDate, to: o2.recurringDate, toGranularity: .day)
                 if dayComparison != .orderedSame {
                     return dayComparison == .orderedAscending
                 }
-                return $0.event.startTime < $1.event.startTime
+                return o1.event.startTime < o2.event.startTime
             }
             
-            self.pastEvents = formattedEvents.filter { $0.date < currentDay }.sorted {
-                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
-                if dayComparison != .orderedSame {
-                    return dayComparison == .orderedDescending
-                }
-                return $0.event.startTime < $1.event.startTime
+            allOccurrences.sort(by: sorter)
+            
+            let today = Calendar.current.startOfDay(for: Date())
+            self.allEvents = allOccurrences
+            self.currentEvents = allOccurrences.filter { $0.recurringDate >= today }
+            self.pastEvents = allOccurrences.filter { $0.recurringDate < today }.reversed()
+            self.invitedEvents = allOccurrences.filter { $0.event.ownerId != self.profileUser.id }
+            
+            let rawGroups = Dictionary(grouping: self.currentEvents) { event in
+                return Calendar.current.startOfDay(for: event.recurringDate)
             }
-            self.invitedEvents = formattedEvents.filter { $0.event.ownerId != self.profileUser.id }.sorted {
-                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
-                if dayComparison != .orderedSame {
-                    return dayComparison == .orderedAscending
-                }
-                return $0.event.startTime < $1.event.startTime
-            }
-            self.currentEvents = formattedEvents.filter{ $0.date >= currentDay }.sorted {
-                let dayComparison = Calendar.current.compare(Date(timeIntervalSince1970: $0.date), to: Date(timeIntervalSince1970: $1.date), toGranularity: .day)
-                if dayComparison != .orderedSame {
-                    return dayComparison == .orderedAscending
-                }
-                return $0.event.startTime < $1.event.startTime
-            }
-            let rawGroups = Dictionary(
-                grouping: currentEvents,
-                by: \.date
-            )
-            self.partitionedEvents = rawGroups.mapValues { recurringEvent in
-                recurringEvent.sorted { $0.event.startTime < $1.event.startTime }
-            }
+            self.partitionedEvents = rawGroups
+            
         } catch {
             self.errorMessage = "Failed to fetch events. Please try again."
         }
     }
     
-    // used within the sheet view that can be presented from the profile view to edit profile info
     @MainActor
     func updateUserProfile() async {
         self.errorMessage = nil
@@ -338,6 +314,10 @@ class ProfileViewModel: ObservableObject, Hashable, Equatable {
             self.errorMessage = "Something went wrong while fetching posts. Please try again later."
             self.isLoading = false
         }
+    }
+    
+    deinit {
+        print("Being cleaned up")
     }
 }
 

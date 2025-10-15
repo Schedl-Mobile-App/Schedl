@@ -9,7 +9,7 @@ import SwiftUI
 
 struct WelcomeView: View {
     
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject private var authVM: AuthViewModel
     @State var shouldNavigate: Bool = false
     @FocusState var isFocused: AccountInfoFields?
     @State var keyboardHeight: CGFloat = 0
@@ -82,7 +82,7 @@ struct WelcomeView: View {
                             passwordError = "Password is required"
                             isValid = false
                         } else {
-                            let result = authViewModel.isValidPassword(password!)
+                            let result = authVM.isValidPassword(password!)
                             if result != nil {
                                 passwordError = result!
                                 isValid = false
@@ -98,7 +98,7 @@ struct WelcomeView: View {
                     guard let username = username, let displayName = displayName, let email = email, let password = password else { return }
                     
                     Task {
-                        await authViewModel.signUp(username: username, displayName: displayName, email: email, password: password)
+                        await authVM.signUp(username: username, displayName: displayName, email: email, password: password)
                     }
                 }, label: {
                     Text("Sign Up")
@@ -142,7 +142,7 @@ struct WelcomeView: View {
                     displayNameError = ""
                     emailError = ""
                     passwordError = ""
-                    authViewModel.errorMessage = nil
+                    authVM.errorMessage = nil
                 }
             }
         }

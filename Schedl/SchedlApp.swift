@@ -7,6 +7,15 @@
 
 import SwiftUI
 
+@Observable
+class TabBarViewModel {
+    var isTabBarHidden: Bool = false
+}
+
+extension EnvironmentValues {
+    @Entry var tabBar = TabBarViewModel()
+}
+
 @main
 struct SchedlApp: App {
     
@@ -14,34 +23,39 @@ struct SchedlApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     
     // define an instance of our AuthViewModel to gain access to our log in functions
-    @StateObject private var authViewModel = AuthViewModel(hasOnboarded: UserDefaults.standard.hasOnboarded)
+    @StateObject private var vm = AuthViewModel(hasOnboarded: UserDefaults.standard.hasOnboarded)
+    @State private var tabBarState = TabBarViewModel()
     
     var body: some Scene {
         WindowGroup {
-            if !authViewModel.hasOnboarded {
+            if !vm.hasOnboarded {
                 NavigationStack {
                     OnboardingViewOne()
                 }
-                .environmentObject(authViewModel)
+                .environmentObject(vm)
+//                .environment(\.auth, vm)
             } else {
                 Group {
-                    if authViewModel.isLoadingLaunchScreen {
+                    if vm.isLoadingLaunchScreen {
                         PostLaunchScreenLoadingView()
                     } else {
-                        if !authViewModel.isLoggedIn {
+                        if !vm.isLoggedIn {
                             NavigationStack {
                                 WelcomeView()
                             }
-                            .environmentObject(authViewModel)
+                            .environmentObject(vm)
+                            .environment(\.tabBar, tabBarState)
                         } else {
                             MainTabBarView()
-                                .environmentObject(authViewModel)
+                                .environmentObject(vm)
+                                .environment(\.tabBar, tabBarState)
                         }
                     }
                 }
                 .task {
-                    await authViewModel.persistentLogin()
+                    await vm.persistentLogin()
                 }
+                
             }
         }
     }

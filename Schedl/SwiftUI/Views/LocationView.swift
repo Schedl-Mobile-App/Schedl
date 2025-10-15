@@ -8,6 +8,20 @@
 import SwiftUI
 import MapKit
 
+enum LocationSheetType: Identifiable {
+    case search
+    case detail(placemark: MTPlacemark)
+    
+    var id: String {
+        switch self {
+        case .search:
+            return "search"
+        case .detail:
+            return "detail"
+        }
+    }
+}
+
 struct LocationView: View {
     
     @Environment(\.router) var coordinator: Router
@@ -19,8 +33,7 @@ struct LocationView: View {
     @Binding var selectedPlacemark: MTPlacemark?
     @State private var detailPlacemark: MTPlacemark?
     
-    @State var showLocationSearchSheet = true
-    @State var showLocationDetailSheet = false
+    @State private var currentSheet: LocationSheetType? = .search
     
     let manager = LocationManager()
     
@@ -52,17 +65,14 @@ struct LocationView: View {
                 }
                 .onChange(of: detailPlacemark) { oldValue, newValue in
                     if let newValue = newValue {
-                        detailPlacemark = newValue
-                        
-                        showLocationDetailSheet = true
-                        
-//                        // to dismiss the always visible search sheet
-//                        coordinator.dismissSheet()
-//                        coordinator.present(sheet: .locationDetail(detailPlacemark: newValue, selectedPlacemark: $selectedPlacemark))
-                    } else {
-                        showLocationDetailSheet = false
+                        currentSheet = .detail(placemark: newValue)
                     }
                 }
+//                .onChange(of: $currentSheet) { oldValue, newValue in
+//                    if oldValue == .detail && newValue == nil {
+//                        
+//                    }
+//                }
                 .onAppear {
                     guard let coordinate = manager.userLocation?.coordinate else {
                         let userCenter = CLLocationCoordinate2D(latitude: 26.162073, longitude: -98.007771)
@@ -93,12 +103,18 @@ struct LocationView: View {
                         .disabled(selectedPlacemark == nil)
                     }
                 }
-                .sheet(isPresented: $showLocationSearchSheet) {
-                    MapSearchView(listPlacemarks: $listPlacemarks, visibleRegion: $visibleRegion, detailPlacemark: $detailPlacemark)
-                }
-                .sheet(isPresented: $showLocationDetailSheet) {
-                    if let detailPlacemark = detailPlacemark {
-                        LocationDetailView(selectedPlacemark: $selectedPlacemark, detailPlacemark: detailPlacemark)
+                .sheet(item: Binding<LocationSheetType?>(
+                    get: { currentSheet },
+                    set: { currentSheet = $0 ?? .search }
+                ), onDismiss: {
+                    detailPlacemark = nil
+                }) { sheetType in
+                    switch sheetType {
+                    case .search:
+                        MapSearchView(listPlacemarks: $listPlacemarks, visibleRegion: $visibleRegion, detailPlacemark: $detailPlacemark)
+                    case .detail(let placemark):
+                        LocationDetailView(selectedPlacemark: $selectedPlacemark, detailPlacemark: placemark)
+                        
                     }
                 }
             }

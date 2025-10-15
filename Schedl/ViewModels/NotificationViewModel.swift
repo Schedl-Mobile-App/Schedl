@@ -12,7 +12,6 @@ class NotificationViewModel: ObservableObject {
     
     var currentUser: User
     @Published var notifications: [Notification] = []
-//    @Published var parsedNotifications: [Date: [Notification]] = [:]
     @Published var friendRequests: [FriendRequest] = []
     @Published var showPopUp = false
     @Published var isLoading: Bool = false
@@ -36,8 +35,6 @@ class NotificationViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         do {
-//            guard let notifications = parsedNotifications[date] else { return }
-//            guard let notificationObj = notifications.first(where: { $0.id == id }) else { return }
             
             guard let notification = notifications.first(where: {$0.id == id }) else { return }
             
@@ -56,7 +53,6 @@ class NotificationViewModel: ObservableObject {
                 return
             }
                         
-//            notifications.removeAll(where: { $0.id == id })
             deleteNotification(id: id)
             
             self.isLoading = false
@@ -74,9 +70,6 @@ class NotificationViewModel: ObservableObject {
         do {
             let notificationData = try await notificationService.fetchAllNotifications(userId: currentUser.id)
             self.notifications = notificationData.sorted(by: { $0.createdAt > $1.createdAt })
-//            self.parsedNotifications = Dictionary(grouping: notificationData) { notification in
-//                return Calendar.current.startOfDay(for: notification.createdAt)
-//            }
             self.isLoading = false
         } catch {
             self.errorMessage = "Failed to fetch user notifications. Received Server Error: \(error.localizedDescription)"
@@ -85,16 +78,6 @@ class NotificationViewModel: ObservableObject {
     }
     
     func deleteNotification(id: String) {
-//        if let dateKey = self.parsedNotifications.first(where: { (_, value) in
-//            value.contains(where: { $0.id == id })
-//        })?.key {
-//            if let index = self.parsedNotifications[dateKey]?.firstIndex(where: { $0.id == id }) {
-//                self.parsedNotifications[dateKey]?.remove(at: index)
-//                if self.parsedNotifications[dateKey]?.isEmpty == true {
-//                    self.parsedNotifications.removeValue(forKey: dateKey)
-//                }
-//            }
-//        }
         notifications.removeAll(where: {$0.id == id })
     }
 }

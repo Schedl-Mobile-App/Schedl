@@ -11,7 +11,7 @@
           "value" : "light"
         }
       ],
-      "filename" : "custom_bakcgroundv91x.png",
+      "filename" : "white_backgroundv9-1.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
@@ -22,7 +22,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "custom_bakcgroundv10x1.png",
+      "filename" : "dark_backgroundv9-1.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
@@ -37,7 +37,7 @@
           "value" : "light"
         }
       ],
-      "filename" : "custom_bakcgroundv92x.png",
+      "filename" : "white_backgroundv9-2.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
@@ -48,7 +48,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "custom_bakcgroundv10x2.png",
+      "filename" : "dark_backgroundv9-2.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
@@ -63,22 +63,8 @@
           "value" : "light"
         }
       ],
-      "filename" : "custom_bakcgroundv93x.png",
+      "filename" : "white_backgroundv9-3.png",
       "idiom" : "universal",
-      "resizing" : {
-        "cap-insets" : {
-          "bottom" : 120,
-          "left" : 2879,
-          "right" : 2880,
-          "top" : 529
-        },
-        "center" : {
-          "height" : 1,
-          "mode" : "tile",
-          "width" : 1
-        },
-        "mode" : "9-part"
-      },
       "scale" : "3x"
     },
     {
@@ -88,7 +74,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "custom_bakcgroundv10x3.png",
+      "filename" : "dark_backgroundv9-3.png",
       "idiom" : "universal",
       "scale" : "3x"
     }
