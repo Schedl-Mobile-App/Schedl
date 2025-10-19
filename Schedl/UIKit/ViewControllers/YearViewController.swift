@@ -35,9 +35,8 @@ struct YearCalendarPreviewViewRepresentable: UIViewControllerRepresentable {
     }
 }
 
-struct MonthSection: Hashable {
-    let id = UUID()
-    let date: Date
+struct YearItem: Hashable {
+    let year: Date
     let month: Int
 }
 
@@ -49,12 +48,16 @@ class YearViewController: UIViewController, VCCoordinatorProtocol {
     private var centerDatePosition: CGFloat = 0
     private var cancellables: Set<AnyCancellable> = []
     
+    private var isLoadingData = false
+    
+    private var dataSource: UICollectionViewDiffableDataSource<Date, YearItem>!
+    
     let calendarTypeButton = UIButton()
     var searchController: UISearchController = {
         let searchController = UISearchController(searchResultsController: nil)
         searchController.obscuresBackgroundDuringPresentation = true
         searchController.searchBar.placeholder = "Search Events"
-        searchController.searchBar.sizeToFit()
+        searchController.hidesNavigationBarDuringPresentation = false
         return searchController
     }()
     
@@ -63,8 +66,13 @@ class YearViewController: UIViewController, VCCoordinatorProtocol {
     var centerYear: Date
     
     lazy var dates: [Date] = {
-        return (-300...300).map { index in
-            Calendar.current.date(byAdding: .year, value: index, to: centerYear)!
+        
+        let calendar = Calendar.current
+        let yearComponent = calendar.dateComponents([.year], from: centerYear)
+        let startOfCenterYear = calendar.date(from: yearComponent)!
+        
+        return (-10...10).map { index in
+            Calendar.current.date(byAdding: .year, value: index, to: startOfCenterYear)!
         }
     }()
     
@@ -83,13 +91,15 @@ class YearViewController: UIViewController, VCCoordinatorProtocol {
         view.backgroundColor = .systemBackground
         
         setupUI()
+        configureDataSource()
+        applySnapshot()
         setupPublishers()
-        
-        collectionView.delegate = self
-        collectionView.dataSource = self
         
         collectionView.register(MonthCellView.self, forCellWithReuseIdentifier: MonthCellView.identifier)
         collectionView.register(YearSectionHeaderView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: YearSectionHeaderView.identifier)
+        
+        collectionView.delegate = self
+        collectionView.prefetchDataSource = self
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -115,9 +125,61 @@ class YearViewController: UIViewController, VCCoordinatorProtocol {
     
     private func scrollToCurrentYear(_ animated: Bool) {
         // the section index for the current year is in the middle
-        let yearSection = dates.count / 2 - 1
+        let yearSection = dates.count / 2
         
-        collectionView.scrollToItem(at: IndexPath(row: 9, section: yearSection), at: .top, animated: animated)
+        collectionView.scrollToItem(at: IndexPath(row: 7, section: yearSection), at: .centeredVertically, animated: animated)
+    }
+    
+    private func configureDataSource() {
+        // 1. CELL PROVIDER
+        dataSource = UICollectionViewDiffableDataSource<Date, YearItem>(collectionView: collectionView) {
+            (collectionView, indexPath, monthIndex) -> UICollectionViewCell? in
+            
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: MonthCellView.identifier, for: indexPath) as! MonthCellView
+            
+            // Get the section identifier (the Date for the year)
+            let yearDate = self.dataSource.snapshot().sectionIdentifiers[indexPath.section]
+            
+            cell.configure(with: yearDate, for: monthIndex.month)
+            return cell
+        }
+
+        // 2. SUPPLEMENTARY VIEW PROVIDER (for the header)
+        dataSource.supplementaryViewProvider = { [weak self]
+            (collectionView, kind, indexPath) -> UICollectionReusableView? in
+            
+            guard let self = self else { return nil }
+            
+            let header = collectionView.dequeueReusableSupplementaryView(
+                ofKind: kind,
+                withReuseIdentifier: YearSectionHeaderView.identifier,
+                for: indexPath
+            ) as! YearSectionHeaderView
+            
+            let yearDate = self.dataSource.snapshot().sectionIdentifiers[indexPath.section]
+            let year = Calendar.current.component(.year, from: yearDate)
+            header.configure(with: year)
+            
+            return header
+        }
+    }
+    
+    private func applySnapshot() {
+        // 1. Create a new snapshot. The types must match your data source.
+        var snapshot = NSDiffableDataSourceSnapshot<Date, YearItem>()
+        
+        // 2. Add the sections using your `dates` array.
+        snapshot.appendSections(dates)
+        
+        // 3. Add items (months) to each section.
+        for yearDate in dates {
+            let months = Array(0..<12)
+            let monthItems = months.map { YearItem(year: yearDate, month: $0 ) }
+            snapshot.appendItems(monthItems, toSection: yearDate)
+        }
+        
+        // 4. Apply the snapshot to the data source to update the UI.
+        dataSource.apply(snapshot, animatingDifferences: false)
     }
     
     private func setupPublishers() {
@@ -125,7 +187,7 @@ class YearViewController: UIViewController, VCCoordinatorProtocol {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newValue in
                 if newValue {
-                    self?.scrollToCurrentYear(true)
+//                    self?.scrollToCurrentYear(true)
                     self?.coordinator?.vm.scrollToCurrentPosition = false
                 }
             }
@@ -164,7 +226,7 @@ class YearViewController: UIViewController, VCCoordinatorProtocol {
             )
             let item = NSCollectionLayoutItem(layoutSize: itemSize)
             // Add some padding around each month cell
-//            item.contentInsets = NSDirectionalEdgeInsets(top: 5, leading: 5, bottom: 5, trailing: 5)
+            item.contentInsets = NSDirectionalEdgeInsets(top: -10, leading: 0, bottom: -10, trailing: 0)
 
             // --- GROUP ---
             // This defines a horizontal row containing 3 month cells.
@@ -179,7 +241,7 @@ class YearViewController: UIViewController, VCCoordinatorProtocol {
             // --- SECTION ---
             // The section is made up of the repeating group.
             let section = NSCollectionLayoutSection(group: group)
-            section.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 15, bottom: 65, trailing: 15)
+            section.contentInsets = NSDirectionalEdgeInsets(top: 15, leading: 15, bottom: 55, trailing: 15)
             section.interGroupSpacing = 50
 
             let headerSize = NSCollectionLayoutSize(
@@ -213,43 +275,6 @@ class YearViewController: UIViewController, VCCoordinatorProtocol {
     }
 }
 
-extension YearViewController: UICollectionViewDataSource {
-    
-    func numberOfSections(in collectionView: UICollectionView) -> Int {
-        dates.count
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        12
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: MonthCellView.identifier, for: indexPath) as! MonthCellView
-        
-        let section = indexPath.section
-        let date = dates[section]
-        let monthIndex = indexPath.row
-        
-        cell.configure(with: date, for: monthIndex)
-        
-        return cell
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
-        
-        let supplementaryItem = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: YearSectionHeaderView.identifier, for: indexPath) as! YearSectionHeaderView
-        
-        let section = indexPath.section
-        
-        let date = dates[section]
-        let year = Calendar.current.component(.year, from: date)
-        
-        supplementaryItem.configure(with: year)
-        
-        return supplementaryItem
-    }
-}
-
 extension YearViewController: UICollectionViewDelegate {
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -265,7 +290,7 @@ extension YearViewController: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         collectionView.deselectItem(at: indexPath, animated: true)
         
-        let year = dates[indexPath.section]
+        guard let year = dataSource.sectionIdentifier(for: indexPath.section) else { return }
         let yearComponent = Calendar.current.component(.year, from: year)
         let monthComponent = indexPath.item + 1
         
@@ -278,18 +303,41 @@ extension YearViewController: UICollectionViewDelegate {
         monthViewController.restorationIdentifier = "MonthViewController"
 
         monthViewController.preferredTransition = .zoom(sourceViewProvider: { context in
-            // Use the context instead of capturing to avoid needing to make a weak reference.
-//            let monthViewController = context.zoomedViewController as! MonthViewController
+            guard let monthViewController = context.zoomedViewController as? MonthViewController else { return nil }
+            
             // Fetch this instead of capturing in case the item shown by the destination view can change while the destination view is visible.
-//            let item = monthViewController.item
-//            // Look up the index path in case the items in the collection view can change.
-//            guard let indexPath = self.dataSource.indexPath(for: item) else {
-//                return nil
-//            }
-            // Always fetch the cell again because even if the data never changes, cell reuse might occur. E.g if the device rotates.
+            let visibleDate = monthViewController.visibleDate // Make sure this property is accessible
+            
+            let calendar = Calendar.current
+            
+            // ✅ NORMALIZE the date to get a clean identifier for the year
+            let components = calendar.dateComponents([.year], from: visibleDate)
+            guard let targetYearDate = calendar.date(from: components) else {
+                // This is a robust way to create the section identifier we're looking for
+                return nil
+            }
+            
+            // Now, find the index of that exact, normalized date.
+            guard let sectionIndex = self.dataSource.snapshot().indexOfSection(targetYearDate) else {
+                // This will now correctly find the section
+                return nil
+            }
+            
+            // Get the item index (0-11)
+            let itemIndex = calendar.component(.month, from: visibleDate) - 1
+            
+            let indexPath = IndexPath(item: itemIndex, section: sectionIndex)
+            
+            if !self.collectionView.indexPathsForVisibleItems.contains(indexPath) {
+                
+                self.collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            }
+            
+            // Always fetch the cell again because cell reuse might occur.
             guard let cell = self.collectionView.cellForItem(at: indexPath) else {
                 return nil
             }
+            
             return cell.contentView
         })
         
@@ -297,6 +345,95 @@ extension YearViewController: UICollectionViewDelegate {
         navigationItem.backButtonTitle = "Year"
         navigationController?.pushViewController(monthViewController, animated: true)
     }
+}
+
+extension YearViewController: UICollectionViewDataSourcePrefetching {
+    func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+            // 1. Prevent multiple loads at once
+            guard !isLoadingData else { return }
+            
+            // 2. Find the maximum section index being prefetched
+            if let maxSection = indexPaths.map({ $0.section }).max() {
+                let totalSections = dataSource.snapshot().numberOfSections
+                
+                // 3. If we are within 3 sections of the end, load the next year
+                if maxSection >= totalSections - 3 {
+                    loadNextYear()
+                }
+            }
+            
+            // 4. Find the minimum section index being prefetched
+            if let minSection = indexPaths.map({ $0.section }).min() {
+                // 5. If we are within 3 sections of the beginning, load the previous year
+                if minSection <= 2 {
+                    loadPreviousYear()
+                }
+            }
+        }
+        
+        private func loadNextYear() {
+            isLoadingData = true
+            
+            // Get the last year we have data for
+            guard let lastYear = dates.last else {
+                isLoadingData = false
+                return
+            }
+            
+            // Calculate the next year
+            let nextYears = (1...5).map { Calendar.current.date(byAdding: .year, value: $0, to: lastYear)! }
+            
+            // Add the new year to our local data model
+            dates.append(contentsOf: nextYears)
+            
+            let datesToRemove = (1...5).map { _ in dates.removeFirst() }
+                        
+            // Update the data source snapshot
+            var currentSnapshot = dataSource.snapshot()
+            currentSnapshot.appendSections(nextYears)
+            nextYears.forEach { year in
+                let monthItems = (0..<12).map { monthIndex in
+                    return YearItem(year: year, month: monthIndex)
+                }
+                
+                currentSnapshot.appendItems(monthItems, toSection: year)
+            }
+            
+            
+            currentSnapshot.deleteSections(datesToRemove)
+            
+            // Apply the new snapshot
+            dataSource.apply(currentSnapshot, animatingDifferences: true) { [weak self] in
+                self?.isLoadingData = false
+            }
+        }
+        
+        private func loadPreviousYear() {
+            isLoadingData = true
+            
+            // Get the first year we have data for
+            guard let firstYear = dates.first else {
+                isLoadingData = false
+                return
+            }
+            
+            // Calculate the previous year
+            let previousYear = Calendar.current.date(byAdding: .year, value: -1, to: firstYear)!
+            
+            // Add the new year to the beginning of our local data model
+            dates.insert(previousYear, at: 0)
+            
+            // Update the data source snapshot by inserting the new section
+            var currentSnapshot = dataSource.snapshot()
+            currentSnapshot.insertSections([previousYear], beforeSection: firstYear)
+            let monthItems = (0..<12).map { YearItem(year: previousYear, month: $0) }
+            currentSnapshot.appendItems(monthItems, toSection: previousYear)
+            
+            // Apply the new snapshot
+            dataSource.apply(currentSnapshot, animatingDifferences: false) { [weak self] in
+                self?.isLoadingData = false
+            }
+        }
 }
 
 class MonthCellView: UICollectionViewCell {
@@ -320,18 +457,17 @@ class MonthCellView: UICollectionViewCell {
     func setupConstraints() {
         monthLabel.translatesAutoresizingMaskIntoConstraints = false
         monthLabel.font = UIFont.preferredFont(forTextStyle: .headline)
+        monthLabel.setContentCompressionResistancePriority(.required, for: .vertical)
         
         weekRowsStackView.translatesAutoresizingMaskIntoConstraints = false
         weekRowsStackView.axis = .vertical
         weekRowsStackView.distribution = .fillEqually
-        weekRowsStackView.spacing = 5
         
         for _ in 0..<6 {
             let weekStackView = UIStackView()
             weekStackView.axis = .horizontal
             weekStackView.alignment = .leading
             weekStackView.distribution = .fillEqually
-            weekStackView.spacing = 3
             
             for _ in 1...7 {
                 let label = UILabel()
@@ -353,8 +489,12 @@ class MonthCellView: UICollectionViewCell {
         NSLayoutConstraint.activate([
             monthLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             monthLabel.topAnchor.constraint(equalTo: contentView.topAnchor),
+            monthLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             
             weekRowsStackView.topAnchor.constraint(equalTo: monthLabel.bottomAnchor, constant: 5),
+            weekRowsStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            weekRowsStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            weekRowsStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
         ])
     }
     

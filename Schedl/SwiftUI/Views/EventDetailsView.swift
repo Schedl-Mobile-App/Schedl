@@ -118,8 +118,8 @@ struct EventDetailsView: View {
 
 struct FullEventDetailsView: View {
     
+    @Environment(\.tabBar) var tabBar
     @Environment(\.dismiss) var dismiss
-    
     @StateObject private var vm: EventViewModel
         
     init(event: EventOccurrence, currentUser: User) {
@@ -131,8 +131,10 @@ struct FullEventDetailsView: View {
             .task {
                 await vm.fetchEventData()
             }
-            .toolbar(.hidden, for: .tabBar)
-//            .toolbar(.hidden, for: .bottomBar)
+            .toolbar(tabBar.isTabBarHidden ? .hidden : .visible, for: .tabBar)
+            .onAppear {
+                tabBar.isTabBarHidden = true
+            }
     }
 }
 
@@ -370,8 +372,13 @@ struct EventDetails_TimeView: View {
     
     func returnTimeFormatted(_ time: Int) -> String {
         let startOfDay = Calendar.current.startOfDay(for: Date())
-        let date = startOfDay.addingTimeInterval(TimeInterval(time))
-        return date.formatted(date: .omitted, time: .shortened)
+        let date = Calendar.current.date(byAdding: .hour, value: time, to: startOfDay)
+        
+        if let date {
+            return date.formatted(date: .omitted, time: .shortened)
+        }
+        
+        return "3:13AM"
     }
     
     var body: some View {

@@ -35,10 +35,11 @@ struct MonthCalendarPreviewViewRepresentable: UIViewControllerRepresentable {
     }
 }
 
-//enum CalendarTypeOptions: CaseIterable {
-//    case month
-//    case week
-//}
+struct MonthItem: Hashable {
+    let isPlaceholderItem: Bool
+    var date: Date?
+    var day: Int?
+}
 
 class MonthViewController: UIViewController, VCCoordinatorProtocol {
     
@@ -51,8 +52,11 @@ class MonthViewController: UIViewController, VCCoordinatorProtocol {
         let searchController = UISearchController(searchResultsController: nil)
         searchController.obscuresBackgroundDuringPresentation = true
         searchController.searchBar.placeholder = "Search Events"
+        searchController.hidesNavigationBarDuringPresentation = false
         return searchController
     }()
+    
+    private var dataSource: UICollectionViewDiffableDataSource<Date, MonthItem>!
     
     private var hasScrolledToInitialPosition = false
     
@@ -60,6 +64,12 @@ class MonthViewController: UIViewController, VCCoordinatorProtocol {
     private var centerDatePosition: CGFloat = 0
     
     var centerMonth: Date
+    
+    lazy var visibleDate: Date = centerMonth {
+        didSet {
+            
+        }
+    }
     
     lazy var dates: [Date] = {
         let numberOfMonths = 12
@@ -80,15 +90,15 @@ class MonthViewController: UIViewController, VCCoordinatorProtocol {
     
     var displayMonthSection: Int = 0 {
         didSet {
-            let month = dates[displayMonthSection]
-            let monthComponent = Calendar.current.component(.month, from: month)
-            displayedMonth = monthComponent
+//            let month = dates[displayMonthSection]
+//            let monthComponent = Calendar.current.component(.month, from: month)
+//            displayedMonth = monthComponent
         }
     }
     
     init(centerMonth: Date) {
-        let monthComponent = Calendar.current.dateComponents([.month], from: centerMonth)
-        self.centerMonth = Calendar.current.date(from: monthComponent)!
+        let dateComponents = Calendar.current.dateComponents([.year, .month], from: centerMonth)
+        self.centerMonth = Calendar.current.date(from: dateComponents) ?? Date()
         
         super.init(nibName: nil, bundle: nil)
     }
@@ -103,10 +113,11 @@ class MonthViewController: UIViewController, VCCoordinatorProtocol {
         view.backgroundColor = .systemBackground
                 
         setupUI()
+        configureDataSource()
+        applySnapshot()
         setupPublishers()
         
         collectionView.delegate = self
-        collectionView.dataSource = self
         
         collectionView.register(DayCellView.self, forCellWithReuseIdentifier: DayCellView.identifier)
         collectionView.register(MonthHeaderView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: MonthHeaderView.identifier)
@@ -140,9 +151,117 @@ class MonthViewController: UIViewController, VCCoordinatorProtocol {
     
     private func scrollToCurrentMonth(_ animated: Bool) {
         // the section index for the current year is in the middle
-        let monthSection = dates.count / 2 - 1
+        let monthSection = dates.count / 2
         
-        collectionView.scrollToItem(at: IndexPath(row: 0, section: monthSection), at: .top, animated: animated)
+        collectionView.scrollToItem(at: IndexPath(row: 0, section: monthSection), at: .centeredVertically, animated: animated)
+    }
+    
+    // Add this helper function to your view controller
+    private func generateDaysForMonth(containing date: Date) -> [MonthItem] {
+        
+        let daysInMonth = date.datesInSameMonth()
+        guard let firstDayOfMonth = daysInMonth.first, let lastDayOfMonth = daysInMonth.last else {
+            return []
+        }
+        
+        var monthDayItems: [MonthItem] = []
+        
+        // 2. Calculate the number of days and the starting offset
+//        let startingOffset = Calendar.current.component(.weekday, from: firstDayOfMonth) - 1
+//        let endOffset = 7 - Calendar.current.component(.weekday, from: lastDayOfMonth)
+        
+//        for _ in (0..<startingOffset) {
+//            monthDayItems.append(MonthItem(isPlaceholderItem: true))
+//        }
+        
+        for date in daysInMonth {
+            let dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: date)
+            guard let day = dateComponents.day else {
+                continue
+            }
+            
+            monthDayItems.append(MonthItem(isPlaceholderItem: false, date: date, day: day))
+        }
+        
+//        for _ in (0..<endOffset) {
+//            monthDayItems.append(MonthItem(isPlaceholderItem: true))
+//        }
+        
+        return monthDayItems
+    }
+    
+    private func configureDataSource() {
+        // 1. CELL PROVIDER
+        dataSource = UICollectionViewDiffableDataSource<Date, MonthItem>(collectionView: collectionView) {
+            (collectionView, indexPath, dayItem) -> UICollectionViewCell? in
+            
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: DayCellView.identifier, for: indexPath) as! DayCellView
+            
+            if dayItem.isPlaceholderItem {
+                cell.isHidden = true
+            } else {
+                cell.isHidden = false
+                if let date = dayItem.date {
+                    cell.configure(date: date)
+                }
+            }
+
+            return cell
+        }
+
+        // 2. SUPPLEMENTARY VIEW PROVIDER (for the header)
+        dataSource.supplementaryViewProvider = { [weak self]
+            (collectionView, kind, indexPath) -> UICollectionReusableView? in
+                        
+            switch kind {
+            case "GlobalMonthHeaderView":
+                let supplementaryItem = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: GlobalMonthHeaderView.reuseIdentifier, for: indexPath) as! GlobalMonthHeaderView
+                
+                guard let date = self?.dataSource.snapshot().sectionIdentifiers[indexPath.section] else { return supplementaryItem }
+                
+                let monthValue = Calendar.current.component(.month, from: date)
+                
+                supplementaryItem.configure(with: monthValue)
+                
+                return supplementaryItem
+            case UICollectionView.elementKindSectionHeader:
+                    let supplementaryItem = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: MonthHeaderView.identifier, for: indexPath) as! MonthHeaderView
+                    
+                guard let date = self?.dataSource.snapshot().sectionIdentifiers[indexPath.section] else { return supplementaryItem }
+                    let monthDates = date.datesInSameMonth()
+                    
+                    // ✅ THE FIX: Safely unwrap the first day of the month
+                    guard let firstDayOfMonth = monthDates.first else {
+                        // If there are no days, just return the header without configuring it further.
+                        // This prevents the crash.
+                        return supplementaryItem
+                    }
+                    
+                    let monthValue = Calendar.current.component(.month, from: date)
+                    supplementaryItem.configure(with: monthValue, for: firstDayOfMonth)
+                    
+                    return supplementaryItem
+            default:
+                return nil
+            }
+        }
+    }
+    
+    private func applySnapshot() {
+        // 1. Create a new snapshot. The types must match your data source.
+        var snapshot = NSDiffableDataSourceSnapshot<Date, MonthItem>()
+        
+        // 2. Add the sections using your `dates` array.
+        snapshot.appendSections(dates)
+        
+        // 3. Add items (months) to each section.
+        for monthDate in dates {
+            let dayItems = generateDaysForMonth(containing: monthDate)
+            snapshot.appendItems(dayItems, toSection: monthDate)
+        }
+        
+        // 4. Apply the snapshot to the data source to update the UI.
+        dataSource.apply(snapshot, animatingDifferences: false)
     }
     
     private func setupPublishers() {
@@ -150,7 +269,7 @@ class MonthViewController: UIViewController, VCCoordinatorProtocol {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newValue in
                 if newValue {
-                    self?.scrollToCurrentMonth(true)
+//                    self?.scrollToCurrentMonth(true)
                     self?.coordinator?.vm.scrollToCurrentPosition = false
                 }
             }
@@ -190,7 +309,6 @@ class MonthViewController: UIViewController, VCCoordinatorProtocol {
             alignment: .top
         )
         boundaryHeader.pinToVisibleBounds = true
-        boundaryHeader.zIndex = 1024
         
         // 2. Create a configuration for the entire layout
         let configuration = UICollectionViewCompositionalLayoutConfiguration()
@@ -239,105 +357,20 @@ class MonthViewController: UIViewController, VCCoordinatorProtocol {
     }
 }
 
-extension MonthViewController: UICollectionViewDataSource {
-    
-    func numberOfSections(in collectionView: UICollectionView) -> Int {
-        return dates.count
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        let month = dates[section]
-        let monthDates = month.datesInSameMonth()
-        
-        var count = monthDates.count
-        
-        let firstDay = monthDates.first!
-        let firstDayComponent = Calendar.current.component(.weekday, from: firstDay)
-        if firstDayComponent > 1 {
-            count += firstDayComponent - 1
-        }
-        
-        let lastDay = monthDates.last!
-        let lastDayComponent = Calendar.current.component(.weekday, from: lastDay)
-        if (lastDayComponent < 7) {
-            count += 7 - lastDayComponent
-        }
-        
-        return count
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: DayCellView.identifier, for: indexPath) as! DayCellView
-        
-            let monthDate = dates[indexPath.section]
-            let monthDates = monthDate.datesInSameMonth()
-            guard let firstDayOfMonth = monthDates.first else {
-                // This month has no days, hide the cell
-                cell.isHidden = true
-                return cell
-            }
-            
-            // 2. Calculate the number of days and the starting offset
-            let numberOfDaysInMonth = monthDates.count
-            let startingOffset = Calendar.current.component(.weekday, from: firstDayOfMonth) - 1
-            
-            // 3. Check if the current item is a placeholder or a real day
-            if indexPath.item >= startingOffset && indexPath.item < (startingOffset + numberOfDaysInMonth) {
-                // This is a REAL day
-                cell.isHidden = false
-                
-                // Calculate which day of the month this is
-                let dayIndex = indexPath.item - startingOffset
-                
-                // Get the specific date for this cell
-                let dateForCell = monthDates[dayIndex]
-                
-                cell.configure(date: dateForCell)
-                
-            } else {
-                // This is a PLACEHOLDER cell (from the previous or next month)
-                cell.isHidden = true
-            }
-        
-        return cell
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
-        
-        switch kind {
-        case "GlobalMonthHeaderView":
-            let supplementaryItem = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: GlobalMonthHeaderView.reuseIdentifier, for: indexPath) as! GlobalMonthHeaderView
-            
-            let section = indexPath.section
-            
-            let month = dates[section]
-            let monthValue = Calendar.current.component(.month, from: month)
-            
-            supplementaryItem.configure(with: monthValue)
-            
-            return supplementaryItem
-        case UICollectionView.elementKindSectionHeader:
-            let supplementaryItem = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: MonthHeaderView.identifier, for: indexPath) as! MonthHeaderView
-            
-            let section = indexPath.section
-            
-            let month = dates[section]
-            let monthDates = month.datesInSameMonth()
-            let firstDayOfMonth = monthDates.first!
-            let monthValue = Calendar.current.component(.month, from: month)
-            
-            supplementaryItem.configure(with: monthValue, for: firstDayOfMonth)
-            
-            return supplementaryItem
-        default:
-            fatalError("Unhandled supplementary view kind: \(kind)")
-        }
-    }
-}
-
 extension MonthViewController: UICollectionViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         guard scrollView == collectionView else { return }
+        
+        let visibleCells = collectionView.indexPathsForVisibleItems
+        let firstVisibleCellPath = visibleCells.first
+        
+        if let firstVisibleCellPath {
+            let date = self.dates[firstVisibleCellPath.section]
+            
+            if self.visibleDate != date {
+                self.visibleDate = date
+            }
+        }
         
         let centerPoint = CGPoint(
             x: collectionView.frame.width / 2,
@@ -364,35 +397,63 @@ extension MonthViewController: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         collectionView.deselectItem(at: indexPath, animated: true)
         
-        let month = dates[indexPath.section]
-        let monthDates = month.datesInSameMonth()
+        guard let item = dataSource.itemIdentifier(for: indexPath) else { return }
+        guard let date = item.date else { return }
+//        let monthDates = month.datesInSameMonth()
+//        
+//        var offset = 0
+//        let firstDay = monthDates.first!
+//        let firstDayComponent = Calendar.current.component(.weekday, from: firstDay)
+//        if firstDayComponent > 1 {
+//            offset += firstDayComponent - 1
+//        }
+//        
+//        let day = monthDates[indexPath.row - offset]
         
-        var offset = 0
-        let firstDay = monthDates.first!
-        let firstDayComponent = Calendar.current.component(.weekday, from: firstDay)
-        if firstDayComponent > 1 {
-            offset += firstDayComponent - 1
-        }
-        
-        let day = monthDates[indexPath.row - offset]
-        
-        let weekViewController = WeekViewController(centerDay: day)
+        let weekViewController = WeekViewController(centerDay: date)
         weekViewController.coordinator = self.coordinator
         weekViewController.restorationIdentifier = "WeekViewController"
 
         weekViewController.preferredTransition = .zoom(sourceViewProvider: { context in
             // Use the context instead of capturing to avoid needing to make a weak reference.
-//            let monthViewController = context.zoomedViewController as! MonthViewController
+            let weekViewController = context.zoomedViewController as! WeekViewController
             // Fetch this instead of capturing in case the item shown by the destination view can change while the destination view is visible.
-//            let item = monthViewController.item
+            let visibleDate = weekViewController.visibleDate
 //            // Look up the index path in case the items in the collection view can change.
-//            guard let indexPath = self.dataSource.indexPath(for: item) else {
-//                return nil
-//            }
-            // Always fetch the cell again because even if the data never changes, cell reuse might occur. E.g if the device rotates.
+            
+            let calendar = Calendar.current
+            
+            let dateComponents = calendar.dateComponents([.year, .month, .day], from: visibleDate)
+            
+            guard let year = dateComponents.year, let month = dateComponents.month, let day = dateComponents.day else {
+                return nil
+            }
+            guard let targetMonthDate = calendar.date(from: DateComponents(year: year, month: month)) else {
+                // This is a robust way to create the section identifier we're looking for
+                return nil
+            }
+            
+            // Now, find the index of that exact, normalized date.
+            guard let sectionIndex = self.dataSource.snapshot().indexOfSection(targetMonthDate) else {
+                // This will now correctly find the section
+                return nil
+            }
+            
+            // Get the item index (0-11)
+            let itemIndex = day - 1
+            
+            let indexPath = IndexPath(item: itemIndex, section: sectionIndex)
+            
+            if !self.collectionView.indexPathsForVisibleItems.contains(indexPath) {
+                
+                self.collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            }
+            
+            // Always fetch the cell again because cell reuse might occur.
             guard let cell = self.collectionView.cellForItem(at: indexPath) else {
                 return nil
             }
+            
             return cell.contentView
         })
 

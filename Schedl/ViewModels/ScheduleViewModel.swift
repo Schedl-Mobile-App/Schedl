@@ -40,7 +40,7 @@ class ScheduleViewModel: ObservableObject, Identifiable, Equatable, Hashable {
     @Published var isLoading: Bool = false      // Indicates loading state
     @Published var errorMessage: String?        // Holds error messages if any
     @Published var activeSidebar = false
-    @Published var partionedEvents: [Double : [Event]]?
+    @Published var events: [Date : [EventOccurrence]] = [:]
     @Published var shouldReloadData = true
     
     @Published var showSearchView = false
@@ -64,7 +64,7 @@ class ScheduleViewModel: ObservableObject, Identifiable, Equatable, Hashable {
     private var eventService: EventServiceProtocol
     private var userService: UserServiceProtocol
     private var notificationService: NotificationServiceProtocol
-    
+        
     init(currentUser: User, scheduleService: ScheduleServiceProtocol = ScheduleService.shared, eventService: EventServiceProtocol = EventService.shared, userService: UserServiceProtocol = UserService.shared, notificationService: NotificationServiceProtocol = NotificationService.shared) {
         self.scheduleService = scheduleService
         self.currentUser = currentUser
@@ -118,28 +118,27 @@ class ScheduleViewModel: ObservableObject, Identifiable, Equatable, Hashable {
                 self.selectedSchedule = self.userSchedules.first!
                 let scheduleId = self.selectedSchedule!.id
                 
-                let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
-
-                var formattedEvents: [EventOccurrence] = []
-                if allEvents.isEmpty {
-                    self.scheduleEvents = []
-                } else {
-                    for event in allEvents {
-                        formattedEvents.append(contentsOf: parseRecurringEvents(for: event))
-                    }
-                    
-                    self.scheduleEvents = formattedEvents
-                    
-                    let sorter: (EventOccurrence, EventOccurrence) -> Bool = { o1, o2 in
-                        let dayComparison = Calendar.current.compare(o1.recurringDate, to: o2.recurringDate, toGranularity: .day)
-                        if dayComparison != .orderedSame {
-                            return dayComparison == .orderedAscending
-                        }
-                        return o1.event.startTime < o2.event.startTime
-                    }
-                    
-                    self.scheduleEvents.sort(by: sorter)
+                let rawEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
+                
+                var allOccurrences: [EventOccurrence] = []
+                for event in rawEvents {
+                    allOccurrences.append(contentsOf: parseRecurringEvents(for: event))
                 }
+                
+                let sorter: (EventOccurrence, EventOccurrence) -> Bool = { o1, o2 in
+                    let dayComparison = Calendar.current.compare(o1.recurringDate, to: o2.recurringDate, toGranularity: .day)
+                    if dayComparison != .orderedSame {
+                        return dayComparison == .orderedAscending
+                    }
+                    return o1.event.startTime < o2.event.startTime
+                }
+                
+                allOccurrences.sort(by: sorter)
+                
+                let rawGroups = Dictionary(grouping: allOccurrences) { event in
+                    return Calendar.current.startOfDay(for: event.recurringDate)
+                }
+                self.events = rawGroups
             }
             
             userBlends = try await scheduleService.fetchAllBlendSchedules(userId: currentUser.id)
@@ -295,14 +294,12 @@ class ScheduleViewModel: ObservableObject, Identifiable, Equatable, Hashable {
                 return
             }
             
-            let allEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
-
-            var formattedEvents: [EventOccurrence] = []
-            for event in allEvents {
-                formattedEvents.append(contentsOf: parseRecurringEvents(for: event))
-            }
+            let rawEvents = try await eventService.fetchEventsByScheduleId(scheduleId: scheduleId)
             
-            self.scheduleEvents = formattedEvents
+            var allOccurrences: [EventOccurrence] = []
+            for event in rawEvents {
+                allOccurrences.append(contentsOf: parseRecurringEvents(for: event))
+            }
             
             let sorter: (EventOccurrence, EventOccurrence) -> Bool = { o1, o2 in
                 let dayComparison = Calendar.current.compare(o1.recurringDate, to: o2.recurringDate, toGranularity: .day)
@@ -312,7 +309,12 @@ class ScheduleViewModel: ObservableObject, Identifiable, Equatable, Hashable {
                 return o1.event.startTime < o2.event.startTime
             }
             
-            self.scheduleEvents.sort(by: sorter)
+            allOccurrences.sort(by: sorter)
+            
+            let rawGroups = Dictionary(grouping: allOccurrences) { event in
+                return Calendar.current.startOfDay(for: event.recurringDate)
+            }
+            self.events = rawGroups
             
             self.isLoading = false
             
