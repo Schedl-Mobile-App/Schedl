@@ -10,6 +10,7 @@
 		046B834B2C867DE600F97BB4 /* SchedlApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046B834A2C867DE600F97BB4 /* SchedlApp.swift */; };
 		046B834F2C867DE700F97BB4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 046B834E2C867DE700F97BB4 /* Assets.xcassets */; };
 		046B83532C867DE700F97BB4 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 046B83522C867DE700F97BB4 /* Preview Assets.xcassets */; };
+		CB0135892EA4A02B006CF806 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CB0135882EA4A02B006CF806 /* GoogleService-Info.plist */; };
 		CB2E0CF72D10B16F0069B028 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0CF62D10B16F0069B028 /* FirebaseAnalytics */; };
 		CB2E0CF92D10B16F0069B028 /* FirebaseAnalyticsOnDeviceConversion in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0CF82D10B16F0069B028 /* FirebaseAnalyticsOnDeviceConversion */; };
 		CB2E0CFB2D10B16F0069B028 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = CB2E0CFA2D10B16F0069B028 /* FirebaseAnalyticsWithoutAdIdSupport */; };
@@ -76,6 +77,7 @@
 		046B834E2C867DE700F97BB4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		046B83502C867DE700F97BB4 /* Schedl.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Schedl.entitlements; sourceTree = "<group>"; };
 		046B83522C867DE700F97BB4 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		CB0135882EA4A02B006CF806 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		CB3C314C2DD9CE6700124F03 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = ../LaunchScreen.storyboard; sourceTree = "<group>"; };
 		CB3FC7D02DE246BC004FD066 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CB79C6472E0E5C4600CB5A80 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -158,6 +160,7 @@
 				046B83492C867DE600F97BB4 /* Schedl */,
 				CBC9A7472CA1CACC0000A18C /* Frameworks */,
 				046B83482C867DE600F97BB4 /* Products */,
+				CB0135882EA4A02B006CF806 /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -293,6 +296,7 @@
 			files = (
 				046B83532C867DE700F97BB4 /* Preview Assets.xcassets in Resources */,
 				046B834F2C867DE700F97BB4 /* Assets.xcassets in Resources */,
+				CB0135892EA4A02B006CF806 /* GoogleService-Info.plist in Resources */,
 				CBC9A7652CA22CB50000A18C /* .gitignore in Resources */,
 				CB3C314D2DD9CE6700124F03 /* LaunchScreen.storyboard in Resources */,
 			);

@@ -19,6 +19,14 @@ build/
 Build/
 DerivedData/
 
+## Obj-C/Swift specific
+*.hmap
+
+## App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
 # Test results and code coverage
 *.xctestrun
 *.xcresult
@@ -33,16 +41,13 @@ playground.xcworkspace
 # Ignore the build directory and checked-out sources
 .build/
 Packages/
+xcuserdata
+*.xcodeproj
 
 # IMPORTANT: Do NOT ignore Package.resolved. This file locks your dependency
 # versions and ensures everyone on your team uses the same ones.
 # Package.resolved
 
-# =========================
-# Dependencies
-# =========================
-# CocoaPods (if you ever use it)
-Pods/
 
 # Carthage (if you ever use it)
 Carthage/
