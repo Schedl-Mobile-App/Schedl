@@ -50,7 +50,6 @@
 		CB79C64A2E0E5C6000CB5A80 /* SchedlAppCheckProviderFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB79C6492E0E5C5700CB5A80 /* SchedlAppCheckProviderFactory.swift */; };
 		CB842D572E700A4100F59D43 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = CB842D562E700A4100F59D43 /* Kingfisher */; };
 		CBB1F87B2DC3BE730002E3F1 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = CBB1F87A2DC3BE730002E3F1 /* FirebaseStorage */; };
-		CBC9A7612CA21D3D0000A18C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */; };
 		CBC9A7652CA22CB50000A18C /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = CBC9A7642CA22CB50000A18C /* .gitignore */; };
 		CBE378092E6757D800EE8747 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = CBE378082E6757D800EE8747 /* FirebaseFirestore */; };
 		CBE3780B2E67705400EE8747 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = CBE3780A2E67705400EE8747 /* FirebaseFunctions */; };
@@ -82,7 +81,6 @@
 		CB79C6472E0E5C4600CB5A80 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		CB79C6492E0E5C5700CB5A80 /* SchedlAppCheckProviderFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedlAppCheckProviderFactory.swift; sourceTree = "<group>"; };
 		CB8D57502C9D465F0051A415 /* Schedl.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Schedl.xctestplan; sourceTree = SOURCE_ROOT; };
-		CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		CBC9A7642CA22CB50000A18C /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -160,7 +158,6 @@
 				046B83492C867DE600F97BB4 /* Schedl */,
 				CBC9A7472CA1CACC0000A18C /* Frameworks */,
 				046B83482C867DE600F97BB4 /* Products */,
-				CBC9A7602CA21D3D0000A18C /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -298,7 +295,6 @@
 				046B834F2C867DE700F97BB4 /* Assets.xcassets in Resources */,
 				CBC9A7652CA22CB50000A18C /* .gitignore in Resources */,
 				CB3C314D2DD9CE6700124F03 /* LaunchScreen.storyboard in Resources */,
-				CBC9A7612CA21D3D0000A18C /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
